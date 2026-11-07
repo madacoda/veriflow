@@ -240,6 +240,10 @@ test("global catalog and project template drafts retain distinct contracts", asy
   const { http, project, store } = await setup(t);
   const catalog = await (await http.templateCatalogGET()).json();
   assert.equal(catalog.templates.length, 15);
+  assert.deepEqual(catalog.generationTemplateIds, [
+    "functional-exact-total",
+    "requirements-acceptance",
+  ]);
   assert.equal(
     new Set(
       catalog.templates.map((item: { category: string }) => item.category),

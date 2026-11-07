@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 import {
   demoAttachment,
   demoFailedRun,
@@ -10,6 +11,110 @@ import {
 import type { RunRecord } from "@veriflow/core";
 
 const projectPath = `**/api/projects/${demoProject.id}`;
+
+test("real generation routes advertise supported choices and preserve edits when the provider is unavailable", async ({
+  page,
+  request,
+  baseURL,
+}, testInfo) => {
+  test.skip(
+    process.env.VERIFLOW_U1_TEST_HTTP !== "1",
+    "Requires isolated real platform storage",
+  );
+  const created = await request.post("/api/projects", {
+    data: {
+      title: "Generation integration check",
+      url: `${baseURL}/demo`,
+    },
+  });
+  expect(created.status()).toBe(201);
+  const { project } = await created.json();
+  const path = `/api/projects/${project.id}`;
+  const uploaded = await request.post(`${path}/attachments`, {
+    multipart: {
+      file: {
+        name: "requirements.md",
+        mimeType: "text/markdown",
+        buffer: Buffer.from(
+          "REQ-1: checkout shows a discounted total of 90000.",
+        ),
+      },
+    },
+  });
+  expect(uploaded.status()).toBe(201);
+  const { attachment } = await uploaded.json();
+  const catalog = await (await request.get("/api/templates")).json();
+  expect(catalog.templates).toHaveLength(15);
+  expect(catalog.generationTemplateIds).toEqual([
+    "functional-exact-total",
+    "requirements-acceptance",
+  ]);
+  await page.goto(baseURL!);
+  await page.getByLabel("Selected project").selectOption(project.id);
+  const editor = page.getByRole("region", { name: "Workflow draft" });
+  await editor.getByRole("button", { name: "Load coupon fixture" }).click();
+  await editor.getByLabel("Workflow name").fill("Keep unsaved work");
+  await editor.getByText("Preview draft generation", { exact: true }).click();
+  const panel = editor.getByRole("region", { name: "Workflow generation" });
+  await expect(panel.getByLabel("Template").locator("option")).toHaveCount(3);
+  expect(
+    await panel
+      .getByLabel("Template")
+      .locator("option")
+      .evaluateAll((options) =>
+        options.map((option) => (option as HTMLOptionElement).value),
+      ),
+  ).toEqual(["", ...catalog.generationTemplateIds]);
+  await panel.getByLabel("Template").selectOption("requirements-acceptance");
+  await panel
+    .getByLabel("Objective")
+    .fill("Check the supplied checkout requirement");
+  await panel.getByRole("checkbox", { name: /requirements.md/ }).check();
+  const [response] = await Promise.all([
+    page.waitForResponse((response) =>
+      response.url().endsWith(`${path}/workflows/generate`),
+    ),
+    panel.getByRole("button", { name: "Generate draft", exact: true }).click(),
+  ]);
+  expect(response.status()).toBe(503);
+  expect(response.request().postDataJSON()).toEqual({
+    objective: "Check the supplied checkout requirement",
+    templateIds: ["requirements-acceptance"],
+    attachmentIds: [attachment.id],
+  });
+  await expect(panel.getByRole("alert")).toContainText(
+    "Generation is currently unavailable",
+  );
+  await expect(editor.getByLabel("Workflow name")).toHaveValue(
+    "Keep unsaved work",
+  );
+  await expect(panel.getByLabel("Objective")).toHaveValue(
+    "Check the supplied checkout requirement",
+  );
+  await expect(
+    panel.getByRole("checkbox", { name: /requirements.md/ }),
+  ).toBeChecked();
+  expect(
+    (await (await request.get(`${path}/workflows`)).json()).workflows,
+  ).toEqual([]);
+  expect((await (await request.get(`${path}/runs`)).json()).runs).toEqual([]);
+  const accessibility = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+    .analyze();
+  expect(accessibility.violations).toEqual([]);
+  for (const width of [1440, 768, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  }
+  await page.screenshot({
+    path: testInfo.outputPath("generation-api-unavailable.png"),
+    fullPage: true,
+  });
+});
 
 test("previews generation inputs without changing or saving the current draft", async ({
   page,
@@ -137,7 +242,12 @@ test("loads the API catalog and reviews a generated draft after recoverable erro
             },
           },
         })
-      : route.fulfill({ json: { templates: [demoTemplate] } });
+      : route.fulfill({
+          json: {
+            templates: [demoTemplate],
+            generationTemplateIds: [demoTemplate.id],
+          },
+        });
   });
   await page.route(`${projectPath}/workflows/generate`, (route) => {
     generationInputs.push(route.request().postDataJSON());
@@ -161,8 +271,11 @@ test("loads the API catalog and reviews a generated draft after recoverable erro
             generationInputs.length === 2
               ? { ...generated, steps: [] }
               : generated,
-          sourceAttachmentIds: [demoAttachment.id],
-          warnings: ["One attachment could not be used."],
+          sourceAttachmentIds:
+            generationInputs.length === 3
+              ? ["unrequested-source"]
+              : [demoAttachment.id, pendingAttachment.id],
+          warnings: ["Review this draft before saving or running it"],
         },
       },
     });
@@ -207,22 +320,27 @@ test("loads the API catalog and reviews a generated draft after recoverable erro
     panel.getByRole("button", { name: /replace editor/i }),
   ).toHaveCount(0);
   await generate.click();
+  await expect(panel.getByRole("alert")).toContainText(
+    "invalid workflow draft",
+  );
+  await expect(name).toHaveValue("Keep my current edits");
+  await generate.click();
   await expect(
     panel.getByRole("heading", { name: generated.name }),
   ).toBeVisible();
   await expect(panel.getByText(/Provider: model/)).toBeVisible();
   await expect(
     panel.getByRole("list", { name: "Draft warnings" }),
-  ).toContainText("One attachment could not be used.");
+  ).toContainText("Review this draft before saving or running it");
   await expect(
     panel.getByRole("listitem").filter({ hasText: demoAttachment.filename }),
   ).toBeVisible();
   await expect(
     panel.getByRole("listitem").filter({ hasText: "pending.md" }),
-  ).toHaveCount(0);
+  ).toBeVisible();
   await expect(name).toHaveValue("Keep my current edits");
   expect(generationInputs).toEqual(
-    Array.from({ length: 3 }, () => ({
+    Array.from({ length: 4 }, () => ({
       objective,
       attachmentIds: [demoAttachment.id, pendingAttachment.id],
       templateIds: [demoTemplate.id],

@@ -4,7 +4,7 @@ Dev 1 owns this board and the serial merge queue. The user explicitly reassigned
 
 The reviewed serial queue #5 → #10 → #9 → #11 → #12 → #8 was followed by #14 (draft/report UI), #13 (HTTPS/runtime limits) and #15 (versioned catalog). Those PRs are merged. Duplicate #7 was closed without merging. Release `1266309` passed [Linux/Windows/container CI, GHCR publication and VPS deployment](https://github.com/madacoda/veriflow/actions/runs/42344768665).
 
-Documentation baseline `0e2d732` includes newer template execution and CSV composition, but its [Linux browser gate failed](https://github.com/madacoda/veriflow/actions/runs/42345424420); publication and deployment were skipped. See [project status](project-status.md) for the exact limitation and remaining work. The records below preserve original task scope and verification counts; they are not new assignments. GitHub issues and PRs hold live status.
+Audit baseline `43c3f3e` includes the newer template execution and CSV composition plus documentation updates, but its [Linux browser gate failed](https://github.com/madacoda/veriflow/actions/runs/42346061721); publication and deployment were skipped. See [project status](project-status.md) for the exact limitation and remaining work. The records below preserve original task scope and verification counts; they are not new assignments. GitHub issues and PRs hold live status. The [deep audit](project-audit.md) records draft PR #18, the unsubmitted generation branch with 11 textual conflicts plus a method-signature collision, all historical branches/worktrees, and the proposed next tasks. These findings remain open until implementation and exact-commit verification; the audit itself does not close them.
 
 The 10:00 WIB gate elapsed before L0 landed. Do not report it as achieved on time. L0 merged at `3c432f1`; consumers now start from current main. The 14:00 cutoff was the original demonstration target. The full MVP remains the scope in developer-handoff.md. These tasks cover the first journey only.
 
@@ -150,3 +150,10 @@ I1 is not verified until a user reviews generated steps, saves a revision, execu
 - Acceptance: project-scoped context to unsaved drafts; bounded input, cancellation and safe errors; preserve both catalog APIs, main's validation rules and existing execution/report behavior.
 - Verification: 186 unit tests passed (one opt-in live OpenAI test skipped), 49 Chromium tests passed, frozen install/lint/format/types/build passed, and the dev-refresh regression passed. See [integration details](generation-http.md).
 - Status: locally integrated and verified; not pushed or deployed. Production provider configuration, UI binding and the AI-session bridge remain pending.
+
+## PR #20 — local alignment review
+
+- Source: PR #20 head `8e35b67`, combined with local generation routes `e476a51` and main `750ad35` on `codex/pr20-alignment`.
+- Acceptance: supported generation choices match server policy; drafts retain trusted source references; native requirement assertions are accepted; preview/open/save remain separate and failures preserve edits.
+- Evidence: 246 unit tests passed, two live-model checks skipped, 51 Chromium tests passed, axe and desktop/tablet/mobile checks passed, full static/build gate passed, and the two-tab dev-refresh check passed after restart. See [review notes](pr20-alignment.md).
+- Status: locally verified; no GitHub review, PR update, remote merge or push performed. Runtime generation-provider configuration remains pending.

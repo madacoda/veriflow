@@ -9,11 +9,39 @@ import {
 import {
   functionalTemplateFixture,
   listTemplates,
+  listGenerationTemplateIds,
+  resolveGenerationTemplates,
   resolveTemplates,
 } from "../server/templates/catalog.ts";
 import { coverageTemplates } from "../server/templates/coverage.ts";
 import { AgentError } from "../server/agent/errors.ts";
 import { templateDefinitionFixtures } from "../server/templates/fixtures.ts";
+
+test("advertised generation support matches the server policy without changing the full catalog", () => {
+  const supported = listGenerationTemplateIds();
+  assert.deepEqual(supported, [
+    "functional-exact-total",
+    "requirements-acceptance",
+  ]);
+  const documents = [
+    { kind: "text" as const, attachmentId: "source", text: "Check checkout" },
+  ];
+  for (const template of listTemplates()) {
+    if (supported.includes(template.id)) {
+      assert.equal(
+        resolveGenerationTemplates([template.id], documents)[0].id,
+        template.id,
+      );
+    } else {
+      assert.throws(
+        () => resolveGenerationTemplates([template.id], documents),
+        AgentError,
+      );
+    }
+  }
+  supported.length = 0;
+  assert.equal(listGenerationTemplateIds().length, 2);
+});
 
 test("catalog begins with shared versioned functional fixture and explicit prerequisites/capabilities", () => {
   const templates = listTemplates();

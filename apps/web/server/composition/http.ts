@@ -18,7 +18,10 @@ import { AttachmentStore } from "../attachments/store.ts";
 import { ReportDownloads } from "../runs/report-downloads.ts";
 import { readRequestBody } from "./request-body.ts";
 import { AgentError } from "../agent/index.ts";
-import { listTemplates } from "../templates/catalog.ts";
+import {
+  listTemplates,
+  listGenerationTemplateIds,
+} from "../templates/catalog.ts";
 import { DraftGeneration } from "../workflows/generate-draft.ts";
 
 const JSON_LIMIT = 1024 * 1024;
@@ -146,7 +149,10 @@ export class PlatformHttp {
     }));
   }
   templateCatalogGET() {
-    return this.respond(async () => ({ templates: listTemplates() }));
+    return this.respond(async () => ({
+      templates: listTemplates(),
+      generationTemplateIds: listGenerationTemplateIds(),
+    }));
   }
   generatePOST(request: Request, projectId: string) {
     return this.respond(async () => ({

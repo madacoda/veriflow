@@ -98,14 +98,24 @@ export const api = {
       signal,
     }),
   generationTemplates: async (signal: AbortSignal) => {
-    const { templates } = await request<{ templates: unknown }>(
-      "/api/templates",
-      { signal },
-    );
+    const { templates, generationTemplateIds } = await request<{
+      templates: unknown;
+      generationTemplateIds: unknown;
+    }>("/api/templates", { signal });
     const parsed = templateDefinitionSchema.array().safeParse(templates);
-    if (!parsed.success)
+    const supported = entityIdSchema.array().safeParse(generationTemplateIds);
+    if (
+      !parsed.success ||
+      !supported.success ||
+      new Set(supported.data).size !== supported.data.length ||
+      supported.data.some(
+        (id) => !parsed.data.some((template) => template.id === id),
+      )
+    )
       throw new Error("The server returned an invalid template catalog.");
-    return parsed.data;
+    return parsed.data.filter((template) =>
+      supported.data.includes(template.id),
+    );
   },
   generateDraft: async (
     projectId: string,
@@ -125,6 +135,12 @@ export const api = {
       !Array.isArray(draft.sourceAttachmentIds) ||
       !draft.sourceAttachmentIds.every(
         (id) => entityIdSchema.safeParse(id).success,
+      ) ||
+      new Set(draft.sourceAttachmentIds).size !==
+        draft.sourceAttachmentIds.length ||
+      draft.sourceAttachmentIds.length !== new Set(input.attachmentIds).size ||
+      draft.sourceAttachmentIds.some(
+        (id) => !input.attachmentIds.includes(id),
       ) ||
       !Array.isArray(draft.warnings) ||
       !draft.warnings.every((warning) => typeof warning === "string")

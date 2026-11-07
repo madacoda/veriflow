@@ -18,4 +18,4 @@ Local integration gate: frozen install, lint, formatting, types and production b
 
 ## Remaining work
 
-The branch supplies an injection seam, not runtime provider selection. Production still needs trusted OpenAI configuration; the UI generation preview remains an explicitly labeled fixture. No live model call or complete model-to-browser journey is claimed by this merge. PDF/DOCX extraction, image generation and the bounded AI-session bridge remain separate work.
+The branch supplies an injection seam, not runtime provider selection. Production still needs trusted OpenAI configuration. PR #20 alignment connects the UI to the generation routes and keeps the labeled fixture mode separate. No live model call or complete model-to-browser journey is claimed by this merge. PDF/DOCX extraction, image generation and the bounded AI-session bridge remain separate work.

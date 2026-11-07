@@ -23,6 +23,13 @@ export function listTemplates(): TemplateDefinition[] {
   return structuredClone(definitions);
 }
 
+const generationIds = ["functional-exact-total", "requirements-acceptance"];
+
+/** Advertise the same supported IDs that server-side generation enforces. */
+export function listGenerationTemplateIds(): string[] {
+  return [...generationIds];
+}
+
 export function resolveTemplates(ids: readonly string[]): TemplateDefinition[] {
   const catalog = listTemplates();
   return [...new Set(ids)].map((id) => {
@@ -40,12 +47,7 @@ export function resolveGenerationTemplates(
 ): TemplateDefinition[] {
   const templates = resolveTemplates(ids);
   if (
-    templates.some(
-      (template) =>
-        !["functional-exact-total", "requirements-acceptance"].includes(
-          template.id,
-        ),
-    ) ||
+    templates.some((template) => !generationIds.includes(template.id)) ||
     (templates.some((template) => template.category === "compliance") &&
       !documents.some(
         (document) => document.kind === "text" && document.text.trim(),
