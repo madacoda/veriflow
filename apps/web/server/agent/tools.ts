@@ -77,7 +77,8 @@ function observedResult(value: unknown, stepId: string): StepResult {
   if (
     !object(value) ||
     value.stepId !== stepId ||
-    !["passed", "failed", "blocked"].includes(String(value.status)) ||
+    typeof value.status !== "string" ||
+    !["passed", "failed", "blocked"].includes(value.status) ||
     (value.status !== "passed" &&
       (typeof value.reason !== "string" || !value.reason.trim())) ||
     ["expected", "actual", "reason", "startedAt", "finishedAt"].some(
@@ -86,9 +87,10 @@ function observedResult(value: unknown, stepId: string): StepResult {
         (typeof value[key] !== "string" || value[key].length > 20_000),
     ) ||
     (value.failureKind !== undefined &&
-      !["assertion", "prerequisite", "infrastructure", "cancelled"].includes(
-        String(value.failureKind),
-      )) ||
+      (typeof value.failureKind !== "string" ||
+        !["assertion", "prerequisite", "infrastructure", "cancelled"].includes(
+          value.failureKind,
+        ))) ||
     (value.status === "passed" && value.failureKind !== undefined)
   )
     throw new AgentError("tool_failed");

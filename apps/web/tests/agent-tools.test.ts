@@ -399,6 +399,52 @@ test("invalid adapter results and private failures cannot masquerade as success"
   );
 });
 
+for (const [field, result] of Object.entries({
+  status: { stepId: "open", status: ["passed"], reason: "Invalid enum" },
+  failureKind: {
+    stepId: "open",
+    status: "failed",
+    reason: "Infrastructure failure",
+    failureKind: ["infrastructure"],
+  },
+})) {
+  test(`array-valued ${field} is rejected before it enters observed history`, async () => {
+    const fixture = recordingPort();
+    fixture.port.execute = async () => result as never;
+    await assert.rejects(
+      runAgentLoop(
+        {
+          tools: fixture.port,
+          next: sequence([
+            tool({ tool: "execute", step: demoWorkflow.steps[0] }),
+          ]),
+        },
+        signal(),
+      ),
+      code("tool_failed"),
+    );
+  });
+}
+
+test("a valid infrastructure failure retains its primitive classification for the coordinator", async () => {
+  const fixture = recordingPort();
+  fixture.port.execute = async (command) => ({
+    stepId: command.stepId,
+    status: "failed",
+    failureKind: "infrastructure",
+    reason: "Infrastructure failure",
+  });
+  const result = await runAgentLoop(
+    {
+      tools: fixture.port,
+      next: sequence([tool({ tool: "execute", step: demoWorkflow.steps[0] })]),
+    },
+    signal(),
+  );
+  assert.equal(result.steps[0].status, "failed");
+  assert.equal(result.steps[0].failureKind, "infrastructure");
+});
+
 test("cancel before dispatch, cancel pending provider, and total provider deadline are bounded", async () => {
   const fixture = recordingPort();
   const cancelled = new AbortController();
