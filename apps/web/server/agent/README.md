@@ -2,7 +2,7 @@
 
 Owner: Dev 2. Reviewer: Dev 3. Dev 1 owns composition and merging.
 Original branch base: `3c432f1d9893749426f153c2ef7e503e74fbe4c5` (merged L0).
-Updated against main `84327a7` after P1/P2 landed.
+Updated against main `eb02beb608d7e52422f17561d491800a9be3bbac` after P3 landed.
 
 ## Integration
 
@@ -58,4 +58,4 @@ node --import tsx --test apps/web/tests/agent-*.test.ts apps/web/tests/context-*
 
 Tests use explicitly labeled deterministic provider/tool fixtures, cover successful and malformed generation, safe errors, unsupported inputs, call limits, total/per-step deadlines, cancellation including noncooperative adapters, provenance, immutable history and observed assertion authority. No API credentials or real model are used. Browser smoke tests verify the repository scaffold; they do not prove real model-to-browser integration.
 
-[L0 affected-consumer review](https://github.com/madacoda/veriflow/pull/1#issuecomment-6702047131) requested Dev 1 fixes for credential-bearing workflow URLs and the shared attachment's declared 75 bytes versus its actual 73 bytes. A1 uses the shared `httpUrlSchema` to reject credentials locally and derives fixture byte counts from bytes in extraction tests. Core is unchanged by A1.
+[P3 affected-consumer review](https://github.com/madacoda/veriflow/pull/6#issuecomment-6702319062) verified the resolution of both L0 findings: workflow navigation now shares the credential-free `httpUrlSchema`, and the shared attachment's declared size is derived from its actual 73 source bytes. P3 also removes the inherited platform timeout test's assumption that browser allocation occurs within 10 milliseconds. A1 retains its local URL policy checks and fixture byte-integrity checks. Core is unchanged by A1.
