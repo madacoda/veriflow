@@ -1,5 +1,11 @@
 name: CI
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read
 jobs:
@@ -32,7 +38,6 @@ jobs:
           bash scripts/tests/transport.test.sh
 
   container:
-    needs: [check, windows-unit]
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -66,8 +71,6 @@ jobs:
         env:
           IMAGE_TAG: ${{ steps.image.outputs.tag }}
         run: bash scripts/container-smoke.sh "$IMAGE_TAG"
-      - name: Verify Nginx access gate with isolated credentials
-        run: bash scripts/tests/nginx.test.sh
       - name: Verify Compose accepts the retained local image ID
         env:
           IMAGE_TAG: ${{ steps.image.outputs.tag }}
@@ -95,8 +98,16 @@ jobs:
           image=$(docker image inspect --format '{{index .RepoDigests 0}}' "$IMAGE_TAG")
           echo "image=$image" >> "$GITHUB_OUTPUT"
 
+  proxy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Nginx proxy and absence of Basic Auth prompts
+        run: bash scripts/tests/nginx.test.sh
+
   deploy:
-    needs: container
+    needs: [check, windows-unit, container, proxy]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.VPS_DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
