@@ -195,7 +195,7 @@ test("previews generation inputs without changing or saving the current draft", 
   await expect(
     fixture
       .getByRole("listitem")
-      .filter({ hasText: "pending.md · Extraction pending" }),
+      .filter({ hasText: "pending.md · Text supplied to model" }),
   ).toBeVisible();
   await expect(
     fixture.getByRole("listitem").filter({ hasText: demoAttachment.filename }),
