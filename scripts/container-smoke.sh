@@ -42,4 +42,4 @@ state=$(docker exec -i "$name" node --input-type=module - run < scripts/containe
 docker restart "$name"
 wait_healthy
 docker exec -i "$name" node --input-type=module - verify "$state" < scripts/container-http-smoke.mjs
-echo 'Container smoke passed: UI, health, non-root Chromium, real HTTP fail/pass, owned PNGs and restart persistence.'
+echo 'Container smoke passed: UI, health, non-root Chromium, real HTTP fail/pass, axe findings, owned PNGs and restart persistence.'
