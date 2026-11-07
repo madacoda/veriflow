@@ -171,6 +171,54 @@ test("blocks missing exact targets, bounds observations and closes idempotently"
   }
 });
 
+test("observed exact test IDs round-trip without selecting their trimmed counterpart", async () => {
+  const fixture = await setup();
+  try {
+    const session = await fixture.factory.open(
+      { runId: "exact-observation", allowedOrigins: [target.origin] },
+      noopSignal(),
+    );
+    await session.execute(
+      command("navigate", { url: `${target.origin}/demo?exact-targets=1` }),
+      noopSignal(),
+    );
+    const observation = await session.observe(1000, noopSignal());
+    const padded = observation.targets.find(
+      (entry) => entry.by === "testId" && entry.value === " padded ",
+    );
+    const other = observation.targets.find(
+      (entry) => entry.by === "testId" && entry.value === "padded",
+    );
+    expect(padded).toBeDefined();
+    expect(other).toBeDefined();
+    expect(observation.targets).toContainEqual({
+      by: "label",
+      value: "Padded field",
+    });
+    expect(
+      await session.execute(
+        command("fill", { target: padded, value: "intended" }),
+        noopSignal(),
+      ),
+    ).toMatchObject({ status: "passed" });
+    const page = fixture.browsers[0].contexts()[0].pages()[0];
+    await expect(page.getByTestId(" padded ")).toHaveValue("intended");
+    await expect(page.getByTestId("padded")).toHaveValue("");
+    expect(
+      await session.execute(
+        command("fill", { target: other, value: "other" }),
+        noopSignal(),
+      ),
+    ).toMatchObject({ status: "passed" });
+    await expect(page.getByTestId(" padded ")).toHaveValue("intended");
+    await expect(page.getByTestId("padded")).toHaveValue("other");
+    expect(await session.evidence()).toHaveLength(3);
+    expect(fixture.browsers[0].isConnected()).toBe(false);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test("rejects initial and redirected disallowed origins without reaching destination", async () => {
   const fixture = await setup();
   const destination = await startBrowserTarget();

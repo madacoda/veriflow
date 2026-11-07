@@ -21,6 +21,9 @@ export async function startBrowserTarget() {
       return;
     }
     const total = url.searchParams.get("bug") === "1" ? "100000" : "90000";
+    const exactTargets = url.searchParams.has("exact-targets")
+      ? '<label for="padded-input">  Padded field  </label><input id="padded-input" data-testid=" padded "><input data-testid="padded" aria-label="Other field">'
+      : "";
     response.setHeader("Content-Type", "text/html; charset=utf-8");
     response.end(`<!doctype html>
 <html lang="en"><head><title>Dev 3 coupon fixture</title></head>
@@ -34,6 +37,7 @@ export async function startBrowserTarget() {
 <p>Total <span data-testid="order-total">100000</span></p>
 <label><input type="checkbox" data-testid="terms">Accept terms</label>
 <p data-testid="status" role="status"></p>
+${exactTargets}
 </main><script>
 document.querySelector('[data-testid="apply-coupon"]').addEventListener('click', () => {
   const valid = document.querySelector('#coupon').value === 'SAVE10';

@@ -501,7 +501,7 @@ class PlaywrightSession implements BrowserSession {
           )) {
             if (targets.length >= 50) break;
             const testId = element.getAttribute("data-testid");
-            const value = (testId ?? element.textContent ?? "").trim();
+            const value = testId ?? (element.textContent ?? "").trim();
             if (value && value.length <= 128)
               targets.push({ by: testId === null ? "label" : "testId", value });
           }
