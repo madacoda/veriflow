@@ -1,19 +1,30 @@
 import { resolve } from "node:path";
-import type { SessionFactory } from "@veriflow/core";
+import type { SessionFactory, ReportRenderer } from "@veriflow/core";
 import { PlatformStore } from "../projects/platform-store.ts";
 import { RunCoordinator } from "../runs/coordinator.ts";
 import { createFakeSessionFactory } from "../runs/fake-session.ts";
 import { PlatformHttp, errorResponse } from "./http.ts";
+import { AttachmentStore } from "../attachments/store.ts";
+import { ReportDownloads } from "../runs/report-downloads.ts";
 
 export async function createPlatform(
   storageRoot: string,
   factory?: SessionFactory,
   adapter: "browser" | "fake" = "browser",
+  integrations: { reportRenderer?: ReportRenderer } = {},
 ) {
   const store = new PlatformStore(storageRoot);
   await store.recoverInterruptedRuns();
   const coordinator = new RunCoordinator(store, factory, adapter);
-  return { store, coordinator, http: new PlatformHttp(store, coordinator) };
+  const attachments = new AttachmentStore(store);
+  const reports = new ReportDownloads(store, integrations.reportRenderer);
+  return {
+    store,
+    coordinator,
+    attachments,
+    reports,
+    http: new PlatformHttp(store, coordinator, attachments, reports),
+  };
 }
 const processState = globalThis as typeof globalThis & {
   __veriflowPlatform?: ReturnType<typeof createPlatform>;
