@@ -7,7 +7,7 @@ test("template UI saves, executes, exports and reruns the pinned revision with r
   request,
   baseURL,
 }, testInfo) => {
-  test.setTimeout(60000);
+  test.setTimeout(90000);
   test.skip(
     process.env.VERIFLOW_U1_TEST_HTTP !== "1",
     "Requires isolated real platform storage",
@@ -63,9 +63,25 @@ test("template UI saves, executes, exports and reruns the pinned revision with r
     ]);
     const { run } = await response.json();
     expect(run.viewport).toEqual({ width: 390, height: 844 });
-    await expect(runs.getByRole("status")).toContainText("passed", {
-      timeout: 20000,
-    });
+    async function expectPassedRun(runId: string) {
+      // A running timeline already says "0 steps passed"; await this run's
+      // persisted completion before checking its results or requesting reports.
+      await expect
+        .poll(
+          async () => {
+            const { run: observed } = await (
+              await request.get(`${path}/runs/${runId}`)
+            ).json();
+            return { lifecycle: observed.lifecycle, outcome: observed.outcome };
+          },
+          { timeout: 45000 },
+        )
+        .toEqual({ lifecycle: "completed", outcome: "passed" });
+      await expect(runs.getByRole("status")).toContainText(runId);
+      await expect(runs.getByRole("status")).toContainText("completed");
+      await expect(runs.getByRole("status")).toContainText("passed");
+    }
+    await expectPassedRun(run.id);
     await expect(runs.getByRole("heading", { name: /REQ-001/ })).toBeVisible();
     const report = await request.get(
       `${path}/runs/${run.id}/report?format=csv`,
@@ -84,9 +100,7 @@ test("template UI saves, executes, exports and reruns the pinned revision with r
     expect(rerun.id).not.toBe(run.id);
     expect(rerun.revision).toBe(1);
     expect(rerun.viewport).toEqual(run.viewport);
-    await expect(runs.getByRole("status")).toContainText("passed", {
-      timeout: 20000,
-    });
+    await expectPassedRun(rerun.id);
     for (const viewport of [
       { width: 1440, height: 900 },
       { width: 768, height: 1024 },
