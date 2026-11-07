@@ -30,8 +30,9 @@ On the integrated local candidate:
 - Before axe externalization, the focused built regression/accessibility case reproduced lifecycle `error` where `completed` was expected.
 - After rebuilding with externalization, the complete browser suite passed: **48 passed, zero skipped**, using real HTTP checks, isolated storage, port 3311 and four workers.
 - The new container HTTP smoke's `run` and `verify` modes also passed against an isolated local production build, including real axe findings and PNG reads. This local invocation did not perform a Docker restart; Linux container CI exercises that packaging/restart boundary.
+- Deployment release/transport tests passed through Git Bash using their explicit fake Docker/SSH adapters; these checks do not contact the VPS.
 
-Docker, Bash and ShellCheck are unavailable in this Windows checkout. Their authoritative checks run in the Linux PR/main pipeline. Require those checks on the final PR head before merging, then verify the resulting main run and deployment. Passing local tests alone does not establish that the standalone image contains the external dependency.
+Docker and ShellCheck are unavailable locally; Git Bash was invoked by its installed path. The authoritative Linux/container checks run in the PR/main pipeline. Require those checks on the final PR head before merging, then verify the resulting main run and deployment. Passing local tests alone does not establish that the standalone image contains the external dependency.
 
 ## Reproducing the merge gate
 
