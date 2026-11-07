@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "../ui/button";
+
 import { useState } from "react";
 import styles from "./auth.module.css";
 
@@ -20,9 +22,14 @@ export function LogoutButton() {
   }
   return (
     <div className={styles.logout}>
-      <button type="button" onClick={logout} disabled={pending}>
+      <Button
+        variant="outline"
+        type="button"
+        onClick={logout}
+        disabled={pending}
+      >
         {pending ? "Signing out…" : "Sign out"}
-      </button>
+      </Button>
       {error && <span role="alert">{error}</span>}
     </div>
   );

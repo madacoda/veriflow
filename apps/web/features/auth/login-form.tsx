@@ -1,5 +1,9 @@
 "use client";
 
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+
 import { useState, type FormEvent } from "react";
 import { safeReturnPath } from "./return-path";
 import styles from "./auth.module.css";
@@ -40,8 +44,8 @@ export function LoginForm({ next }: { next: string }) {
   }
   return (
     <form onSubmit={submit} className={styles.form} aria-label="Sign in">
-      <label htmlFor="username">Username</label>
-      <input
+      <Label htmlFor="username">Username</Label>
+      <Input
         id="username"
         name="username"
         autoComplete="username"
@@ -51,8 +55,8 @@ export function LoginForm({ next }: { next: string }) {
         spellCheck={false}
         disabled={pending}
       />
-      <label htmlFor="password">Password</label>
-      <input
+      <Label htmlFor="password">Password</Label>
+      <Input
         id="password"
         name="password"
         type="password"
@@ -66,10 +70,10 @@ export function LoginForm({ next }: { next: string }) {
           {error}
         </p>
       )}
-      <button type="submit" disabled={pending}>
+      <Button type="submit" disabled={pending}>
         {pending ? "Signing in…" : "Sign in to workspace"}
         <span aria-hidden="true">↗</span>
-      </button>
+      </Button>
       <p className={styles.note}>Use your team account to continue.</p>
     </form>
   );

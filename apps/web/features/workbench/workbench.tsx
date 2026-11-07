@@ -1,5 +1,9 @@
 "use client";
 
+import { Button } from "../ui/button";
+import { Textarea } from "../ui/textarea";
+import { NativeSelect } from "../ui/native-select";
+
 import {
   workflowSchema,
   type AttachmentMetadata,
@@ -219,7 +223,7 @@ function WorkflowEditor({
             <fieldset className={styles.form} disabled={pending}>
               <label className={styles.field}>
                 Testing template
-                <select
+                <NativeSelect
                   disabled={templatesLoading || !!templatesError}
                   value={templateId}
                   onChange={(event) => {
@@ -240,7 +244,7 @@ function WorkflowEditor({
                       {t.title}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
               </label>
               {templatesLoading && (
                 <p role="status">Loading testing templates.</p>
@@ -251,7 +255,8 @@ function WorkflowEditor({
                     {templatesError}
                   </p>
                   <div className={styles.actions}>
-                    <button
+                    <Button
+                      variant="outline"
                       type="button"
                       onClick={() => {
                         setTemplatesError("");
@@ -260,7 +265,7 @@ function WorkflowEditor({
                       }}
                     >
                       Retry testing templates
-                    </button>
+                    </Button>
                   </div>
                 </div>
               )}
@@ -273,7 +278,7 @@ function WorkflowEditor({
                   </p>
                   <label className={styles.field}>
                     Template parameters (JSON)
-                    <textarea
+                    <Textarea
                       rows={8}
                       value={parameters}
                       onChange={(event) =>
@@ -282,15 +287,20 @@ function WorkflowEditor({
                     />
                   </label>
                   <div className={styles.actions}>
-                    <button type="button" onClick={loadTemplate}>
+                    <Button
+                      variant="outline"
+                      type="button"
+                      onClick={loadTemplate}
+                    >
                       Create template draft
-                    </button>
+                    </Button>
                   </div>
                 </>
               )}
 
               <div className={styles.actions}>
-                <button
+                <Button
+                  variant="outline"
                   type="button"
                   onClick={() =>
                     openDraft(
@@ -301,11 +311,15 @@ function WorkflowEditor({
                   }
                 >
                   Load coupon fixture
-                </button>
+                </Button>
                 {selected && (
-                  <button type="button" onClick={reviewSelected}>
+                  <Button
+                    variant="outline"
+                    type="button"
+                    onClick={reviewSelected}
+                  >
                     Review selected revision
-                  </button>
+                  </Button>
                 )}
               </div>
               {draft && (
@@ -333,13 +347,17 @@ function WorkflowEditor({
                     />
                   </div>
                   <div className={styles.actions}>
-                    <button type="submit" disabled={conflict}>
+                    <Button type="submit" disabled={conflict}>
                       Save workflow
-                    </button>
+                    </Button>
                     {conflict && (
-                      <button type="button" onClick={reviewLatest}>
+                      <Button
+                        variant="outline"
+                        type="button"
+                        onClick={reviewLatest}
+                      >
                         Review latest saved version
-                      </button>
+                      </Button>
                     )}
                   </div>
                   {latest && (
@@ -353,7 +371,8 @@ function WorkflowEditor({
                         <WorkflowSteps steps={latest.workflow.steps} />
                       </details>
                       <div className={styles.actions}>
-                        <button
+                        <Button
+                          variant="outline"
                           type="button"
                           onClick={() => {
                             setDraft({ ...draft, base: latest.revision });
@@ -366,7 +385,7 @@ function WorkflowEditor({
                           }}
                         >
                           Use latest as save base
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   )}
@@ -583,7 +602,7 @@ function ProjectWorkbench({ project }: { project: ProjectRecord }) {
               >
                 <label className={styles.field}>
                   Run viewport
-                  <select
+                  <NativeSelect
                     value={viewport}
                     onChange={(event) => setViewport(event.currentTarget.value)}
                   >
@@ -591,12 +610,12 @@ function ProjectWorkbench({ project }: { project: ProjectRecord }) {
                     <option value="desktop">Desktop (1440 × 900)</option>
                     <option value="tablet">Tablet (768 × 1024)</option>
                     <option value="mobile">Mobile (390 × 844)</option>
-                  </select>
+                  </NativeSelect>
                 </label>
                 <div className={styles.fields}>
                   <label className={styles.field}>
                     Saved workflow
-                    <select
+                    <NativeSelect
                       value={selection.id}
                       onChange={(event) => {
                         const id = event.currentTarget.value;
@@ -615,7 +634,7 @@ function ProjectWorkbench({ project }: { project: ProjectRecord }) {
                           {item.workflow.name}
                         </option>
                       ))}
-                    </select>
+                    </NativeSelect>
                   </label>
                   <label className={styles.field}>
                     Revision to run
@@ -635,15 +654,16 @@ function ProjectWorkbench({ project }: { project: ProjectRecord }) {
                   </label>
                 </div>
                 <div className={styles.actions}>
-                  <button type="submit" disabled={!selected}>
+                  <Button type="submit" disabled={!selected}>
                     Start run
-                  </button>
+                  </Button>
                   {run && !isActive(run) && (
-                    <button type="button" onClick={rerun}>
+                    <Button variant="outline" type="button" onClick={rerun}>
                       Rerun revision {run.revision}
-                    </button>
+                    </Button>
                   )}
-                  <button
+                  <Button
+                    variant="outline"
                     type="button"
                     onClick={() => {
                       setLoading(true);
@@ -652,11 +672,11 @@ function ProjectWorkbench({ project }: { project: ProjectRecord }) {
                     }}
                   >
                     Refresh saved revisions and runs
-                  </button>
+                  </Button>
                 </div>
                 <label className={styles.field}>
                   Run history
-                  <select
+                  <NativeSelect
                     value={runId}
                     onChange={(event) => {
                       setRunId(event.currentTarget.value);
@@ -671,17 +691,18 @@ function ProjectWorkbench({ project }: { project: ProjectRecord }) {
                         {item.id}
                       </option>
                     ))}
-                  </select>
+                  </NativeSelect>
                 </label>
                 {run && isActive(run) && (
                   <div className={styles.actions}>
-                    <button
+                    <Button
+                      variant="outline"
                       type="button"
                       onClick={cancel}
                       disabled={!!run.cancelRequestedAt}
                     >
                       Cancel run
-                    </button>
+                    </Button>
                   </div>
                 )}
               </fieldset>
@@ -802,7 +823,12 @@ export function Workbench() {
       <header className={styles.banner}>
         <div className={styles.bannerContent}>
           <div>
-            <h1>Veriflow</h1>
+            <h1>
+              <span className={styles.brandMark} aria-hidden="true">
+                V/
+              </span>
+              Veriflow
+            </h1>
             <p>
               From intent to results. Follow every step in your run timeline.
             </p>
@@ -852,7 +878,7 @@ export function Workbench() {
                     </label>
                     <label className={styles.field}>
                       Selected project
-                      <select
+                      <NativeSelect
                         value={projectId}
                         onChange={(event) =>
                           setProjectId(event.currentTarget.value)
@@ -864,12 +890,13 @@ export function Workbench() {
                             {project.title}
                           </option>
                         ))}
-                      </select>
+                      </NativeSelect>
                     </label>
                   </div>
                   <div className={styles.actions}>
-                    <button type="submit">Create project</button>
-                    <button
+                    <Button type="submit">Create project</Button>
+                    <Button
+                      variant="outline"
                       type="button"
                       onClick={() => {
                         setLoading(true);
@@ -878,7 +905,7 @@ export function Workbench() {
                       }}
                     >
                       Refresh projects
-                    </button>
+                    </Button>
                   </div>
                 </fieldset>
               </form>

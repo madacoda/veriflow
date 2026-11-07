@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "../../features/ui/button";
+
 import Link from "next/link";
 import { type FormEvent, useState } from "react";
 import {
@@ -46,9 +48,9 @@ export function DemoTarget({ buggy }: { buggy: boolean }) {
                 />
               </label>
               <div className={styles.actions}>
-                <button data-testid="apply-coupon" type="submit">
+                <Button data-testid="apply-coupon" type="submit">
                   Apply coupon
-                </button>
+                </Button>
                 <p role="status" data-testid="validation-error">
                   {message}
                 </p>
