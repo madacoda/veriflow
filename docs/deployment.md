@@ -23,7 +23,7 @@ Add these repository secrets, or secrets in the **production** Environment:
 | VPS_PORT        | No       | SSH port; default 22                                                                                                               |
 | VPS_PATH        | No       | Absolute deployment directory; default /opt/veriflow; letters, digits, slash, underscore and hyphen only                           |
 
-Registry publishing and VPS pulling both use short-lived GITHUB_TOKEN credentials. The pull token travels over SSH stdin and is held only in a temporary Docker config removed on exit. Do not create a long-lived GHCR_TOKEN secret. SSH host verification is mandatory; the workflow never automatically trusts a network-discovered key.
+Registry publishing and VPS pulling both use short-lived GITHUB_TOKEN credentials. The pull token travels over SSH stdin and is held only in a temporary Docker config removed on exit. Do not create a long-lived GHCR_TOKEN secret. Use a dedicated CI key that does not require an interactive passphrase prompt; the SSH client runs in batch mode. SSH host verification is mandatory; the workflow never automatically trusts a network-discovered key.
 
 Add repository **variable** `VPS_DEPLOY_ENABLED=true` after provisioning the VPS. Leaving it unset keeps publication enabled and VPS deployment disabled. No secret values or deployment-enablement settings are created by this PR.
 
