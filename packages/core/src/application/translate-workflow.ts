@@ -10,6 +10,7 @@ export type Command = CommandMetadata &
     | { action: "navigate"; url: string }
     | { action: "fill"; target: Target; value: string }
     | { action: "setChecked"; target: Target; checked: boolean }
+    | { action: "click"; target: Target }
     | {
         action: "assert";
         target: Target;
@@ -58,6 +59,8 @@ export function translateWorkflow(input: unknown): ExecutionPlan {
           target: step.target,
           expectation: step.expectation,
         };
+      case "click":
+        return { ...metadata, action: "click", target: step.target };
       default: {
         const unsupported: never = step;
         throw new Error("Unsupported workflow step: " + String(unsupported));
