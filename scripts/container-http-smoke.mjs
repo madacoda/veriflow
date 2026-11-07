@@ -1,5 +1,6 @@
 // Runs through public HTTP routes only, without app source or model credentials.
 import assert from "node:assert/strict";
+import { createServer } from "node:http";
 import { setTimeout as delay } from "node:timers/promises";
 
 const origin = process.env.CONTAINER_SMOKE_ORIGIN || "http://127.0.0.1:1111";
@@ -32,18 +33,23 @@ async function completed(path) {
   }
   assert.fail("Browser run did not complete within 60 seconds");
 }
-async function evidence(projectPath, run) {
+async function evidence(
+  projectPath,
+  run,
+  stepIds = ["apply", "coupon", "open", "total"],
+) {
   // The current adapter provides PNGs, not a completeness declaration for all media.
   assert.equal(run.evidence.capture, "partial");
   assert.ok(run.evidence.warnings.length > 0);
-  assert.equal(run.evidence.artifacts.length, 4);
-  assert.equal(new Set(run.evidence.artifacts.map((item) => item.id)).size, 4);
-  assert.deepEqual(run.evidence.artifacts.map((item) => item.stepId).sort(), [
-    "apply",
-    "coupon",
-    "open",
-    "total",
-  ]);
+  assert.equal(run.evidence.artifacts.length, stepIds.length);
+  assert.equal(
+    new Set(run.evidence.artifacts.map((item) => item.id)).size,
+    stepIds.length,
+  );
+  assert.deepEqual(
+    run.evidence.artifacts.map((item) => item.stepId).sort(),
+    [...stepIds].sort(),
+  );
   for (const item of run.evidence.artifacts) {
     assert.equal(item.runId, run.id);
     assert.equal(item.mediaType, "image/png");
@@ -87,6 +93,85 @@ async function verify(state) {
   assert.equal(passed.lifecycle, "completed");
   outcome(passed, 2, "passed", "90000");
   await evidence(projectPath, passed);
+  await verifyAccessibility(state.accessibility);
+}
+async function verifyAccessibility(state) {
+  const projectPath = `/api/projects/${state.projectId}`;
+  const { snapshot } = await json(`${projectPath}/runs/${state.runId}/report`);
+  const run = snapshot.run;
+  assert.equal(run.id, state.runId);
+  assert.equal(run.adapter, "browser");
+  assert.equal(run.lifecycle, "completed");
+  assert.equal(run.outcome, "failed");
+  assert.equal(snapshot.workflow.revision, 1);
+  assert.equal(run.steps[0].status, "passed");
+  const check = run.steps.find((step) => step.stepId === "wcag");
+  assert.equal(check?.status, "failed");
+  assert.equal(check.failureKind, "assertion");
+  const finding = snapshot.findings.find(
+    (item) => item.category === "accessibility" && item.ruleId === "image-alt",
+  );
+  assert.ok(finding, "The packaged application must execute the real axe scan");
+  assert.equal(finding.stepId, "wcag");
+  assert.ok(finding.evidenceIds.length > 0);
+  for (const id of finding.evidenceIds)
+    assert.ok(
+      run.evidence.artifacts.some(
+        (item) =>
+          item.id === id && item.runId === run.id && item.stepId === "wcag",
+      ),
+      "Axe findings must reference their own registered screenshots",
+    );
+  await evidence(projectPath, run, ["open", "wcag"]);
+}
+async function accessibility() {
+  // Explicit test target, served inside the container. No external site or model.
+  const target = createServer((request, response) => {
+    if (request.url === "/pixel.svg") {
+      response.writeHead(200, { "content-type": "image/svg+xml" });
+      response.end(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>',
+      );
+    } else {
+      response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      response.end(
+        '<!doctype html><html lang="en"><head><title>Axe container fixture</title></head><body><main><h1>Accessibility fixture</h1><img src="/pixel.svg"></main></body></html>',
+      );
+    }
+  });
+  try {
+    await new Promise((resolve, reject) => {
+      target.once("error", reject);
+      target.listen(0, "127.0.0.1", resolve);
+    });
+    const targetOrigin = `http://127.0.0.1:${target.address().port}`;
+    const { project } = await json("/api/projects", 201, {
+      title: "Container axe fixture",
+      url: targetOrigin,
+    });
+    const projectPath = `/api/projects/${project.id}`;
+    const { workflow } = await json(`${projectPath}/templates`, 200, {
+      templateId: "accessibility-wcag",
+      parameters: { url: targetOrigin },
+    });
+    await json(`${projectPath}/workflows`, 201, {
+      workflow,
+      expectedRevision: null,
+    });
+    const { run } = await json(`${projectPath}/runs`, 202, {
+      workflowId: workflow.id,
+      revision: 1,
+    });
+    await completed(`${projectPath}/runs/${run.id}`);
+    const state = { projectId: project.id, runId: run.id };
+    await verifyAccessibility(state);
+    return state;
+  } finally {
+    if (target.listening)
+      await new Promise((resolve, reject) =>
+        target.close((error) => (error ? reject(error) : resolve())),
+      );
+  }
 }
 async function run() {
   const { project } = await json("/api/projects", 201, {
@@ -153,6 +238,7 @@ async function run() {
     projectId: project.id,
     failedRunId: failed.id,
     passedRunId: passed.id,
+    accessibility: await accessibility(),
   };
 }
 
