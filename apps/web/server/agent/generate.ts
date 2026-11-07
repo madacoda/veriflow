@@ -41,6 +41,9 @@ export function createDraftGenerator(
           const providerKind = provider.kind;
           const { project, request, documents, templates } =
             prepareGenerationInput(input);
+          const requirementsSelected = templates.some(
+            (template) => template.category === "compliance",
+          );
           const sourceAttachmentIds = [...new Set(request.attachmentIds)];
           let output: unknown;
           try {
@@ -69,6 +72,8 @@ export function createDraftGenerator(
             const decoded: unknown = JSON.parse(serialized);
             const workflow = workflowSchema.parse(decoded);
             if (
+              (requirementsSelected &&
+                !workflow.steps.some((step) => step.code === "assert")) ||
               workflow.steps.some(
                 (step) =>
                   step.code === "redirect" &&
@@ -81,13 +86,17 @@ export function createDraftGenerator(
               contractVersion: "1",
               workflow,
               sourceAttachmentIds,
-              warnings:
-                providerKind === "fixture"
+              warnings: [
+                ...(providerKind === "fixture"
+                  ? ["Deterministic fixture output; no model was called"]
+                  : []),
+                "Review this draft before saving or running it",
+                ...(requirementsSelected
                   ? [
-                      "Deterministic fixture output; no model was called",
-                      "Review this draft before saving or running it",
+                      "Check coverage against the supplied requirement sources; this draft is not a certification",
                     ]
-                  : ["Review this draft before saving or running it"],
+                  : []),
+              ],
               provider: providerKind,
             };
           } catch {

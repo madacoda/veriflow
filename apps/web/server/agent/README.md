@@ -1,4 +1,4 @@
-# A1 generation and bounded tools
+# Workflow generation and bounded tools
 
 Owner: Dev 2. Reviewer: Dev 3. Dev 1 owns composition and merging.
 Original branch base: `3c432f1d9893749426f153c2ef7e503e74fbe4c5` (merged L0).
@@ -32,7 +32,7 @@ Limits must be positive integers. The final provider decision may stop exactly a
 
 TXT, MD, CSV and JSON use strict UTF-8 decoding; JSON must parse. Empty/oversized text, binary control data, inconsistent byte counts and failed extraction metadata return safe errors. PDF and DOCX extraction are explicitly unsupported. PNG/JPEG extraction checks the signature and produces only an image reference, never OCR text or a claim to decode the image. A1 generation rejects images until a real image-capable adapter is designed through the shared contract process.
 
-The catalog starts with `functional-exact-total@1.0.0` from the shared fixture. Prerequisites, JSON parameter schema and required capabilities (including screenshot) are preserved. The fixture tool port performs no real browser actions or captures; it cannot satisfy screenshot capability. Missing catalog entries fail explicitly. Capability/prerequisite checks remain the coordinator and executor's responsibility and must produce blocked results.
+The [versioned template catalog](../templates/README.md) covers all six shared categories, preserving `functional-exact-total@1.0.0`. Generation supports functional and supplied-requirement drafts. Requirement-based drafts need nonblank text context, at least one browser assertion and a trusted coverage warning. Responsive, security, accessibility and saved-revision regression selections reject before provider dispatch; the current generation/workflow contracts cannot express their prerequisites. Mixed selections reject as a whole. The fixture tool port performs no real browser actions or captures; it cannot satisfy screenshot capability. Execution capability/prerequisite checks remain the coordinator and executor's responsibility and must produce blocked results.
 
 ## Safe error mapping for Dev 1
 

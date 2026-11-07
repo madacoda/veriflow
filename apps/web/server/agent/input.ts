@@ -9,7 +9,7 @@ import {
   type StoredWorkflow,
   workflowSchema,
 } from "@veriflow/core";
-import { resolveTemplates } from "../templates/catalog.ts";
+import { resolveGenerationTemplates } from "../templates/catalog.ts";
 import { AgentError } from "./errors.ts";
 
 export type GenerationInput = Parameters<DraftGenerator["generate"]>[0];
@@ -91,6 +91,9 @@ export function prepareGenerationInput(input: GenerationInput) {
     throw new AgentError("context_mismatch");
   if (documents.some((document) => document.kind === "image"))
     throw new AgentError("unsupported_format");
-  const templates = resolveTemplates(request.data.templateIds);
+  const templates = resolveGenerationTemplates(
+    request.data.templateIds,
+    documents,
+  );
   return { project, request: request.data, documents, templates };
 }
