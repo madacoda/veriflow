@@ -2,6 +2,7 @@ export {
   workflowSchema,
   stepSchema,
   targetSchema,
+  targetRoles,
   expectationSchema,
   testingCategories,
   viewportSchema,

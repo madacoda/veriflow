@@ -1,4 +1,14 @@
+import type { PageInspection } from "@veriflow/core";
+
 const messages = {
+  authentication_form_unavailable:
+    "No visible password form was observed in the inspected page content. Open the sign-in page explicitly before generating sign-in form checks. No authenticated session was created.",
+  authentication_required:
+    "A selected page shows an access prerequisite in its main content or dialog. Functionality has not been tested. Configure a reviewed sign-in workflow using secret references, or choose Check access restrictions to test the guard itself.",
+  inspection_unavailable:
+    "A selected page could not be inspected safely. Check its URL and permitted origins, then retry. No workflow targets were invented.",
+  guard_not_observed:
+    "No access restriction was observed in the selected page content. This does not prove the page is public. Supply an explicit guard expectation before testing access restrictions.",
   adapter_unavailable: "A generation provider is not configured",
   validation_error: "Generation input or execution limits are invalid",
   invalid_provider_output: "The provider returned an invalid workflow draft",
@@ -22,7 +32,10 @@ const messages = {
 
 /** Only fixed messages cross the server boundary; never expose adapter errors. */
 export class AgentError extends Error {
-  constructor(public readonly code: keyof typeof messages) {
+  constructor(
+    public readonly code: keyof typeof messages,
+    public readonly inspection?: readonly PageInspection[],
+  ) {
     super(messages[code]);
     this.name = "AgentError";
   }

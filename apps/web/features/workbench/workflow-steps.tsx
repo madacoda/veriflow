@@ -5,6 +5,7 @@ import { Button } from "../ui/button";
 import { NativeSelect } from "../ui/native-select";
 
 import type { Target, WorkflowStep } from "@veriflow/core";
+import { targetRoles } from "@veriflow/core";
 import { Input } from "../ui/primitives";
 import styles from "./workbench.module.css";
 
@@ -23,7 +24,11 @@ const actions: Record<WorkflowStep["code"], string> = {
   assertRequirement: "Check a requirement",
 };
 const targetName = (target: Target) =>
-  target.by === "label" ? target.value : target.value.replace(/[-_]+/g, " ");
+  target.by === "role"
+    ? `${target.role} “${target.value}”`
+    : target.by === "label"
+      ? target.value
+      : target.value.replace(/[-_]+/g, " ");
 
 export function describeStep(step: WorkflowStep): string {
   switch (step.code) {
@@ -183,17 +188,50 @@ function StepFields({
               onChange={(event) =>
                 onChange({
                   ...step,
-                  target: {
-                    by: event.currentTarget.value as Target["by"],
-                    value: step.target!.value,
-                  },
+                  target:
+                    event.currentTarget.value === "role"
+                      ? {
+                          by: "role",
+                          role: "button",
+                          value: step.target!.value,
+                        }
+                      : {
+                          by: event.currentTarget.value as "label" | "testId",
+                          value: step.target!.value,
+                        },
                 })
               }
             >
               <option value="label">Visible label</option>
               <option value="testId">Test ID</option>
+              <option value="role">Role and accessible name</option>
             </NativeSelect>
           </label>
+          {step.target.by === "role" && (
+            <label className={styles.field}>
+              Element role
+              <NativeSelect
+                value={step.target.role}
+                onChange={(event) =>
+                  onChange({
+                    ...step,
+                    target: {
+                      by: "role",
+                      role: event.currentTarget
+                        .value as (typeof targetRoles)[number],
+                      value: step.target!.value,
+                    },
+                  })
+                }
+              >
+                {targetRoles.map((role) => (
+                  <option key={role} value={role}>
+                    {role}
+                  </option>
+                ))}
+              </NativeSelect>
+            </label>
+          )}
           {text("Element", step.target.value, (value) =>
             onChange({ ...step, target: { ...step.target!, value } }),
           )}

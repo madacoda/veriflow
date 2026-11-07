@@ -1,6 +1,7 @@
 import {
   CONTRACT_VERSION,
   entityIdSchema,
+  pageInspectionSchema,
   templateDefinitionSchema,
   workflowSchema,
   type generationRequestSchema,
@@ -158,7 +159,10 @@ export const api = {
         (id) => !input.attachmentIds.includes(id),
       ) ||
       !Array.isArray(draft.warnings) ||
-      !draft.warnings.every((warning) => typeof warning === "string")
+      !draft.warnings.every((warning) => typeof warning === "string") ||
+      (draft.pageContext !== undefined &&
+        !pageInspectionSchema.array().max(5).safeParse(draft.pageContext)
+          .success)
     )
       throw new Error("The server returned an invalid workflow draft.");
     return { ...draft, workflow: workflow.data };

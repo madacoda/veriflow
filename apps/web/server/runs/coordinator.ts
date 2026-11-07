@@ -14,9 +14,11 @@ import {
   isTerminalRun,
 } from "../projects/platform-store.ts";
 import { validateEvidence } from "./evidence.ts";
+import { BrowserAdmission } from "./browser-admission.ts";
 
 export interface RunCoordinatorOptions {
   maxConcurrentRuns?: number;
+  admission?: BrowserAdmission;
   /** Trusted clock seam for deterministic pre/post-allocation deadline tests. */
   deadlineSignal?: (timeoutMs: number) => AbortSignal;
 }
@@ -24,8 +26,7 @@ export interface RunCoordinatorOptions {
 export class RunCoordinator {
   private readonly controllers = new Map<string, AbortController>();
   private readonly jobs = new Map<string, Promise<void>>();
-  private admitted = 0;
-  private readonly capacity: number;
+  private readonly admission: BrowserAdmission;
   private readonly deadlineSignal: (timeoutMs: number) => AbortSignal;
   constructor(
     private readonly store: PlatformStore,
@@ -34,34 +35,21 @@ export class RunCoordinator {
     private readonly maxRunMs = 120000,
     options: RunCoordinatorOptions = {},
   ) {
-    this.capacity = options.maxConcurrentRuns ?? 2;
-    if (
-      !Number.isSafeInteger(this.capacity) ||
-      this.capacity < 1 ||
-      this.capacity > 8
-    )
-      throw new Error("Run concurrency must be an integer from 1 to 8");
+    const capacity =
+      options.maxConcurrentRuns ?? options.admission?.capacity ?? 2;
+    const validated = new BrowserAdmission(capacity);
+    if (options.admission && options.admission.capacity !== capacity)
+      throw new Error(
+        "Browser admission capacity must match run configuration",
+      );
+    this.admission = options.admission ?? validated;
     if (!Number.isSafeInteger(maxRunMs) || maxRunMs < 1 || maxRunMs > 120000)
       throw new Error("Invalid run deadline");
     this.deadlineSignal =
       options.deadlineSignal ?? ((ms) => AbortSignal.timeout(ms));
   }
   private admit() {
-    if (this.admitted >= this.capacity)
-      throw new PlatformError(
-        "adapter_unavailable",
-        503,
-        "Run capacity reached; retry after another run finishes",
-      );
-    // No await between checking and reserving: concurrent starts cannot over-admit.
-    this.admitted++;
-    let released = false;
-    return () => {
-      if (!released) {
-        released = true;
-        this.admitted--;
-      }
-    };
+    return this.admission.acquire("run");
   }
 
   async start(projectId: string, input: unknown): Promise<RunRecord> {

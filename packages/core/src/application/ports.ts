@@ -25,6 +25,8 @@ export interface StepExecutor {
 }
 export interface SessionOptions {
   runId: string;
+  /** Inspection may navigate/observe only and must not allocate artifact storage. */
+  purpose?: "run" | "inspection";
   allowedOrigins: readonly string[];
   /** Storage-relative destination; adapters never accept a client-supplied path. */
   artifactDirectory?: string;

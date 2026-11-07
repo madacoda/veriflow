@@ -4,6 +4,7 @@ import {
   entityIdSchema,
   generationRequestSchema,
   httpUrlSchema,
+  pageInspectionSchema,
   type DraftGenerator,
   type ProjectRecord,
   type StoredWorkflow,
@@ -73,6 +74,36 @@ export function prepareGenerationInput(input: GenerationInput) {
   const request = generationRequestSchema.safeParse(input.request);
   const project = prepareProject(input.project);
   if (!request.success) throw new AgentError("validation_error");
+  const parsedPages =
+    input.pageContext === undefined
+      ? undefined
+      : pageInspectionSchema.array().max(5).safeParse(input.pageContext);
+  if (parsedPages && !parsedPages.success)
+    throw new AgentError("context_mismatch");
+  const pageContext = parsedPages?.data;
+  if (
+    pageContext &&
+    (pageContext.length > 5 ||
+      pageContext.some(
+        (page) =>
+          new URL(page.sourceUrl).origin !== new URL(project.url).origin ||
+          (page.status === "observed" &&
+            new URL(page.observation.url).origin !==
+              new URL(project.url).origin),
+      ))
+  )
+    throw new AgentError("context_mismatch");
+  if (
+    request.data.pageUrls?.some(
+      (url) => new URL(url).origin !== new URL(project.url).origin,
+    ) ||
+    request.data.baseWorkflow?.steps.some(
+      (step) =>
+        (step.code === "redirect" || step.code === "assertHttp") &&
+        !project.allowedOrigins.includes(new URL(step.url).origin),
+    )
+  )
+    throw new AgentError("validation_error");
   const sourceAttachmentIds = [...new Set(request.data.attachmentIds)];
   if (!Array.isArray(input.documents)) throw new AgentError("context_mismatch");
   const documents = input.documents.map((document) => {
@@ -95,5 +126,11 @@ export function prepareGenerationInput(input: GenerationInput) {
     request.data.templateIds,
     documents,
   );
-  return { project, request: request.data, documents, templates };
+  return {
+    project,
+    request: request.data,
+    documents,
+    templates,
+    ...(pageContext ? { pageContext } : {}),
+  };
 }
