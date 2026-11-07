@@ -102,10 +102,14 @@ async function get(origin: string, path: string) {
 test("production browser routes persist observed fail/pass and serve registered PNGs", async ({}, testInfo) => {
   test.setTimeout(60000);
   const root = await mkdtemp(join(tmpdir(), "veriflow-platform-browser-"));
-  const target = await startBrowserTarget();
-  const platform = await startPlatform(root, "browser");
+  let targetToClose: Awaited<ReturnType<typeof startBrowserTarget>> | undefined;
+  let platformToClose: Awaited<ReturnType<typeof startPlatform>> | undefined;
   let restarted: Awaited<ReturnType<typeof startPlatform>> | undefined;
   try {
+    const target = await startBrowserTarget();
+    targetToClose = target;
+    const platform = await startPlatform(root, "browser");
+    platformToClose = platform;
     const { project } = await (
       await post(platform.origin, "/api/projects", {
         title: "Real browser integration fixture",
@@ -199,16 +203,18 @@ test("production browser routes persist observed fail/pass and serve registered 
     expect(snapshot.run.evidence.artifacts[0].runId).toBe(runs[0]);
   } finally {
     await restarted?.close();
-    await platform.close();
-    await target.close();
+    await platformToClose?.close();
+    await targetToClose?.close();
     await rm(root, { recursive: true, force: true });
   }
 });
 
 test("production fixture mode stays explicitly labeled with no fabricated evidence", async () => {
   const root = await mkdtemp(join(tmpdir(), "veriflow-platform-fixture-"));
-  const platform = await startPlatform(root, "fake");
+  let platformToClose: Awaited<ReturnType<typeof startPlatform>> | undefined;
   try {
+    const platform = await startPlatform(root, "fake");
+    platformToClose = platform;
     const { project } = await (
       await post(platform.origin, "/api/projects", {
         title: "Explicit fixture",
@@ -239,7 +245,7 @@ test("production fixture mode stays explicitly labeled with no fabricated eviden
     expect(run.outcome).toBe("failed");
     expect(run.evidence.artifacts).toEqual([]);
   } finally {
-    await platform.close();
+    await platformToClose?.close();
     await rm(root, { recursive: true, force: true });
   }
 });
