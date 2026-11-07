@@ -31,7 +31,8 @@ ssh_options=(-i "$ssh_dir/key" -o BatchMode=yes -o IdentitiesOnly=yes
   -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$ssh_dir/known_hosts"
   -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=4)
 target="$VPS_USER@$VPS_HOST"
-release="$VPS_PATH/releases/$GITHUB_SHA"
+image_digest=${VERIFLOW_IMAGE##*@sha256:}
+release="$VPS_PATH/releases/$GITHUB_SHA-$image_digest"
 ssh "${ssh_options[@]}" -p "$VPS_PORT" "$target" "mkdir -p '$release'"
 scp "${ssh_options[@]}" -P "$VPS_PORT" compose.yaml scripts/vps-release.sh "$target:$release/"
 # Registry authentication travels only over SSH stdin, never command arguments.

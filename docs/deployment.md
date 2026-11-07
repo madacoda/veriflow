@@ -46,7 +46,7 @@ The named volume `veriflow-data` mounts at `/data` and is initialized for contai
 
 ## Release and recovery
 
-Each deployment copies Compose and the release script into `VPS_PATH/releases/<commit>`. The remote script locks the deployment directory, validates configuration and pulls the new image before replacing the service. Compose waits up to 120 seconds for its health check. Only a healthy release becomes `current-release`.
+Each deployment copies Compose and the release script into `VPS_PATH/releases/<commit>-<image-digest>`. Rebuilding the same commit with updated base images therefore cannot overwrite the previous release's image reference. The remote script locks the deployment directory, validates configuration and pulls the new image before replacing the service. Compose waits up to 120 seconds for its health check. Only a healthy release becomes `current-release`.
 
 If startup fails, the previous release's Compose file and image digest are restored without pulling or deleting the data volume. A failed first deployment removes its failed service but preserves data. Rollback still returns a failed workflow result. This is a single-service replacement with brief downtime; application/data migrations are not rolled back. A failure before pull/start leaves the previous container alone. A host/SSH outage during replacement may require reconnecting and rerunning the release; the workflow does not claim transactional recovery from host failure.
 
@@ -55,9 +55,9 @@ For manual recovery, use the previous release's `image.ref` and Compose file:
 ```sh
 cd /opt/veriflow
 export VERIFLOW_ENV_FILE=/opt/veriflow/.env
-export VERIFLOW_IMAGE="$(cat releases/<previous-commit>/image.ref)"
+export VERIFLOW_IMAGE="$(cat releases/<previous-release>/image.ref)"
 docker compose --project-name veriflow --project-directory /opt/veriflow \
-  --env-file /opt/veriflow/.env -f releases/<previous-commit>/compose.yaml \
+  --env-file /opt/veriflow/.env -f releases/<previous-release>/compose.yaml \
   up -d --no-build --pull never --wait --wait-timeout 120
 ```
 
@@ -65,7 +65,7 @@ Use only releases whose data format is compatible with the current volume. Updat
 
 ## Verification
 
-Run the standard REVIEW.md gate plus `bash scripts/tests/deploy.test.sh`. That script uses clearly labeled fake Docker/lock adapters to verify success, failed pull, rollback and first-deployment cleanup without contacting a server.
+Run the standard REVIEW.md gate plus `bash scripts/tests/deploy.test.sh`. That script uses clearly labeled fake Docker/lock/SSH adapters to verify success, failed pull, rollback, first-deployment cleanup, distinct releases for rebuilt images and safe credential transport without contacting a server.
 
 With Docker available:
 
