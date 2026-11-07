@@ -4,6 +4,8 @@ One Next.js monolith runs on Node 24. Bun 1.4.4 installs the locked workspace du
 
 ## Release flow
 
+Deployment script validation runs in the parallel `proxy` job before its Nginx fixture. Compose configuration is checked before the image build. These inexpensive checks expose deployment configuration failures without waiting for the application build or browser suite. Use focused local checks and the final PR CI as described in [REVIEW.md](../REVIEW.md); a second full local run is not required.
+
 Linux checks, Windows unit checks, the Linux amd64 container build/smoke and the isolated Nginx fixture run in parallel. CI runs once per PR update and on main pushes, avoiding duplicate feature-branch push checks. Superseded PR runs are cancelled; main runs remain independent, with only production replacements serialized. The container verifies UI/health, real non-root Chromium and saved workflow execution through production HTTP routes. The buggy coupon workflow must fail with expected 90000 and actual 100000; its corrected revision must pass with actual 90000. Both runs must expose owned PNGs, and their reports and evidence must survive a container restart. The smoke uses the same dropped capabilities and no-new-privileges setting as Compose.
 
 Docker builds enable Next standalone output. The packaging script copies the lockfile-resolved Playwright installer and completes the packages at the standalone server's resolved dependency locations, including dynamically loaded browser metadata omitted by static tracing. A Linux build is authoritative; Windows builds leave standalone off to avoid symlink privilege requirements.

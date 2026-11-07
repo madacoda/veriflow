@@ -31,11 +31,6 @@ jobs:
           STORAGE_DIR: ${{ runner.temp }}/veriflow-smoke
           VERIFLOW_U1_TEST_HTTP: "1"
           VERIFLOW_RUN_ADAPTER: browser
-      - name: Check deployment scripts
-        run: |
-          shellcheck scripts/*.sh scripts/tests/*.sh
-          bash scripts/tests/deploy.test.sh
-          bash scripts/tests/transport.test.sh
 
   container:
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
@@ -54,6 +49,12 @@ jobs:
       - name: Image name
         id: image
         run: echo "tag=ghcr.io/${GITHUB_REPOSITORY,,}:sha-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+      - name: Check Compose configuration before building
+        env:
+          VERIFLOW_IMAGE: ${{ steps.image.outputs.tag }}
+        run: |
+          touch app.env
+          docker compose config --quiet
       - name: Build the runnable image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -75,12 +76,6 @@ jobs:
         env:
           IMAGE_TAG: ${{ steps.image.outputs.tag }}
         run: bash scripts/tests/compose-image-id.test.sh "$IMAGE_TAG"
-      - name: Check Compose configuration
-        env:
-          VERIFLOW_IMAGE: ${{ steps.image.outputs.tag }}
-        run: |
-          touch app.env
-          docker compose config --quiet
       - name: Sign in to GHCR
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
@@ -103,6 +98,11 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
+      - name: Check deployment scripts
+        run: |
+          shellcheck scripts/*.sh scripts/tests/*.sh
+          bash scripts/tests/deploy.test.sh
+          bash scripts/tests/transport.test.sh
       - name: Verify Nginx proxy and absence of Basic Auth prompts
         run: bash scripts/tests/nginx.test.sh
 

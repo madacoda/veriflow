@@ -72,6 +72,8 @@ Passing branch CI alone is insufficient when main has moved. Serial integration 
 
 ## Required merge gate
 
+CI on the latest PR commit is the authoritative full merge gate. Locally, run only the checks needed for the changed behavior; do not repeat the full suite when that exact commit already has successful CI. After a correction, rerun the failed or affected local check and let the final PR update run CI once. Broaden testing only for an unresolved failure or a changed integration boundary. Main CI remains the release gate.
+
 ```sh
 bun install --frozen-lockfile
 bun run lint
