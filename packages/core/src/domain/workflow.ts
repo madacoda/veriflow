@@ -2,9 +2,28 @@ import { z } from "zod";
 import { httpUrlSchema } from "./http-url.ts";
 
 const identifier = z.string().trim().min(1).max(128);
+export const targetRoles = [
+  "button",
+  "link",
+  "textbox",
+  "checkbox",
+  "radio",
+  "combobox",
+  "option",
+  "heading",
+  "tab",
+  "menuitem",
+  "switch",
+  "status",
+] as const;
 export const targetSchema = z.discriminatedUnion("by", [
   z.strictObject({ by: z.literal("label"), value: z.string().min(1) }),
   z.strictObject({ by: z.literal("testId"), value: z.string().min(1) }),
+  z.strictObject({
+    by: z.literal("role"),
+    role: z.enum(targetRoles),
+    value: z.string().trim().min(1).max(256),
+  }),
 ]);
 const common = {
   id: identifier,

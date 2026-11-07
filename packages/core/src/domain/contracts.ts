@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { workflowSchema } from "./workflow.ts";
+import { workflowSchema, targetSchema } from "./workflow.ts";
+import type { Target } from "./workflow.ts";
 import { httpUrlSchema } from "./http-url.ts";
 export { httpUrlSchema } from "./http-url.ts";
 import type { Project, StoredWorkflow } from "./project.ts";
@@ -80,6 +81,17 @@ export const generationRequestSchema = z.strictObject({
   objective: z.string().trim().min(1).max(10000),
   attachmentIds: z.array(entityIdSchema).max(20).default([]),
   templateIds: z.array(entityIdSchema).max(20).default([]),
+  /** Explicit additions to project.url; composition enforces five distinct same-origin URLs total. */
+  pageUrls: z.array(httpUrlSchema).max(5).optional(),
+  /** Untrusted, read-only input; returned drafts never save over this source. */
+  baseWorkflow: workflowSchema
+    .refine(
+      (workflow) =>
+        workflow.steps.length <= 100 &&
+        JSON.stringify(workflow).length <= 100000,
+      "Regeneration supports up to 100 steps and 100,000 characters",
+    )
+    .optional(),
 });
 export interface WorkflowDraft {
   contractVersion: "1";
@@ -87,6 +99,7 @@ export interface WorkflowDraft {
   sourceAttachmentIds: readonly string[];
   warnings: readonly string[];
   provider: "model" | "fixture";
+  pageContext?: readonly PageInspection[];
 }
 export interface AttachmentReader {
   read(
@@ -106,6 +119,7 @@ export interface DraftGenerator {
       project: ProjectRecord;
       request: z.infer<typeof generationRequestSchema>;
       documents: readonly ContextDocument[];
+      pageContext?: readonly PageInspection[];
     },
     signal: AbortSignal,
   ): Promise<WorkflowDraft>;
@@ -158,8 +172,58 @@ export interface BrowserObservation {
   title: string;
   text: string;
   truncated: boolean;
-  targets: readonly { by: "label" | "testId"; value: string }[];
+  targets: readonly Target[];
+  scope?: "main" | "dialog" | "body";
+  links?: readonly { url: string; label: string }[];
+  navigationStatus?: number;
+  capturedAt?: string;
 }
+
+export const browserObservationSchema = z.strictObject({
+  url: z.union([httpUrlSchema, z.literal("about:blank")]),
+  title: z.string().max(512),
+  text: z.string().max(20000),
+  truncated: z.boolean(),
+  targets: z.array(targetSchema).max(50),
+  scope: z.enum(["main", "dialog", "body"]).optional(),
+  links: z
+    .array(z.strictObject({ url: httpUrlSchema, label: z.string().max(256) }))
+    .max(20)
+    .optional(),
+  navigationStatus: z.number().int().min(100).max(599).optional(),
+  capturedAt: z.iso.datetime().optional(),
+});
+const accessSignalSchema = z.strictObject({
+  kind: z.enum([
+    "sign_in_prompt_observed",
+    "password_form_observed",
+    "http_access_denied",
+  ]),
+  scope: z.enum(["main", "dialog", "body"]),
+  evidence: z.string().min(1).max(240),
+});
+export const pageInspectionSchema = z.discriminatedUnion("status", [
+  z.strictObject({
+    status: z.literal("observed"),
+    provenance: z.literal("browser"),
+    sourceUrl: httpUrlSchema,
+    capturedAt: z.iso.datetime(),
+    observation: browserObservationSchema,
+    accessSignals: z.array(accessSignalSchema).max(5),
+  }),
+  z.strictObject({
+    status: z.literal("unavailable"),
+    sourceUrl: httpUrlSchema,
+    capturedAt: z.iso.datetime(),
+    reason: z.enum([
+      "navigation_failed",
+      "timeout",
+      "adapter_unavailable",
+      "policy_rejected",
+    ]),
+  }),
+]);
+export type PageInspection = z.infer<typeof pageInspectionSchema>;
 /** The coordinator owns this same session during AI tools and deterministic execution. */
 export interface BrowserSession extends ExecutionSession {
   observe(

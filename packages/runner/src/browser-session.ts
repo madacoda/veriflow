@@ -27,6 +27,7 @@ import {
   BrowserPolicyError,
   permitsUrl,
 } from "./browser-policy.ts";
+import { readBrowserObservation } from "./browser-observation.ts";
 
 export interface BrowserFactoryOptions {
   storageRoot: string;
@@ -80,7 +81,19 @@ export class PlaywrightSessionFactory implements SessionFactory {
   ): Promise<BrowserSession> {
     signal.throwIfAborted();
     const origins = allowedOrigins(options.allowedOrigins);
-    const location = await artifactLocation(this.config.storageRoot, options);
+    const purpose = options.purpose ?? "run";
+    if (
+      !["run", "inspection"].includes(purpose) ||
+      !/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(options.runId) ||
+      (purpose === "inspection" && options.artifactDirectory !== undefined)
+    )
+      throw new BrowserPolicyError(
+        "Invalid session purpose or artifact configuration",
+      );
+    const location =
+      purpose === "inspection"
+        ? undefined
+        : await artifactLocation(this.config.storageRoot, options);
     if (
       options.viewport &&
       (!Number.isInteger(options.viewport.width) ||
@@ -118,6 +131,7 @@ export class PlaywrightSessionFactory implements SessionFactory {
         origins,
         signal,
         this.config.resolveSecret,
+        purpose,
       );
       await session.initialize();
       signal.throwIfAborted();
@@ -140,6 +154,7 @@ class PlaywrightSession implements BrowserSession {
   private policyReported = false;
   private captureFailed = false;
   private networkFailure?: Error;
+  private navigationStatus?: number;
   private readonly onRunAbort = () => {
     void this.close().catch(() => {
       /* close() rethrows to the owner */
@@ -151,10 +166,11 @@ class PlaywrightSession implements BrowserSession {
     private readonly context: BrowserContext,
     private readonly page: Page,
     private readonly runId: string,
-    private readonly location: { path: string; directory: string },
+    private readonly location: { path: string; directory: string } | undefined,
     private readonly origins: ReadonlySet<string>,
     private readonly runSignal: AbortSignal,
     private readonly resolveSecret?: (name: string) => string | undefined,
+    private readonly purpose: "run" | "inspection" = "run",
   ) {}
 
   async initialize() {
@@ -162,7 +178,10 @@ class PlaywrightSession implements BrowserSession {
     // Playwright route.continue alone does not intercept redirected requests.
     const network = await this.context.newCDPSession(this.page);
     network.on("Fetch.requestPaused", (event) => {
-      const permitted = permitsUrl(event.request.url, this.origins);
+      const permitted =
+        permitsUrl(event.request.url, this.origins) &&
+        (this.purpose === "run" ||
+          ["GET", "HEAD", "OPTIONS"].includes(event.request.method));
       if (!permitted) this.policyViolation = true;
       const action = permitted
         ? network.send("Fetch.continueRequest", { requestId: event.requestId })
@@ -190,7 +209,12 @@ class PlaywrightSession implements BrowserSession {
         } catch {
           // Popup/worker navigation can arrive before a frame exists.
         }
-        if (!permitsUrl(route.request().url(), this.origins) || !mainFrame) {
+        if (
+          !permitsUrl(route.request().url(), this.origins) ||
+          !mainFrame ||
+          (this.purpose === "inspection" &&
+            !["GET", "HEAD", "OPTIONS"].includes(route.request().method()))
+        ) {
           this.policyViolation = true;
           await route.abort("blockedbyclient");
           return;
@@ -230,9 +254,19 @@ class PlaywrightSession implements BrowserSession {
   }
 
   private target(target: Target): Locator {
-    return target.by === "label"
-      ? this.page.getByLabel(target.value, { exact: true })
-      : this.page.getByTestId(target.value);
+    switch (target.by) {
+      case "label":
+        return this.page.getByLabel(target.value, { exact: true });
+      case "testId":
+        return this.page.getByTestId(target.value);
+      case "role":
+        return this.page.getByRole(target.role, {
+          name: target.value,
+          exact: true,
+        });
+      default:
+        throw new BrowserPolicyError("Unsupported target kind");
+    }
   }
 
   private async operation<T>(
@@ -263,6 +297,10 @@ class PlaywrightSession implements BrowserSession {
 
   async execute(command: Command, signal: AbortSignal): Promise<StepResult> {
     validateCommand(command);
+    if (this.purpose === "inspection" && command.action !== "navigate")
+      throw new BrowserPolicyError(
+        "Inspection permits navigation and observation only",
+      );
     if (
       !Number.isInteger(command.timeoutMs) ||
       command.timeoutMs < 1 ||
@@ -357,6 +395,7 @@ class PlaywrightSession implements BrowserSession {
         waitUntil: "domcontentloaded",
         timeout: remaining(),
       });
+      this.navigationStatus = response?.status();
       if (!response)
         return {
           stepId: command.stepId,
@@ -516,6 +555,7 @@ class PlaywrightSession implements BrowserSession {
         waitUntil: "domcontentloaded",
         timeout: remaining(),
       });
+      this.navigationStatus = response?.status();
       if (response && !response.ok())
         return {
           stepId: command.stepId,
@@ -704,7 +744,7 @@ class PlaywrightSession implements BrowserSession {
 
   private async capture(stepId: string) {
     // Authenticated pages can echo secrets anywhere; omit media rather than leak them.
-    if (this.secrets.size) return;
+    if (this.secrets.size || !this.location) return;
     const id = randomUUID();
     try {
       const bytes = await this.page.screenshot({
@@ -750,25 +790,12 @@ class PlaywrightSession implements BrowserSession {
           throw new BrowserPolicyError(
             "Observation rejected by browser policy",
           );
-        const observation = await this.page.evaluate((limit) => {
-          const text = document.body?.innerText ?? "";
-          const targets: { by: "label" | "testId"; value: string }[] = [];
-          for (const element of document.querySelectorAll(
-            "[data-testid], label",
-          )) {
-            if (targets.length >= 50) break;
-            const testId = element.getAttribute("data-testid");
-            const value = testId ?? (element.textContent ?? "").trim();
-            if (value && value.length <= 128)
-              targets.push({ by: testId === null ? "label" : "testId", value });
-          }
-          return {
-            title: document.title.slice(0, 256),
-            text: text.slice(0, limit),
-            truncated: text.length > limit,
-            targets,
-          };
-        }, maxCharacters);
+        const observation = await readBrowserObservation(
+          this.page,
+          maxCharacters,
+          this.origins,
+          (target) => this.target(target),
+        );
         if (this.networkFailure) throw this.networkFailure;
         if (this.policyViolation)
           throw new BrowserPolicyError(
@@ -781,8 +808,13 @@ class PlaywrightSession implements BrowserSession {
         url.password = "";
         return {
           ...observation,
+          navigationStatus: this.navigationStatus,
           title: this.redact(observation.title),
           text: this.redact(observation.text),
+          links: observation.links?.map((link) => ({
+            url: this.redact(link.url),
+            label: this.redact(link.label),
+          })),
           targets: observation.targets.filter(
             (target) =>
               ![...this.secrets].some((secret) =>

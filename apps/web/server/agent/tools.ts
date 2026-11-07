@@ -1,5 +1,7 @@
 import {
   browserToolCallSchema,
+  browserObservationSchema,
+  targetSchema,
   httpUrlSchema,
   translateWorkflow,
   type AgentToolPort,
@@ -49,14 +51,14 @@ function boundedObservation(
     !value.targets.every(
       (target: unknown) =>
         object(target) &&
-        (target.by === "label" || target.by === "testId") &&
+        targetSchema.safeParse(target).success &&
         typeof target.value === "string" &&
         target.value.length > 0 &&
         target.value.length <= 1000,
     )
   )
     throw new AgentError("tool_failed");
-  return {
+  const observation = browserObservationSchema.safeParse({
     url: value.url,
     title: value.title.slice(0, 512),
     text: value.text.slice(0, maxCharacters),
@@ -64,14 +66,17 @@ function boundedObservation(
       value.truncated ||
       value.text.length > maxCharacters ||
       value.title.length > 512 ||
-      value.targets.length > 100,
+      value.targets.length > 50,
     targets: value.targets
-      .slice(0, 100)
-      .map((target: { by: "label" | "testId"; value: string }) => ({
-        by: target.by,
-        value: target.value,
-      })),
-  };
+      .slice(0, 50)
+      .map((target: unknown) => targetSchema.parse(target)),
+    scope: value.scope,
+    links: value.links,
+    navigationStatus: value.navigationStatus,
+    capturedAt: value.capturedAt,
+  });
+  if (!observation.success) throw new AgentError("tool_failed");
+  return observation.data;
 }
 
 /** The coordinator supplies its session port and retains all finalization duties. */
