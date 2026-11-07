@@ -17,7 +17,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test:smoke": "bun run --cwd packages/runner test:smoke",
-    "browsers:install": "bun run --cwd packages/runner browsers:install"
+    "browsers:install": "bun run --cwd packages/runner browsers:install",
+    "test:unit": "bun run --filter \"@veriflow/*\" --if-present test"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

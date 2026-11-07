@@ -17,6 +17,7 @@ jobs:
       - run: bun run lint
       - run: bun run format:check
       - run: bun run typecheck
+      - run: bun run test:unit
       - run: bun run build
       - run: bun run browsers:install --with-deps
       - run: bun run test:smoke

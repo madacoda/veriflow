@@ -20,14 +20,7 @@ API environment variables load from `apps/api/.env`. AI credentials are server-o
 
 ## Workspace ownership
 
-Suggested areas for four developers, adjustable by the team.
-
-| Developer | Area                                     | Location                                |
-| --------- | ---------------------------------------- | --------------------------------------- |
-| 1         | Frontend and workflow editor             | `apps/web`                              |
-| 2         | Project API, attachments and persistence | `apps/api`                              |
-| 3         | Browser execution and accessibility      | `packages/runner`                       |
-| 4         | AI integration, exports and evidence     | API and runner, coordinated with owners |
+Feature ownership and the branch workflow are defined in [the architecture guide](docs/architecture.md). The three QA modules are functionality, security and accessibility, with a fourth developer owning platform integration.
 
 Next.js App Router powers the frontend. Fastify provides the Node.js API. The runner includes Playwright, axe-core integration and ExcelJS. The API includes the OpenAI SDK for later provider integration. Runtime files belong in the ignored `data` directory. SQLite can be added when persistence contracts are agreed.
 
@@ -36,6 +29,7 @@ Next.js App Router powers the frontend. Fastify provides the Node.js API. The ru
 ```sh
 bun run lint
 bun run typecheck
+bun run test:unit
 bun run build
 bun run test:smoke
 bun run format:check

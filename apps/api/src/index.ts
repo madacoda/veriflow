@@ -1,9 +1,8 @@
-import Fastify from "fastify";
+import { createApp } from "./app.js";
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 
-const app = Fastify({ logger: true });
-app.get("/health", async () => ({ status: "ok" }));
+const app = createApp();
 
 try {
   await mkdir(resolve(process.env.STORAGE_DIR ?? "../../data"), {

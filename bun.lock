@@ -36,6 +36,13 @@
         "@types/react-dom": "^19.3.0",
       },
     },
+    "packages/core": {
+      "name": "@veriflow/core",
+      "version": "0.1.0",
+      "dependencies": {
+        "zod": "^4.6.7",
+      },
+    },
     "packages/runner": {
       "name": "@veriflow/runner",
       "version": "0.1.0",
@@ -357,6 +364,8 @@
     "@unrs/resolver-binding-win32-x64-msvc": ["@unrs/resolver-binding-win32-x64-msvc@1.13.0", "", { "os": "win32", "cpu": "x64" }, "sha512-DpLMlAqlrk4zBVK3DiDjwKD0oq7pZNy+8BiIBRuByqb6dm5jsdoLMhIiyh/xR7+WejaW/1Ui+XgbgMNa4+zWJg=="],
 
     "@veriflow/api": ["@veriflow/api@workspace:apps/api"],
+
+    "@veriflow/core": ["@veriflow/core@workspace:packages/core"],
 
     "@veriflow/runner": ["@veriflow/runner@workspace:packages/runner"],
 
