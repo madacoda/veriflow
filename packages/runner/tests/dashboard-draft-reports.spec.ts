@@ -9,12 +9,13 @@ import {
 } from "@veriflow/core/fixtures";
 import type { RunRecord } from "@veriflow/core";
 
-const origin = "http://127.0.0.1:3000";
 const projectPath = `**/api/projects/${demoProject.id}`;
 
 test("previews generation inputs without changing or saving the current draft", async ({
   page,
+  baseURL,
 }, testInfo) => {
+  const origin = baseURL ?? new URL(demoProject.url).origin;
   let writeRequests = 0;
   page.on("request", (request) => {
     if (request.method() === "POST" && request.url().includes("/workflows"))
@@ -94,7 +95,9 @@ test("previews generation inputs without changing or saving the current draft", 
 
 test("downloads reports for terminal runs and handles an unavailable renderer", async ({
   page,
+  baseURL,
 }) => {
+  const origin = baseURL ?? new URL(demoProject.url).origin;
   const active: RunRecord = {
     ...demoFailedRun,
     id: "run-active",
