@@ -1,60 +1,106 @@
-# Developer handoff
+# MVP delivery handoff
 
-## Shared baseline
+## Planning baseline
 
-Every developer starts from main, runs bun install --frozen-lockfile, then bun run dev. Each gets the same monolith and can run their own tests independently. Use short-lived task branches and PRs into main. Review changes to core contracts before consumers implement them.
+The full MVP in the user's latest brief is the product scope. The seven-hour event is the first demonstration milestone. Features deferred from that demonstration remain required MVP work. This allocation supersedes the earlier feature-category team split.
 
-| Developer | Branch family      | Owned paths                                                            | First deliverable                                                      |
-| --------- | ------------------ | ---------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| 1         | feat/core-engine   | packages/core, packages/runner                                         | Real Playwright SessionFactory and worker lifecycle                    |
-| 2         | feat/functionality | apps/web/features/functionality, apps/web/server/modules/functionality | Project/workflow editor, functional assertions, AI generation adapter  |
-| 3         | feat/security      | apps/web/features/security, apps/web/server/modules/security           | Security QA evaluator and separate platform authentication integration |
-| 4         | feat/accessibility | apps/web/features/accessibility, apps/web/server/modules/accessibility | axe evaluator, findings UI, report/export adapters                     |
+Dev 1 is the single lead orchestrator and merge owner. REVIEW.md defines the merge process. The team contains four developers including the lead. Keep the existing Next.js monolith and Bun toolchain.
 
-Rotate the integration reviewer for shared pages, routes, manifests, bun.lock, CI and deployment. Each developer owns their feature's thin HTTP route and UI integration. Project, StoredWorkflow, WorkflowRepository and WorkflowGenerator are provided by core. Repository writes use expected revisions to reject stale updates. Use FakeWorkflowRepository and FakeWorkflowGenerator while persistence and AI adapters are developed. Product persistence remains deliberately unimplemented.
+## Exclusive implementation ownership
 
-## Independent commands
+| Developer                       | Owns                                                                                                                                       | Explicit boundary                                                                                                            |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| Dev 1 — platform and lead       | Project/workflow persistence, attachment upload/storage, run APIs and lifecycle, composition, deployment and shared contracts              | Integrates adapters; does not implement the AI loop, browser adapter or report renderer                                      |
+| Dev 2 — AI and test definitions | Attachment text extraction, context assembly, scenario generation, versioned template catalog, AI target suggestions and failure summaries | Does not write files to attachment storage, execute browser actions, decide observed pass/fail or overwrite edited workflows |
+| Dev 3 — execution               | Browser actions, observations, assertions, viewport modes, security/a11y check adapters, PNG/WebM/trace capture                            | Does not generate template definitions, expose HTTP routes or render downloadable business reports                           |
+| Dev 4 — product UI and reports  | Project/editor/dashboard UI, demo target, result presentation, pure CSV/XLSX/PDF renderers                                                 | Does not implement persistence, AI prompts or browser execution; report HTTP routes are thin Dev 1 adapters                  |
 
-- Core engine developer runs `bun run --cwd packages/core test` and `bun run --cwd packages/runner test`.
-- Functionality developer runs `bun x tsx --test apps/web/tests/functionality.test.ts`.
-- Security developer runs `bun x tsx --test apps/web/tests/security.test.ts`.
-- Accessibility developer runs `bun x tsx --test apps/web/tests/accessibility.test.ts`.
-- Everyone runs `bun run test:unit` for the shared contract suite.
+Reserve approximately 40 percent of Dev 1's capacity for review, integration and release work. Reduce assigned platform implementation in each milestone if that reserve is consumed. Every owner implements and tests their own error mapping before integration.
 
-## Existing integration points
+## File ownership
 
-Import workflowSchema, translateWorkflow, runWorkflow, SessionFactory, QaEvaluator, Finding and Evidence from @veriflow/core.
+New paths below are planned destinations, not implemented features.
 
-Use FakeSessionFactory and FakeEvaluator from @veriflow/runner/testing in tests. Fake sessions are isolated per run, collect commands, allow scripted step failures and expose closure state. FakeEvaluator defaults to blocked until a test supplies its expected scenario. Fakes perform no browser or AI calls and are never production success indicators.
+| Owner | Paths                                                                                                                                                                                                                                          |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dev 1 | packages/core; apps/web/app/api; apps/web/server/projects; apps/web/server/workflows; apps/web/server/attachments; apps/web/server/runs; apps/web/server/composition; root configuration; all package manifests; bun.lock; CI; shared fixtures |
+| Dev 2 | apps/web/server/agent; apps/web/server/context; apps/web/server/templates; apps/web/tests/agent-_; apps/web/tests/context-_; apps/web/tests/templates-*                                                                                        |
+| Dev 3 | packages/runner/src; packages/runner/unit; packages/runner/playwright.config.ts; packages/runner/tests/browser-*                                                                                                                               |
+| Dev 4 | apps/web/app/page.tsx; apps/web/app/layout.tsx; apps/web/app/demo; apps/web/app/projects; apps/web/features; apps/web/server/reports; apps/web/tests/reports-_; packages/runner/tests/dashboard-_                                              |
 
-Each module has an application/evaluate.ts entry accepting a QaEvaluator and a corresponding test. Replace the fake with your adapter through dependency injection when implementing real behavior. Module code must not import sibling implementations.
+Legacy functionality/security/accessibility server directories are not active work areas. Dev 1 assigns any reuse or movement explicitly. No task may own a parent path that includes another active task's files. Dev 4 owns dashboard browser tests; Dev 3 owns runner configuration. Dependencies and lockfile edits are requested through Dev 1.
 
-The POST /api/workflows/validate endpoint accepts a workflow document, returns a translated plan, returns 400 for invalid JSON, and 422 for invalid workflow structure. It does not execute workflows.
+## Shared contract gate
 
-## First PR acceptance criteria
+L0 is a small contract PR, authored by Dev 1 and reviewed by the affected implementers. Freeze one happy-path fixture and failure fixtures for each boundary before consumer implementation.
 
-### Engine
+| Contract                        | Producer → consumer                  | Required semantics                                                                                    |
+| ------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| Project and attachment metadata | Dev 1 → Dev 2/4                      | Project ownership, supported formats, size limits, extraction status and rejection behavior           |
+| ContextDocument                 | Dev 2 → generation                   | Source attachment ID, extracted text, supported-format errors; screenshots handled explicitly         |
+| Workflow and revision           | Dev 2 drafts / Dev 1 saves → Dev 3/4 | Stable IDs, typed actions/assertions, optimistic updates; regeneration creates a draft                |
+| TemplateDefinition              | Dev 2 → Dev 3/4                      | Version, category, prerequisites, parameter schema, required executor capabilities                    |
+| Browser tools and observations  | Dev 3 → Dev 2                        | Validated arguments, bounded observation, timeout/cancellation, permitted targets and origins         |
+| RunEvent and RunResult          | Dev 1 composes Dev 3 output → Dev 4  | Sequence, timestamps, lifecycle state, per-step expected/actual data, outcome and artifact references |
+| EvidenceManifest                | Dev 3 → Dev 1/4                      | Run/step identity, media type, storage-relative path, capture completeness                            |
+| ReportSnapshot                  | Dev 1 → Dev 4 renderer               | Immutable workflow revision, observed results, evidence metadata and optional AI summary              |
 
-Implement the SessionFactory port with one isolated browser context per run. Verify every command and assertion against local fixtures. Honor exact target matching, command timeouts and abort signals. Close sessions after success, failure and cancellation. Enforce project-origin policy across navigation and redirects. Correlate captured artifacts with run and step IDs. Add worker job persistence and recovery as a subsequent reviewed change.
+These additions are not all implemented in the current core. Existing workflow/session/fake contracts are the starting point. Until L0 lands, work on fixtures, pure layout and the local demo rather than inventing competing interfaces.
 
-### Functionality
+The AI loop and deterministic workflow execution share one session lifetime owned by the run coordinator. Dev 2 requests validated actions through Dev 3's adapter; it never imports Playwright directly. Run finalization happens only after checks and evidence capture finish.
 
-Build a workflow form against the shared schema and validation endpoint. Preserve stable step IDs and empty fill values. Render validation paths and assertion outcomes. Build AI output validation using the same schema and a fake provider before introducing real credentials. Implement the shared revision-based WorkflowRepository contract when adding database or filesystem persistence.
+Browser/check adapters produce observed results. AI summarizes them and cannot replace them. The run coordinator computes the final outcome. A skipped prerequisite is blocked. Transport/infrastructure lifecycle errors are distinct from failed test assertions.
 
-### Security
+## First milestone — one complete journey
 
-Implement a QaEvaluator that returns categorized findings and blocked results when prerequisites are missing. Use fixtures for authorization and input validation checks. Verify fixtures cannot run against arbitrary destinations. Establish platform authentication and route authorization separately, with agreed session contracts shared with the UI developer.
+| Task                                     | Owner                                      | Depends on      | Acceptance                                                                                                             |
+| ---------------------------------------- | ------------------------------------------ | --------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| L0 contracts and fixtures                | Dev 1; consumer review                     | None            | All consumers compile against one agreed contract version                                                              |
+| P1 minimal project/workflow/run APIs     | Dev 1                                      | L0              | Create project, save reviewed workflow, start/status/cancel a fake run; project separation verified                    |
+| A1 generation and bounded fake tool loop | Dev 2                                      | L0              | Objective becomes schema-valid editable draft; invalid tool input rejected; max calls enforced                         |
+| B1 deterministic browser adapter         | Dev 3                                      | L0              | Local target executes actions and assertions, captures PNG, closes on pass/fail/cancel                                 |
+| U1 editor, timeline and buggy target     | Dev 4                                      | L0 for bindings | Fixture UI covers running/pass/fail/blocked; demo labels/test IDs stable                                               |
+| I1 real integration                      | Dev 1 coordinates; owners fix their layers | P1, A1, B1, U1  | User reviews generated workflow, executes it, sees a real failure and screenshot, fixes target and reruns successfully |
 
-### Accessibility
+A1 and B1 are independently testable. Neither must wait for the other's real implementation. U1 uses shared API fixtures while P1 is developed. Dev 4 supplies the target contract early; Dev 3 keeps an independent local test fixture.
 
-Implement a QaEvaluator adapter around axe. Map violations into stable rule IDs, severities and evidence references. Test a known violation and a clean fixture. Build findings/report UI against the shared DTOs. Define artifact retrieval and export interfaces before persisting reports. Automated results must describe the checks performed.
+## Full MVP follow-through
 
-## Shared semantics
+These remain required after I1.
 
-Finding IDs are unique within a run. ruleId is stable across runs. Evidence IDs reference artifacts within the same run. artifactPath is storage-relative, never an arbitrary client-supplied absolute path. A failed assertion fails a step. A QA evaluation can fail even if all actions passed. Missing prerequisites produce blocked, not passed.
+| Task group                    | Primary owner                             | Required acceptance                                                                                                                               |
+| ----------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Multiple projects and history | Dev 1                                     | Isolation across projects; data survives restart; revisions reject stale writes                                                                   |
+| Attachments                   | Dev 1 storage; Dev 2 extraction; Dev 4 UI | Supported PRD/BRD/story/screenshot inputs reach generation with source references; unsupported inputs give clear errors                           |
+| Template catalog              | Dev 2                                     | Functional, responsive, basic security, supplied-requirement compliance, accessibility and regression definitions have fixtures and prerequisites |
+| Template execution            | Dev 3                                     | Each catalog capability has a tested implementation or explicit blocked result; viewport and axe checks verified                                  |
+| AI assistance and summaries   | Dev 2                                     | Bounded validated tool use; no unsupported action executes; summaries distinguish observation from interpretation                                 |
+| Evidence                      | Dev 3 capture; Dev 1 retrieval            | PNG, WebM and traces tied to a run; access resolves registered artifacts; incomplete capture surfaced                                             |
+| Workflow review and result UI | Dev 4                                     | User edits persist; the selected revision is executed; expected/actual and blocked states displayed                                               |
+| CSV/XLSX/PDF                  | Dev 4 rendering; Dev 1 HTTP/storage       | All formats derive from the same ReportSnapshot and reconcile with UI results                                                                     |
 
-Secrets must be supplied at runtime by future session adapters and excluded from persisted workflow values, findings and artifacts. SessionOptions.allowedOrigins is an enforcement contract for the real adapter. The fake does not make network requests.
+PPTX and SQLite remain optional. WebM satisfies the initial video requirement; MP4 is conditional on supported conversion. Regression reruns pin a workflow revision and create new run/evidence records. Compliance refers to supplied requirements and never implies legal certification.
 
-## Merge gate
+## Reviews and integration
 
-A PR must pass frozen install, formatting, lint, typecheck, unit contracts, build and browser integration tests. Include affected contract changes, test evidence and migration notes. Core contract changes require review from an affected consumer owner. Main branch protection must be enabled by a repository administrator to enforce approvals.
+Dev 1 assigns tasks using REVIEW.md's template and merges serially. Each task has one implementer, one reviewer, exact paths, base commit, dependency fixtures and acceptance evidence.
+
+- Dev 2 and Dev 3 cross-review tool and observation semantics.
+- Dev 1 reviews execution lifecycle, persistence and evidence ownership.
+- Dev 4 reviews contracts consumed by the UI and report rendering.
+- Dev 1's changes receive an affected consumer's review.
+- All authors retain responsibility for correcting their layer after integration.
+
+Template and workflow contract changes use explicit versions. Additive changes preserve prior fixtures. Breaking changes require a small coordinated contract PR before consumers change. No developer resolves another owner's semantic conflict without their review.
+
+## Time-boxed event overlay
+
+The source plan uses WIB. By 10:00, land L0. By 11:00, fake agent, browser fixture and UI run independently. By 12:30, connect real model-driven actions. By 14:00, verify I1 and freeze new demonstration features. By 15:00, review critical fixes and record fallback. Rehearse by 16:00 and submit by 16:30.
+
+The complete MVP is not promised within seven hours. The lead reports demonstration readiness and full-MVP completion separately. Platform multi-user authentication, distributed queues, complex analytics and autonomous code fixing are outside this MVP allocation.
+
+## Verification
+
+Run bun install --frozen-lockfile, bun run lint, bun run format:check, bun run typecheck, bun run test:unit, bun run build and bun run test:smoke. Install Chromium first with bun run browsers:install. Browser tests need port 3000 free.
+
+For every milestone, verify the integrated result with real adapters as well as deterministic fixtures. Record current commit, commands, screenshots and limitations. Green scaffold CI alone does not prove any unimplemented capability.

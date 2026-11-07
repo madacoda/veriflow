@@ -1,5 +1,7 @@
 # Modular monolith
 
+For the seven-hour hackathon, developer ownership follows integration, AI agent, browser, and dashboard/demo. QA category modules remain future extension points. The current execution engine is deterministic; the model-driven observation/tool loop is still an implementation task. See docs/developer-handoff.md for the time-boxed scope.
+
 Next.js serves UI and HTTP endpoints in one application. The former Fastify app has been consolidated into apps/web.
 
 ```text
