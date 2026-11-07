@@ -255,6 +255,48 @@ test("the coupon target preserves the frozen locators and exact totals", async (
   await page.screenshot({ path: testInfo.outputPath("coupon-known-pass.png") });
 });
 
+test("project context survives creation and reload for subsequent generation", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(
+    process.env.VERIFLOW_U1_TEST_HTTP !== "1",
+    "Requires isolated platform storage",
+  );
+  await page.goto(baseURL!);
+  await page.getByLabel("Project name").fill(`Context ${randomUUID()}`);
+  await page.getByLabel("Project target URL").fill(`${baseURL}/demo`);
+  await page
+    .getByLabel("Project description", { exact: true })
+    .fill("Team checkout with reviewed discount rules.");
+  await page
+    .getByLabel("Project goals (one per line)", { exact: true })
+    .fill("Apply a valid discount\n\n  Reject an invalid discount  ");
+  await page
+    .getByRole("button", { name: "Create project", exact: true })
+    .click();
+  await expect(
+    page.getByRole("region", { name: "Saved project context" }),
+  ).toContainText("Team checkout with reviewed discount rules.");
+  const id = await page.getByLabel("Selected project").inputValue();
+  const response = await page.request.get(`${baseURL}/api/projects`);
+  const project = (await response.json()).projects.find(
+    (item: ProjectRecord) => item.id === id,
+  );
+  expect(project.description).toBe(
+    "Team checkout with reviewed discount rules.",
+  );
+  expect(project.goals).toEqual([
+    "Apply a valid discount",
+    "Reject an invalid discount",
+  ]);
+  await page.reload();
+  await page.getByLabel("Selected project").selectOption(id);
+  await expect(
+    page.getByRole("region", { name: "Saved project context" }),
+  ).toContainText("Reject an invalid discount");
+});
+
 test("preserves project fields when the API rejects creation", async ({
   page,
   baseURL,
@@ -277,6 +319,12 @@ test("preserves project fields when the API rejects creation", async ({
   await page.goto(origin);
   await page.getByLabel("Project name").fill("Draft checkout project");
   await page
+    .getByLabel("Project description", { exact: true })
+    .fill("Keep this business context");
+  await page
+    .getByLabel("Project goals (one per line)", { exact: true })
+    .fill("Keep this expected result");
+  await page
     .getByLabel("Project target URL")
     .fill("ftp://example.com/checkout");
   await page.getByRole("button", { name: "Create project" }).click();
@@ -286,6 +334,12 @@ test("preserves project fields when the API rejects creation", async ({
   await expect(page.getByLabel("Project name")).toHaveValue(
     "Draft checkout project",
   );
+  await expect(
+    page.getByLabel("Project description", { exact: true }),
+  ).toHaveValue("Keep this business context");
+  await expect(
+    page.getByLabel("Project goals (one per line)", { exact: true }),
+  ).toHaveValue("Keep this expected result");
   await expect(page.getByLabel("Project target URL")).toHaveValue(
     "ftp://example.com/checkout",
   );

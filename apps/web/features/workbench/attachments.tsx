@@ -5,6 +5,7 @@ import { Button } from "../ui/button";
 import {
   attachmentMediaTypes,
   MAX_ATTACHMENT_BYTES,
+  textContextMediaTypes,
   type AttachmentMetadata,
 } from "@veriflow/core";
 import {
@@ -63,6 +64,21 @@ export const extractionLabels = {
   ready: "Extraction ready",
   failed: "Extraction failed",
 };
+
+export function canReadForGeneration(attachment: AttachmentMetadata) {
+  return (
+    attachment.extraction.status !== "failed" &&
+    textContextMediaTypes.some((type) => type === attachment.mediaType)
+  );
+}
+
+export function generationSourceHelp(attachment: AttachmentMetadata) {
+  if (!textContextMediaTypes.some((type) => type === attachment.mediaType))
+    return "Stored for reference only. AI cannot read this format yet; provide TXT, MD, CSV, or JSON text instead.";
+  if (attachment.extraction.status === "failed")
+    return "This source could not be read. Correct it and upload it again before generation.";
+  return "Text is read when selected for generation, up to 100,000 characters. Uploading alone does not include it in a draft.";
+}
 
 export function ProjectAttachments({
   projectId,
@@ -166,7 +182,8 @@ export function ProjectAttachments({
                 </label>
                 <p id="attachment-formats">
                   TXT, MD, CSV, JSON, PDF, DOCX, PNG, or JPEG. Up to 10 MiB per
-                  file.
+                  file. AI generation currently reads TXT, MD, CSV, and JSON
+                  only. PDF, DOCX, and screenshots are stored for reference.
                 </p>
                 <div className={styles.actions}>
                   <Button type="submit" disabled={!file}>
@@ -213,6 +230,7 @@ export function ProjectAttachments({
                       {attachment.sizeBytes.toLocaleString("en")} bytes ·{" "}
                       {extractionLabels[attachment.extraction.status]}
                     </p>
+                    <p>{generationSourceHelp(attachment)}</p>
                     {attachment.extraction.status === "failed" && (
                       <p>{attachment.extraction.message}</p>
                     )}
