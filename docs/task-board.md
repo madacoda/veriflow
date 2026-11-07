@@ -1,6 +1,6 @@
 # First journey: lead task board
 
-Dev 1 owns this board and the serial merge queue. It accompanies the L0 PR because the connected GitHub integration returned 403 when creating an issue. No GitHub handles or reviewer assignments have been invented; role owners must confirm their own handles on the PR. Devs 2–4 are working separately, not as subagents in this checkout.
+Dev 1 owns this board and the serial merge queue. The connected GitHub integration returned 403 for both issue and PR creation; browser access was also unavailable. The pushed branches and this board are the review handoff until a teammate creates the PRs. No GitHub handles or GitHub reviewer assignments have been invented; role owners must confirm their own handles. Devs 2–4 are working separately, not as subagents in this checkout.
 
 The 10:00 WIB gate has already elapsed. Do not report it as achieved. Prioritize L0 review now, then independent fixtures; keep the 14:00 known-fail/known-pass cutoff. The full MVP remains the scope in developer-handoff.md. These tasks cover the first journey only.
 
@@ -14,21 +14,21 @@ The 10:00 WIB gate has already elapsed. Do not report it as achieved. Prioritize
 - Verification: frozen install, lint, formatting, type checks, unit tests, build, browser installation and smoke tests. Record exact results on the PR.
 - Budget/checkpoint: immediate first review; consumers review in parallel with fixture/layout work. Review/integration retains 40% of Dev 1 capacity.
 - Out of scope: real AI/browser/UI implementation, storage adapters, complete MVP claims.
-- PR/current commit: this document ships in the L0 PR; its head SHA is authoritative.
-- Status: review after verification; merge only after affected-consumer approval.
+- PR/current commit: `codex/l0-platform-contracts` at `36feb2d`; [open the L0 comparison](https://github.com/madacoda/veriflow/compare/main...codex/l0-platform-contracts?expand=1). PR creation is blocked by connector permissions.
+- Status: review; local verification passed (18 unit tests, 2 browser tests). Merge only after affected-consumer approval and latest GitHub checks.
 
 ## P1 — Dev 1; reviewer Dev 3 for lifecycle, Dev 4 for HTTP shape
 
-- Branch/base: `codex/p1-platform`; branch from reviewed L0 merge SHA (or clearly mark a stacked draft until L0 lands).
+- Branch/base: `codex/p1-platform`, stacked draft based on L0 commit `36feb2d` until L0 is reviewed and merged.
 - Outcome: persistent projects/revisions and run create/status/cancel APIs; real adapter injected at composition.
-- Allowed paths: `apps/web/app/api/**`, `apps/web/server/projects/**`, `apps/web/server/workflows/**`, `apps/web/server/runs/**`, `apps/web/server/composition/**`, `apps/web/tests/platform-*.test.ts`, required shared configuration. Attachment/evidence retrieval follows after this foundation.
+- Allowed paths: `apps/web/app/api/**`, `apps/web/server/projects/**`, `apps/web/server/workflows/**`, `apps/web/server/runs/**`, `apps/web/server/composition/**`, `apps/web/tests/platform-*.test.ts`, server environment example, lead coordination/verification documents. Evidence retrieval is included; attachment storage follows after this foundation.
 - Dependencies/version: L0 v1 schemas, fixtures and HTTP contract in contracts-v1.md. Dev 3 supplies SessionFactory; missing real adapter returns 503. Fake execution is explicitly configured and labeled.
 - Acceptance: create/list/read projects; atomic create-only and compare-and-save revisions; run a pinned saved revision; ordered timeline; cancellation finalizes after cleanup; cross-project access rejects; restart recovers interrupted runs as errors; report snapshot cannot drift after edits.
 - Verification: unit tests with temporary persistent directories and controlled sessions covering isolation, concurrent writes, restart, assertion fail versus infrastructure error, cancellation and immutable snapshots; complete merge gate before integration.
 - Budget/checkpoint: first reviewable platform slice within 60 minutes after contracts; send an exact blocker if real adapter composition cannot begin. Reserve 40% for integration/review.
 - Out of scope: AI loop, Playwright implementation, UI/report rendering, authentication or distributed workers.
-- PR/current commit: pending.
-- Status: planned; L0 must land before consumer merge.
+- PR/current commit: [open the P1-only comparison against L0](https://github.com/madacoda/veriflow/compare/codex/l0-platform-contracts...codex/p1-platform?expand=1); branch HEAD is authoritative. See platform-p1.md for evidence and limitations.
+- Status: review; 35 unit tests, production build, browser checks and production HTTP/restart checks passed. L0 must land before consumer merge. No real adapter is integrated yet.
 
 ## A1 — Dev 2; reviewer Dev 3
 
