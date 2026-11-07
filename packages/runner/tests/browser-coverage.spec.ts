@@ -78,14 +78,36 @@ async function draft(id: string, override: object = {}): Promise<Workflow> {
   });
   return workflowSchema.parse(workflow);
 }
-async function completedRun(projectPath: string, id: string) {
+async function completedRun(
+  projectPath: string,
+  id: string,
+): Promise<RunRecord> {
   const path = `${projectPath}/runs/${id}`;
-  await expect
-    .poll(async () => (await request<{ run: RunRecord }>(path)).run.lifecycle, {
-      timeout: 45000,
-    })
-    .toBe("completed");
-  return (await request<{ run: RunRecord }>(path)).run;
+  let lastRun: RunRecord | undefined;
+  try {
+    await expect
+      .poll(
+        async () => {
+          lastRun = (await request<{ run: RunRecord }>(path)).run;
+          return !["queued", "running"].includes(lastRun.lifecycle);
+        },
+        { timeout: 45000 },
+      )
+      .toBe(true);
+    expect(
+      lastRun,
+      `Run ${id} must complete; see its observed-run attachment`,
+    ).toMatchObject({ lifecycle: "completed" });
+    return lastRun!;
+  } catch (error) {
+    if (lastRun) {
+      await test.info().attach(`observed-run-${id}.json`, {
+        body: Buffer.from(JSON.stringify(lastRun, null, 2)),
+        contentType: "application/json",
+      });
+    }
+    throw error;
+  }
 }
 async function execute(workflow: Workflow, secrets = true) {
   return runWorkflow(
