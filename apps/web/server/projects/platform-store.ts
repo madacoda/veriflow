@@ -5,12 +5,14 @@ import {
   createProjectSchema,
   saveWorkflowSchema,
   startRunSchema,
+  attachmentMetadataSchema,
   type ApiErrorCode,
   type ProjectRecord,
   type WorkflowRevision,
   type RunRecord,
   type ReportSnapshot,
   type RunEvent,
+  type AttachmentMetadata,
 } from "@veriflow/core";
 
 export class PlatformError extends Error {
@@ -28,6 +30,7 @@ interface Database {
   workflows: WorkflowRevision[];
   runs: RunRecord[];
   snapshots: ReportSnapshot[];
+  attachments: AttachmentMetadata[];
 }
 const processState = globalThis as typeof globalThis & {
   __veriflowStoreQueues?: Map<string, Promise<unknown>>;
@@ -88,6 +91,10 @@ export class PlatformStore {
         )
       )
         throw new Error("Invalid store");
+      // Additive migration: P1 databases predate attachment metadata.
+      data.attachments = attachmentMetadataSchema
+        .array()
+        .parse(data.attachments === undefined ? [] : data.attachments);
       return data;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT")
@@ -97,6 +104,7 @@ export class PlatformStore {
           workflows: [],
           runs: [],
           snapshots: [],
+          attachments: [],
         };
       throw new PlatformError(
         "internal_error",
@@ -230,6 +238,46 @@ export class PlatformStore {
       return data.runs
         .filter((entry) => entry.projectId === projectId)
         .reverse();
+    });
+  }
+  listAttachments(projectId: string) {
+    return this.query((data) => {
+      this.project(data, projectId);
+      return data.attachments.filter((entry) => entry.projectId === projectId);
+    });
+  }
+  getAttachment(projectId: string, attachmentId: string) {
+    return this.query((data) => this.attachment(data, projectId, attachmentId));
+  }
+  private attachment(data: Database, projectId: string, attachmentId: string) {
+    this.project(data, projectId);
+    const entry = data.attachments.find(
+      (item) => item.id === attachmentId && item.projectId === projectId,
+    );
+    if (!entry)
+      throw new PlatformError("not_found", 404, "Attachment not found");
+    return entry;
+  }
+  registerAttachment(input: AttachmentMetadata) {
+    const metadata = attachmentMetadataSchema.parse(input);
+    return this.change((data) => {
+      this.project(data, metadata.projectId);
+      if (data.attachments.some((item) => item.id === metadata.id))
+        throw new Error("Duplicate attachment ID");
+      data.attachments.push(metadata);
+      return metadata;
+    });
+  }
+  setAttachmentExtraction(
+    projectId: string,
+    attachmentId: string,
+    extraction: AttachmentMetadata["extraction"],
+  ) {
+    const parsed = attachmentMetadataSchema.shape.extraction.parse(extraction);
+    return this.change((data) => {
+      const metadata = this.attachment(data, projectId, attachmentId);
+      metadata.extraction = parsed;
+      return metadata;
     });
   }
   getRun(projectId: string, runId: string) {

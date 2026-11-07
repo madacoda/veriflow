@@ -30,6 +30,19 @@ The 10:00 WIB gate elapsed before L0 landed. Do not report it as achieved on tim
 - PR/current commit: [open the P1 comparison against main](https://github.com/madacoda/veriflow/compare/main...codex/p1-platform?expand=1); branch HEAD is authoritative. See platform-p1.md for evidence and limitations.
 - Status: review; 35 unit tests, production build, browser checks and production HTTP/restart checks passed. L0 has landed. P1 still requires consumer review and checks on its latest head before merge. No real adapter is integrated yet.
 
+## P2 — Dev 1; reviewer Dev 4; affected review Dev 2
+
+- Branch/base: `codex/p2-attachments-reports`, stacked on P1 `1762fcc` with L0 main `3c432f1` included.
+- Outcome: durable project-scoped attachments and binary report delivery ready for the owner's renderer.
+- Allowed paths: attachment API routes; `apps/web/server/attachments/**`; platform metadata/storage helpers; `apps/web/server/runs/report-downloads.ts`; composition; `apps/web/tests/platform-*.test.ts`; lead coordination documents. No core or other developer-owned implementation changes.
+- Dependencies/version: L0 v1 AttachmentMetadata, AttachmentReader and ReportRenderer; P1 persistence and immutable snapshots. Dev 2 supplies extraction; Dev 4 supplies real renderers.
+- Acceptance: enforce upload limits without Content-Length; keep reads project-scoped; survive restart and old P1 database migration; rollback failed registration; deliver and persist renderer output from the pinned snapshot; safe filenames and explicit unavailable-adapter errors.
+- Verification: full merge gate, 14 added transport/storage tests and production multipart/restart checks. See platform-p2.md.
+- Budget/checkpoint: one independent platform slice while other owners review/start; reserve lead capacity for integration.
+- Out of scope: AI extraction/generation, browser adapter, UI and report content rendering.
+- PR/current commit: [P2-only comparison](https://github.com/madacoda/veriflow/compare/codex/p1-platform...codex/p2-attachments-reports?expand=1); branch HEAD is authoritative.
+- Status: review; full local gate passed (49 unit tests and 2 browser tests), plus production upload/download/restart checks. Real extraction and rendering remain owner integrations. P1 precedes P2; this slice does not block A1/B1/U1 or I1.
+
 ## A1 — Dev 2; reviewer Dev 3
 
 - Branch/base: `codex/a1-agent-tools`; use the L0 merge SHA recorded by Dev 1, separate checkout.

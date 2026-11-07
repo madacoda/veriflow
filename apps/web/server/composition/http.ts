@@ -3,11 +3,16 @@ import {
   createProjectSchema,
   saveWorkflowSchema,
   startRunSchema,
+  MAX_ATTACHMENT_BYTES,
   type ApiError,
+  type ReportFormat,
 } from "@veriflow/core";
 import { PlatformError, PlatformStore } from "../projects/platform-store.ts";
 import { RunCoordinator } from "../runs/coordinator.ts";
 import { evidencePath } from "../runs/evidence.ts";
+import { AttachmentStore } from "../attachments/store.ts";
+import { ReportDownloads } from "../runs/report-downloads.ts";
+import { readRequestBody } from "./request-body.ts";
 
 const JSON_LIMIT = 1024 * 1024;
 class ValidationError extends PlatformError {
@@ -37,32 +42,34 @@ function validate<T>(schema: Schema<T>, input: unknown): T {
   return result.data;
 }
 async function json(request: Request): Promise<unknown> {
-  const reader = request.body?.getReader();
-  if (!reader) throw new PlatformError("invalid_json", 400, "Invalid JSON");
-  let bytes = 0;
-  const parts: Uint8Array[] = [];
   try {
-    while (true) {
-      const chunk = await reader.read();
-      if (chunk.done) break;
-      bytes += chunk.value.byteLength;
-      if (bytes > JSON_LIMIT) {
-        await reader.cancel();
-        throw new PlatformError(
-          "payload_too_large",
-          413,
-          "JSON body exceeds 1 MiB",
-        );
-      }
-      parts.push(chunk.value);
-    }
-    return JSON.parse(Buffer.concat(parts).toString("utf8"));
+    return JSON.parse(
+      Buffer.from(await readRequestBody(request, JSON_LIMIT)).toString("utf8"),
+    );
   } catch (error) {
     if (error instanceof PlatformError) throw error;
     throw new PlatformError("invalid_json", 400, "Invalid JSON");
-  } finally {
-    reader.releaseLock();
   }
+}
+function downloadResponse(file: {
+  bytes: Uint8Array;
+  mediaType: string;
+  filename: string;
+}) {
+  const encoded = encodeURIComponent(file.filename).replace(
+    /[!'()*]/g,
+    (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+  const ascii = file.filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+  return new Response(new Uint8Array(file.bytes), {
+    headers: {
+      "Content-Type": file.mediaType,
+      "Content-Length": String(file.bytes.byteLength),
+      "Content-Disposition": `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`,
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
 }
 export function errorResponse(error: unknown) {
   const known = error instanceof PlatformError;
@@ -82,10 +89,14 @@ export class PlatformHttp {
   constructor(
     private readonly store: PlatformStore,
     private readonly coordinator: RunCoordinator,
+    private readonly attachments = new AttachmentStore(store),
+    private readonly reports = new ReportDownloads(store),
   ) {}
   private async respond(action: () => Promise<unknown>, status = 200) {
     try {
-      return Response.json(await action(), {
+      const result = await action();
+      if (result instanceof Response) return result;
+      return Response.json(result, {
         status,
         headers: { "Cache-Control": "no-store" },
       });
@@ -117,6 +128,78 @@ export class PlatformHttp {
     return this.respond(async () => ({
       workflows: await this.store.listWorkflows(projectId),
     }));
+  }
+  attachmentsGET(projectId: string) {
+    return this.respond(async () => ({
+      attachments: await this.store.listAttachments(projectId),
+    }));
+  }
+  attachmentGET(projectId: string, attachmentId: string) {
+    return this.respond(async () => ({
+      attachment: await this.store.getAttachment(projectId, attachmentId),
+    }));
+  }
+  attachmentContentGET(projectId: string, attachmentId: string) {
+    return this.respond(async () => {
+      const { metadata, bytes } = await this.attachments.read(
+        projectId,
+        attachmentId,
+      );
+      return downloadResponse({
+        bytes,
+        mediaType: metadata.mediaType,
+        filename: metadata.filename,
+      });
+    });
+  }
+  attachmentsPOST(request: Request, projectId: string) {
+    return this.respond(async () => {
+      await this.store.getProject(projectId);
+      const contentType = request.headers.get("content-type") ?? "";
+      if (!/^multipart\/form-data\s*;/i.test(contentType))
+        throw new ValidationError([
+          {
+            path: "file",
+            message: "Use multipart/form-data with one file field",
+          },
+        ]);
+      const bytes = await readRequestBody(
+        request,
+        MAX_ATTACHMENT_BYTES + 64 * 1024,
+      );
+      let form: FormData;
+      try {
+        form = await new Request(request.url, {
+          method: "POST",
+          headers: { "Content-Type": contentType },
+          body: new Uint8Array(bytes),
+        }).formData();
+      } catch {
+        throw new ValidationError([
+          { path: "file", message: "Invalid multipart body" },
+        ]);
+      }
+      const entries = [...form.entries()];
+      const file = form.get("file");
+      if (
+        entries.length !== 1 ||
+        entries[0][0] !== "file" ||
+        !(file instanceof File)
+      )
+        throw new ValidationError([
+          {
+            path: "file",
+            message: "Provide exactly one file field and no other fields",
+          },
+        ]);
+      return {
+        attachment: await this.attachments.upload(projectId, {
+          filename: file.name,
+          mediaType: file.type,
+          bytes: new Uint8Array(await file.arrayBuffer()),
+        }),
+      };
+    }, 201);
   }
   workflowsPOST(request: Request, projectId: string) {
     return this.respond(
@@ -176,14 +259,20 @@ export class PlatformHttp {
   }
   reportGET(request: Request, projectId: string, runId: string) {
     return this.respond(async () => {
-      const snapshot = await this.store.report(projectId, runId);
-      if (new URL(request.url).searchParams.has("format"))
-        throw new PlatformError(
-          "adapter_unavailable",
-          503,
-          "Report renderer is not configured",
-        );
-      return { snapshot };
+      const formats = new URL(request.url).searchParams.getAll("format");
+      if (!formats.length)
+        return { snapshot: await this.store.report(projectId, runId) };
+      if (formats.length !== 1 || !["csv", "xlsx", "pdf"].includes(formats[0]))
+        throw new ValidationError([
+          { path: "format", message: "Expected csv, xlsx or pdf" },
+        ]);
+      return downloadResponse(
+        await this.reports.download(
+          projectId,
+          runId,
+          formats[0] as ReportFormat,
+        ),
+      );
     });
   }
   async evidenceGET(projectId: string, runId: string, evidenceId: string) {
