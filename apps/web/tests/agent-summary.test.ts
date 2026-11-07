@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { ReportSnapshot } from "@veriflow/core";
+import { workflowSchema, type ReportSnapshot } from "@veriflow/core";
 import {
   demoReport,
   demoBlockedRun,
@@ -249,6 +249,62 @@ test("combined observation and interpretation overflow rejects without truncatin
     }),
     code("invalid_summary_output"),
   );
+});
+
+test("additive workflow actions preserve observed failures without exposing secret bindings or evaluator payloads", async () => {
+  for (const step of [
+    { code: "viewport", width: 375, height: 812 },
+    { code: "assertLayout" },
+    { code: "accessibility" },
+    { code: "assertHttp", url: demoReport.project.url, statuses: [200] },
+    {
+      code: "fillSecret",
+      target: { by: "testId", value: "password" },
+      secret: "PRIVATE_BINDING",
+    },
+    {
+      code: "assertRequirement",
+      requirementId: "private-requirement-id",
+      requirement: "private-requirement-text",
+      target: { by: "testId", value: "total" },
+      expectation: { kind: "text", value: "90000" },
+    },
+  ]) {
+    const snapshot = report();
+    snapshot.workflow.workflow = workflowSchema.parse({
+      ...snapshot.workflow.workflow,
+      steps: [{ id: "check", ...step }],
+    });
+    snapshot.run.steps = [
+      {
+        stepId: "check",
+        status: "failed",
+        reason: "Observed check failed",
+        findings: [
+          {
+            id: "private-finding-id",
+            category: "security",
+            ruleId: "rule",
+            severity: "high",
+            message: "private-finding-detail",
+            evidenceIds: [],
+          },
+        ],
+      },
+    ];
+    snapshot.run.evidence = {
+      contractVersion: "1",
+      runId: snapshot.run.id,
+      capture: "unavailable",
+      artifacts: [],
+      warnings: [],
+    };
+    const projected = JSON.stringify(prepareFailureSummary(snapshot));
+    assert.doesNotMatch(projected, /PRIVATE_BINDING|private-|127\.0\.0\.1/);
+    const result = await summarize(snapshot, { analyses: [] });
+    assert.ok(result.text.includes(`Step "check" (${step.code}): failed`));
+    assert.match(result.text, /recorded outcome: failed/);
+  }
 });
 
 const mutations: Record<string, (snapshot: ReportSnapshot) => void> = {
