@@ -10,7 +10,6 @@ import { createFakeSessionFactory } from "../runs/fake-session.ts";
 import { PlatformHttp, errorResponse } from "./http.ts";
 import { AttachmentStore } from "../attachments/store.ts";
 import { renderCsv } from "../reports/csv.ts";
-import { renderPdf } from "../reports/pdf.ts";
 import { ReportDownloads } from "../runs/report-downloads.ts";
 import { createOpenAIDraftProvider } from "../agent/index.ts";
 import {
@@ -95,7 +94,11 @@ export function createRuntimePlatform(env: NodeJS.ProcessEnv = process.env) {
     reportRenderer: {
       async render(snapshot, format) {
         if (format === "csv") return renderCsv(snapshot);
-        if (format === "pdf") return renderPdf(snapshot);
+        if (format === "pdf") {
+          // Load the PDF library and embedded font only for a PDF download.
+          const { renderPdf } = await import("../reports/pdf.ts");
+          return renderPdf(snapshot);
+        }
         throw new PlatformError(
           "unsupported_format",
           422,
