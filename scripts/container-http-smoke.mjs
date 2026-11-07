@@ -123,7 +123,7 @@ async function verify(state) {
   assert.equal(
     await pdfReport(projectPath, state.failedRunId),
     state.failedPdfSha256,
-    "The saved PDF must survive container restart byte-for-byte",
+    "The pinned report must render consistently after container restart",
   );
   const { run: passed } = await json(
     `${projectPath}/runs/${state.passedRunId}`,
