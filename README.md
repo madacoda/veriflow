@@ -2,7 +2,7 @@
 
 An AI-powered UAT and QA automation platform under development. One Next.js application serves the dashboard and HTTP API; a shared TypeScript engine executes reviewed workflows through Playwright. Bun manages the workspace, and Node.js runs the application.
 
-The current implementation supports persistent projects, editable workflow revisions, real browser execution, six testing categories, evidence capture and CSV reports. Live AI generation and agent execution still need application integration. See [implementation and release status](docs/project-status.md), including the existing browser-test CI failure on the documentation baseline.
+The current implementation supports persistent projects, editable workflow revisions, real browser execution, six testing categories, evidence capture and CSV reports. Live AI generation and agent execution still need application integration. See [implementation and release status](docs/project-status.md), including the existing browser-test CI failure on the documentation baseline. The [detailed audit](docs/project-audit.md) records confirmed defects, missing MVP work, unmerged branches, conflicts and the four-owner closure plan.
 
 ## Quick start
 
@@ -20,11 +20,13 @@ Optional server configuration belongs in `apps/web/.env.local`; copy [the exampl
 
 ## First workflow
 
-1. Create a project with its title, target URL, description and goals. The project URL establishes its allowed origin.
+1. Create a project with its title and target URL. The project URL establishes its allowed origin. The API also accepts description/goals; binding those fields into the product form remains open work.
 2. Choose **Testing template**, edit its parameters for the target's exact labels or test IDs, and create a draft. Templates are deterministic and make no model call.
 3. Review/edit the workflow, explicitly save it, and run that saved revision.
 4. Inspect the ordered timeline, expected/actual results, findings and available evidence. Download CSV from the terminal run's report.
 5. Use **Rerun revision** to execute the same saved steps again with a new run ID.
+
+The bundled fixture defaults use `127.0.0.1:1111`; on another port, adjust both the project URL and draft navigation URL to the intended server before saving. Automatic fixture URL binding is an open audit finding.
 
 The bundled coupon target at `/demo?bug=1` returns the incorrect total `100000`; `/demo?bug=0` returns `90000` after applying `SAVE10`. Both pages expose `coupon-input`, `apply-coupon` and `order-total` test IDs. Target URLs must be reachable from the server running Chromium. For the deployed monolith, use its internal `http://127.0.0.1:1111/demo` URL, as explained in [deployment](docs/deployment.md).
 

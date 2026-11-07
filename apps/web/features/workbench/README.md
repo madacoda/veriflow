@@ -1,6 +1,6 @@
 # U1 project workbench
 
-Open `/` to create or select a project, load the coupon fixture or review a selected saved revision, and save edits explicitly. The editor uses the v1 workflow schema. A revision conflict leaves the editor intact and offers the latest saved draft for comparison before the user changes the save base.
+Open `/` to create or select a project, load the coupon fixture or review a selected saved revision, and save edits explicitly. The form currently accepts title and URL only; description/goals exist in the API contract but still need UI binding. Frozen coupon fixtures target `127.0.0.1:1111`; alternate ports currently require correcting both project and workflow URLs. See [the audit](../../../../docs/project-audit.md) for these gaps and the silent template-load error. The editor uses the v1 workflow schema. A revision conflict leaves the editor intact and offers the latest saved draft for comparison before the user changes the save base.
 
 The run panel sends the chosen workflow ID and exact revision to P1. It polls active runs and presents lifecycle, test outcome, ordered events, expected and actual values, evidence, and capture warnings. The default platform uses the real Chromium adapter; unavailable-adapter responses remain visible without creating a run. The fixture preview remains available and clearly labels sample artifact references. The two demo links preview target modes without changing a saved revision.
 
@@ -10,7 +10,7 @@ Open **Preview draft generation** to enter an objective and select templates and
 
 API generation requires `GET /api/templates` and `POST /api/projects/:projectId/workflows/generate`. These platform routes are pending. **Testing template** uses the existing project template API to build a deterministic draft from parameters. Catalog and provider errors stay visible with the entered inputs available for retry. Dashboard tests exercise the generation response contract with mock HTTP routes.
 
-Terminal runs expose CSV, XLSX, and PDF download controls through P2. Each format requires a configured renderer. The UI displays an unavailable renderer response and allows retry. Dashboard tests use labeled transport fixtures to verify response handling and downloaded bytes.
+Terminal runs expose CSV, XLSX, and PDF download controls through P2. CSV is configured in the runtime; XLSX/PDF return 422 `unsupported_format`. The UI displays the server error and allows retry. Mocked download tests use labeled transport fixtures and do not prove valid XLSX/PDF documents. The current CSV viewport field describes the initial viewport even after responsive steps change it; this is an open audit finding.
 
 ## UI components
 

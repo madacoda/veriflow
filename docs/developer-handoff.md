@@ -4,7 +4,7 @@
 
 The full MVP in the user's latest brief is the product scope. The seven-hour event is the first demonstration milestone. Features deferred from that demonstration remain required MVP work. This allocation supersedes the earlier feature-category team split.
 
-Dev 1 is the single lead orchestrator and merge owner. [REVIEW.md](../REVIEW.md) defines the merge process. The team contains four developers including the lead. Keep the existing Next.js monolith and Bun toolchain. [Current implementation status](project-status.md) separates the original allocation below from completed delivery and remaining integrations.
+Dev 1 is the single lead orchestrator and merge owner. [REVIEW.md](../REVIEW.md) defines the merge process. The team contains four developers including the lead. Keep the existing Next.js monolith and Bun toolchain. [Current implementation status](project-status.md) separates the original allocation below from completed delivery and remaining integrations. The [detailed audit and next-task boundaries](project-audit.md#four-developer-execution-plan) record current defects, branch conflicts and nonoverlapping next work; use them when dispatching new tasks.
 
 ## Exclusive implementation ownership
 
