@@ -36,7 +36,9 @@ function boundedObservation(
 ): BrowserObservation {
   if (
     !object(value) ||
-    !httpUrlSchema.safeParse(value.url).success ||
+    // New browser sessions expose about:blank before their first navigation.
+    (value.url !== "about:blank" &&
+      !httpUrlSchema.safeParse(value.url).success) ||
     typeof value.url !== "string" ||
     value.url.length > 4096 ||
     typeof value.title !== "string" ||

@@ -271,6 +271,93 @@ test("observations are bounded including title and targets, and defaults reach i
   assert.equal(record.observation.truncated, true);
 });
 
+test("an initial blank-page observation allows the agent to navigate next", async () => {
+  const fixture = recordingPort();
+  fixture.port.observe = async () => ({
+    url: "about:blank",
+    title: "",
+    text: "",
+    truncated: false,
+    targets: [],
+  });
+  const result = await runAgentLoop(
+    {
+      tools: fixture.port,
+      next: async (history) => {
+        if (history.length === 0) return tool({ tool: "observe" });
+        const first = history[0];
+        assert.ok("observation" in first);
+        assert.equal(first.observation.url, "about:blank");
+        return history.length === 1
+          ? tool({ tool: "execute", step: demoWorkflow.steps[0] })
+          : { kind: "done" };
+      },
+    },
+    signal(),
+  );
+  assert.equal(result.history.length, 2);
+  assert.deepEqual(
+    fixture.calls,
+    translateWorkflow({
+      ...demoWorkflow,
+      steps: [demoWorkflow.steps[0]],
+    }).commands,
+  );
+  assert.equal(result.steps[0].status, "passed");
+});
+
+test("blank-page observations do not permit other schemes or blank-page navigation", async () => {
+  for (const url of [
+    "about:config",
+    "about:blank?query=1",
+    "about:blank#fragment",
+    "javascript:alert(1)",
+    "data:text/html,hello",
+    "file:///private/file",
+    "https://user:password@example.com",
+  ]) {
+    const fixture = recordingPort();
+    fixture.port.observe = async () => ({
+      url,
+      title: "",
+      text: "",
+      truncated: false,
+      targets: [],
+    });
+    await assert.rejects(
+      runAgentLoop(
+        {
+          tools: fixture.port,
+          next: sequence([
+            tool({ tool: "observe" }),
+            tool({ tool: "execute", step: demoWorkflow.steps[0] }),
+          ]),
+        },
+        signal(),
+      ),
+      code("tool_failed"),
+    );
+    assert.equal(fixture.calls.length, 0);
+  }
+  const fixture = recordingPort();
+  await assert.rejects(
+    runAgentLoop(
+      {
+        tools: fixture.port,
+        next: sequence([
+          tool({
+            tool: "execute",
+            step: { id: "blank", code: "redirect", url: "about:blank" },
+          }),
+        ]),
+      },
+      signal(),
+    ),
+    code("invalid_tool_call"),
+  );
+  assert.equal(fixture.calls.length, 0);
+});
+
 test("invalid adapter results and private failures cannot masquerade as success", async () => {
   for (const raw of [
     null,
