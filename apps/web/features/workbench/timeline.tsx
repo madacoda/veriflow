@@ -201,11 +201,7 @@ export function RunTimeline({
                 </div>
                 {event && (
                   <time dateTime={event.timestamp}>
-                    {new Date(event.timestamp).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      second: "2-digit",
-                    })}
+                    {new Date(event.timestamp).toISOString().slice(11, 19)} UTC
                   </time>
                 )}
                 {step && (
