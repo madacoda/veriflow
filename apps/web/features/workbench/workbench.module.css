@@ -1,16 +1,4 @@
-.body {
-  margin: 0;
-}
-
 .surface {
-  --background: #f0f4f8;
-  --foreground: #172c41;
-  --card: #fff;
-  --card-foreground: var(--foreground);
-  --border: #d9e3ed;
-  --input: #879bad;
-  --ring: #007b77;
-  --muted-foreground: #4d6074;
   min-height: 100vh;
   background: var(--background);
   color: var(--foreground);
@@ -22,6 +10,10 @@
 
 .surface :is(h1, h2, h3, p) {
   margin: 0;
+}
+
+.surface :is(h1, h2, h3) {
+  font-weight: 700;
 }
 
 .surface h2 {
@@ -127,7 +119,11 @@
 
 .demo a {
   justify-self: start;
-  color: #006460;
+}
+
+.surface :is(.demo, .compactList) a {
+  color: var(--primary);
+  text-decoration: underline;
 }
 
 .actions {
@@ -298,6 +294,14 @@
 .compactList {
   margin: 0;
   padding-inline-start: 1.25rem;
+}
+
+.stepResults {
+  list-style-type: decimal;
+}
+
+.compactList {
+  list-style-type: disc;
 }
 
 .stepResults li {
