@@ -1,5 +1,6 @@
 import type {
   ApiError,
+  AttachmentMetadata,
   ProjectRecord,
   RunRecord,
   Workflow,
@@ -45,6 +46,7 @@ function post(body?: object): RequestInit {
 
 const projectsPath = "/api/projects";
 const projectPath = (id: string) => `${projectsPath}/${encodeURIComponent(id)}`;
+const attachmentsPath = (id: string) => `${projectPath(id)}/attachments`;
 const workflowsPath = (id: string) => `${projectPath(id)}/workflows`;
 const runsPath = (id: string) => `${projectPath(id)}/runs`;
 const runPath = (id: string, runId: string) =>
@@ -55,6 +57,22 @@ export const api = {
     request<{ projects: ProjectRecord[] }>(projectsPath, { signal }),
   createProject: (title: string, url: string) =>
     request<{ project: ProjectRecord }>(projectsPath, post({ title, url })),
+  attachments: (projectId: string, signal: AbortSignal) =>
+    request<{ attachments: AttachmentMetadata[] }>(attachmentsPath(projectId), {
+      signal,
+    }),
+  uploadAttachment: (projectId: string, file: File, signal: AbortSignal) => {
+    const body = new FormData();
+    body.set("file", file);
+    return request<{ attachment: AttachmentMetadata }>(
+      attachmentsPath(projectId),
+      {
+        method: "POST",
+        body,
+        signal,
+      },
+    );
+  },
   workflows: (projectId: string, signal: AbortSignal) =>
     request<{ workflows: WorkflowRevision[] }>(workflowsPath(projectId), {
       signal,
