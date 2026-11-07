@@ -12,6 +12,9 @@ import type { RunRecord } from "@veriflow/core";
 test("configured runtime generates, reviews, saves and runs a workflow with inline screenshots and a reconciled report", async ({
   page,
 }, testInfo) => {
+  // This full journey includes generation, a real browser run (20s poll), PNGs,
+  // CSV/PDF downloads, responsive layouts and axe; allow room under parallel load.
+  test.setTimeout(60000);
   const root = await mkdtemp(join(tmpdir(), "veriflow-generation-browser-"));
   const requests: {
     model: string;
@@ -218,6 +221,30 @@ test("configured runtime generates, reviews, saves and runs a workflow with inli
     expect(csv).toContain(queued.id);
     expect(csv).toContain('"90000","90000"');
     expect(csv).toContain('"browser","completed","passed"');
+    const [pdfDownload, pdfResponse] = await Promise.all([
+      page.waitForEvent("download"),
+      page.waitForResponse(
+        (response) =>
+          response.url() ===
+          `${platform!.origin}/api/projects/${project.id}/runs/${queued.id}/report?format=pdf`,
+      ),
+      runs.getByRole("button", { name: "Download PDF", exact: true }).click(),
+    ]);
+    expect(pdfResponse.status()).toBe(200);
+    expect(pdfResponse.headers()["content-type"]).toBe("application/pdf");
+    expect(pdfDownload.suggestedFilename()).toBe(`veriflow-${queued.id}.pdf`);
+    const pdfPath = testInfo.outputPath("generated-run.pdf");
+    await pdfDownload.saveAs(pdfPath);
+    const pdf = await readFile(pdfPath);
+    expect(pdf.subarray(0, 8).toString()).toMatch(/^%PDF-1\./);
+    expect(pdf.subarray(-20).toString()).toContain("%%EOF");
+    await expect(
+      runs.getByRole("region", { name: "Run report" }).getByRole("status"),
+    ).toHaveText("PDF download started.");
+    await testInfo.attach("generated-run-pdf", {
+      path: pdfPath,
+      contentType: "application/pdf",
+    });
     await page.setViewportSize({ width: 1440, height: 1000 });
     const timelineBox = (await runs.boundingBox())!;
     const editorBox = (await editor.boundingBox())!;
