@@ -119,6 +119,10 @@ I1 is not verified until a user reviews generated steps, saves a revision, execu
 
 ## AUTH-1 — Dev 1; reviewers Dev 3 and Dev 4
 
+Local implementation update (2026-11-07): the user's current request authorizes shared-account login with literal credentials in ignored `.env`, superseding the planned hash-only setting below. Backend and UI are integrated locally on `codex/pr20-alignment`, base `2de5b95`; no merge/deployment or Nginx cutover. The [frozen contract and acceptance checks](auth.md) cover login/session/logout, protected pages/APIs, CSRF, throttling, expiry and persistent revocation. An independent affected-consumer review identified a concurrent-revocation cleanup race; atomic writes and a regression test fixed it, and re-review passed. This update supersedes the historical planned statuses for AUTH-1 and AUTH-UI below; release review remains required.
+
+Verification: [local evidence and limitations](auth.md#local-verification--2026-11-07). Install/lint/format/typecheck/unit/build passed; browser authentication and production HTTP fail/pass/evidence checks passed. Full smoke had 53 passes and one runner assertion timeout that passed separately on rerun. Development login and the two-tab thirty-second refresh check passed. Docker daemon unavailable; production and CI checks remain outstanding.
+
 - User request: application password login, explicitly delegated in the deployment chat on 2026-11-07. The current Nginx Basic Auth gate remains active until a separately verified cutover.
 - Branch/base: planned `feat/application-auth`, planning baseline main `8df3fef016382717feaac85b1d983b6bdf072c25`; record the exact updated main SHA when implementation starts. Use an isolated checkout.
 - Outcome: application login and session enforcement for the trusted team. Freeze the session/API contract with Dev 4 before UI implementation starts.
@@ -143,3 +147,34 @@ I1 is not verified until a user reviews generated steps, saves a revision, execu
 - Out of scope: password verification, cookie signing/session storage, auth route guards, deployment credentials and Nginx configuration.
 - Issue/PR: [AUTH-UI #17](https://github.com/madacoda/veriflow/issues/17), assigned to `Hyuto`; implementation binding waits for the reviewed AUTH-1 contract commit.
 - Status: planned for Dev 4; not yet authorized to edit shared integration paths.
+
+## I1-C — local generation HTTP integration
+
+- Source: `codex/i1-generation-http` at `9737249`, reviewed against `0e2d732` and integrated on the documentation update `43c3f3e` at the user's request.
+- Acceptance: project-scoped context to unsaved drafts; bounded input, cancellation and safe errors; preserve both catalog APIs, main's validation rules and existing execution/report behavior.
+- Verification: 186 unit tests passed (one opt-in live OpenAI test skipped), 49 Chromium tests passed, frozen install/lint/format/types/build passed, and the dev-refresh regression passed. See [integration details](generation-http.md).
+- Status: locally integrated and verified; not pushed or deployed. Production provider configuration, UI binding and the AI-session bridge remain pending.
+
+## PR #20 — local alignment review
+
+- Source: PR #20 head `8e35b67`, combined with local generation routes `e476a51` and main `750ad35` on `codex/pr20-alignment`.
+- Acceptance: supported generation choices match server policy; drafts retain trusted source references; native requirement assertions are accepted; preview/open/save remain separate and failures preserve edits.
+- Evidence: 246 unit tests passed, two live-model checks skipped, 51 Chromium tests passed, axe and desktop/tablet/mobile checks passed, full static/build gate passed, and the two-tab dev-refresh check passed after restart. See [review notes](pr20-alignment.md).
+- Status: locally verified; no GitHub review, PR update, remote merge or push performed. Runtime generation-provider configuration remains pending.
+
+## I1-D — runtime generation configuration
+
+- Branch/base: `codex/pr20-alignment` from `2de5b95`; local integration fix requested after configured `.env` still returned an unavailable-provider error.
+- Outcome: resolve the server's OpenAI key, model and optional compatible endpoint for each generation request, preserving the existing validation, deadline, context and review/save flow.
+- Acceptance: valid settings reach the SDK; missing/invalid settings only disable generation; updated settings do not require replacing the platform or active runs; default tests never inherit real provider credentials; generation never saves or runs a draft automatically.
+- Evidence: 247 unit tests passed (two opt-in live checks skipped), all 52 Chromium tests passed, lint/format/types and production build passed. The new unit and browser regressions use an explicit local HTTP model fixture. Separately, one real request through the built app's Chromium UI using the user's configured provider returned HTTP 200 and a validated four-step draft, preserved unsaved edits, and left zero saved workflows/runs in isolated temporary storage.
+- Status: implemented locally; development server restarted on port 1111; the two-tab, 30-second refresh regression passed with no reloads or runtime errors and unsaved form state retained. No push, remote merge or deployment performed. The bounded AI execution loop remains separate work.
+
+## UI-TIMELINE — timeline workspace and live flow verification
+
+- Branch/base: local changes on `codex/pr20-alignment` from `2de5b95`; requested timeline, screenshot, plain-language step and API-only generation changes.
+- Acceptance: timeline is the primary desktop column and first mobile panel; latest run loads for the selected project; registered screenshots appear inside matching step entries; historical descriptions use the exact saved revision; all 12 step types remain editable without workflow JSON; generation always calls the API; review, save and run remain explicit actions.
+- Automated evidence: frozen install, lint, formatting, type checks and production build passed in an isolated checkout containing this task's changes. All 247 unit tests passed (two separately opt-in live tests skipped). All 53 browser cases passed across the suite and targeted rerun: 51 passed initially, while responsive and requirement checks failed during concurrent work and passed unchanged with one worker. New browser checks cover every editor step type, API preview/save/run/report, inline images, exact revision descriptions, desktop/tablet/mobile layouts and axe WCAG checks.
+- Live evidence: the configured API returned a validated four-step coupon draft. Saved revision 1 passed in Chromium (`90000` expected and observed); revision 2 changed only the demo URL to the known-fail target and failed (`90000` expected, `100000` observed); rerunning revision 1 passed with new run/evidence IDs. All 12 registered PNGs were retrieved and displayed; all three CSVs reconciled with report snapshots, step results, event order, findings and capture warnings. Reload retained the newest run selection; no page errors were recorded. The isolated two-tab development check retained form state for 30 seconds with zero reloads or runtime errors.
+- Evidence location: `test-results/live-api-full-flow-1794037264387/` contains the generated draft, report JSON/CSV, PNGs, responsive screenshots, verification record and retained isolated storage. Screenshot capture remains accurately labeled partial by the current runner despite all four PNGs per run being present.
+- Isolation: another user task was adding authentication in the shared checkout. Verification intentionally excluded that unfinished auth integration; its files and hooks were preserved. No remote push, merge or deployment performed.

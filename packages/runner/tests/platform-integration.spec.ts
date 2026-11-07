@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { demoWorkflow } from "@veriflow/core/fixtures";
 import { startBrowserTarget } from "../unit/browser-target.ts";
+import { authFixtureEnv, fixtureHeaders } from "../unit/auth-fixture.ts";
 
 /** Built HTTP routes, isolated storage, OS-assigned port; no source-module loader. */
 async function startPlatform(root: string, adapter: "browser" | "fake") {
@@ -24,6 +25,10 @@ async function startPlatform(root: string, adapter: "browser" | "fake") {
       cwd: fileURLToPath(new URL("../../../apps/web/", import.meta.url)),
       env: {
         ...process.env,
+        ...authFixtureEnv,
+        OPENAI_API_KEY: "",
+        OPENAI_MODEL: "",
+        OPENAI_BASE_URL: "",
         STORAGE_DIR: root,
         VERIFLOW_RUN_ADAPTER: adapter,
         VERIFLOW_FAKE_OUTCOME: "failed",
@@ -89,12 +94,78 @@ async function startPlatform(root: string, adapter: "browser" | "fake") {
 async function post(origin: string, path: string, body: unknown) {
   return fetch(origin + path, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...fixtureHeaders(origin) },
     body: JSON.stringify(body),
   });
 }
+test("production catalog and generation routes expose safe envelopes without a provider fallback", async () => {
+  const root = await mkdtemp(join(tmpdir(), "veriflow-generation-http-"));
+  let platformToClose: Awaited<ReturnType<typeof startPlatform>> | undefined;
+  try {
+    const platform = await startPlatform(root, "fake");
+    platformToClose = platform;
+    const catalog = await get(platform.origin, "/api/templates");
+    expect(catalog.templates[0].id).toBe("functional-exact-total");
+    expect(catalog.templates[0].version).toBe("1.0.0");
+    expect(catalog.templates).toHaveLength(15);
+    const { project } = await (
+      await post(platform.origin, "/api/projects", {
+        title: "Generation route fixture",
+        url: `${platform.origin}/demo`,
+      })
+    ).json();
+    const projectTemplates = await get(
+      platform.origin,
+      `/api/projects/${project.id}/templates`,
+    );
+    expect(projectTemplates.templates).toHaveLength(9);
+    const responsive = projectTemplates.templates.find(
+      (item: { id: string }) => item.id === "responsive-viewports",
+    );
+    const templateDraft = await post(
+      platform.origin,
+      `/api/projects/${project.id}/templates`,
+      {
+        templateId: responsive.id,
+        parameters: responsive.defaults,
+      },
+    );
+    expect(templateDraft.status).toBe(200);
+    expect((await templateDraft.json()).workflow.category).toBe("responsive");
+    const path = `/api/projects/${project.id}/workflows`;
+    const unavailable = await post(platform.origin, `${path}/generate`, {
+      objective: "Check SAVE10",
+    });
+    expect(unavailable.status).toBe(503);
+    expect((await unavailable.json()).error.code).toBe("adapter_unavailable");
+    expect((await get(platform.origin, path)).workflows).toEqual([]);
+    expect(
+      (
+        await post(platform.origin, path, {
+          workflow: { ...demoWorkflow, id: "generate" },
+          expectedRevision: null,
+        })
+      ).status,
+    ).toBe(201);
+    expect(
+      (await get(platform.origin, `${path}/generate?revision=1`)).workflow
+        .workflow.id,
+    ).toBe("generate");
+    const override = await post(platform.origin, `${path}/generate`, {
+      objective: "Check SAVE10",
+      provider: "fixture",
+    });
+    expect(override.status).toBe(422);
+    expect((await override.json()).error.code).toBe("validation_error");
+  } finally {
+    await platformToClose?.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
 async function get(origin: string, path: string) {
-  const response = await fetch(origin + path);
+  const response = await fetch(origin + path, {
+    headers: fixtureHeaders(origin),
+  });
   expect(response.status).toBe(200);
   return response.json();
 }
@@ -170,6 +241,7 @@ test("production browser routes persist observed fail/pass and serve registered 
         expect(artifact.runId).toBe(run.id);
         const png = await fetch(
           `${platform.origin}${runPath}/evidence/${artifact.id}`,
+          { headers: fixtureHeaders(platform.origin) },
         );
         expect(png.status).toBe(200);
         expect(png.headers.get("Content-Type")).toBe("image/png");
@@ -186,6 +258,7 @@ test("production browser routes persist observed fail/pass and serve registered 
           (
             await fetch(
               `${platform.origin}/api/projects/${other.id}/runs/${run.id}/evidence/${artifact.id}`,
+              { headers: fixtureHeaders(platform.origin) },
             )
           ).status,
         ).toBe(404);

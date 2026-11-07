@@ -1,14 +1,37 @@
 import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
-import { demoProject, demoTemplate } from "@veriflow/core/fixtures";
+import {
+  demoProject,
+  demoTemplate,
+  demoWorkflow,
+} from "@veriflow/core/fixtures";
 
-async function prepareGenerationFixture(page: Page) {
+/** Explicit model HTTP fixture; saved workflows and Chromium runs remain real. */
+async function prepareGenerationDraft(page: Page, targetUrl: string) {
+  await page.route("**/api/projects/*/workflows/generate", (route) =>
+    route.fulfill({
+      json: {
+        draft: {
+          contractVersion: "1",
+          provider: "fixture",
+          sourceAttachmentIds: [],
+          warnings: [],
+          workflow: {
+            ...demoWorkflow,
+            steps: demoWorkflow.steps.map((step) =>
+              step.code === "redirect" ? { ...step, url: targetUrl } : step,
+            ),
+          },
+        },
+      },
+    }),
+  );
   const editor = page.getByRole("region", { name: "Workflow draft" });
   await editor.getByText("Preview draft generation", { exact: true }).click();
-  const preview = editor.getByRole("region", { name: "Generation fixture" });
+  const preview = editor.getByRole("region", { name: "Workflow generation" });
   await preview.getByLabel("Objective").fill("Verify the SAVE10 discount.");
   await preview.getByLabel("Template").selectOption(demoTemplate.id);
-  await preview.getByRole("button", { name: "Prepare fixture draft" }).click();
+  await preview.getByRole("button", { name: "Generate draft" }).click();
   await preview
     .getByRole("button", {
       name: /fixture draft in editor|Replace editor with fixture draft/,
@@ -48,11 +71,12 @@ for (const { mode, loader, outcome } of [
     const projectPath = `${origin}/api/projects/${projectId}`;
     if (loader === "coupon")
       await editor.getByRole("button", { name: "Load coupon fixture" }).click();
-    else await prepareGenerationFixture(page);
-    const steps = JSON.parse(
-      await editor.getByLabel("Workflow steps (JSON)").inputValue(),
-    );
-    expect(steps[0]).toMatchObject({ code: "redirect", url: targetUrl });
+    else await prepareGenerationDraft(page, targetUrl);
+    const firstStep = editor
+      .getByRole("list", { name: "Workflow steps", exact: true })
+      .getByRole("listitem")
+      .first();
+    await expect(firstStep).toContainText(`Open ${targetUrl}`);
     expect(
       (await (await request.get(`${projectPath}/workflows`)).json()).workflows,
     ).toEqual([]);
@@ -60,7 +84,7 @@ for (const { mode, loader, outcome } of [
       .getByRole("button", { name: "Save workflow", exact: true })
       .click();
     await expect(editor.getByRole("status")).toHaveText("Saved revision 1.");
-    const runs = page.getByRole("region", { name: "Saved revisions and runs" });
+    const runs = page.getByRole("region", { name: "Timeline", exact: true });
     const [response] = await Promise.all([
       page.waitForResponse(
         (candidate) =>
@@ -71,6 +95,16 @@ for (const { mode, loader, outcome } of [
     ]);
     expect(response.status()).toBe(202);
     const { run } = await response.json();
+    // A running timeline already says "0 steps passed". Wait for terminal
+    // persisted state before checking the outcome wording or downloading evidence.
+    await expect
+      .poll(
+        async () =>
+          (await (await request.get(`${projectPath}/runs/${run.id}`)).json())
+            .run.lifecycle,
+        { timeout: 45000 },
+      )
+      .toBe("completed");
     await expect(runs.getByRole("status")).toContainText(outcome, {
       timeout: 45000,
     });
@@ -99,7 +133,7 @@ for (const { mode, loader, outcome } of [
   });
 }
 
-test("both fixture loaders preserve a selected project's different origin and mode", async ({
+test("coupon fixture and API draft preserve a selected project's different origin and mode", async ({
   page,
   baseURL,
 }) => {
@@ -138,16 +172,16 @@ test("both fixture loaders preserve a selected project's different origin and mo
   await page.getByLabel("Selected project").selectOption(demoProject.id);
   const editor = page.getByRole("region", { name: "Workflow draft" });
   await editor.getByRole("button", { name: "Load coupon fixture" }).click();
-  expect(
-    JSON.parse(await editor.getByLabel("Workflow steps (JSON)").inputValue())[0]
-      .url,
-  ).toBe(target);
-  await prepareGenerationFixture(page);
-  expect(
-    JSON.parse(await editor.getByLabel("Workflow steps (JSON)").inputValue())[0]
-      .url,
-  ).toBe(target);
+  const firstStep = editor
+    .getByRole("list", { name: "Workflow steps", exact: true })
+    .getByRole("listitem")
+    .first();
+  await expect(firstStep).toContainText(`Open ${target}`);
   expect(writes).toBe(0);
+  await prepareGenerationDraft(page, target);
+  await expect(firstStep).toContainText(`Open ${target}`);
+  // Only the explicit generation request; neither loader auto-saves or runs.
+  expect(writes).toBe(1);
 });
 
 test("catalog retry preserves the draft and ignores the previous project's late response", async ({
@@ -235,8 +269,11 @@ test("catalog retry preserves the draft and ignores the previous project's late 
   const editor = page.getByRole("region", { name: "Workflow draft" });
   await editor.getByRole("button", { name: "Load coupon fixture" }).click();
   await editor.getByLabel("Workflow name").fill("Keep my unsaved review");
-  const retainedSteps = `${await editor.getByLabel("Workflow steps (JSON)").inputValue()}\n`;
-  await editor.getByLabel("Workflow steps (JSON)").fill(retainedSteps);
+  const steps = editor.getByRole("list", {
+    name: "Workflow steps",
+    exact: true,
+  });
+  const retainedSteps = await steps.innerText();
   await expect(editor.getByRole("alert")).toContainText(
     "Could not load testing templates. Fixture catalog unavailable",
   );
@@ -254,9 +291,7 @@ test("catalog retry preserves the draft and ignores the previous project's late 
   await expect(editor.getByLabel("Workflow name")).toHaveValue(
     "Keep my unsaved review",
   );
-  await expect(editor.getByLabel("Workflow steps (JSON)")).toHaveValue(
-    retainedSteps,
-  );
+  expect(await steps.innerText()).toBe(retainedSteps);
   await selection.selectOption(other.id);
   await selection.selectOption(demoProject.id);
   await expect(editor.getByRole("alert")).toContainText(

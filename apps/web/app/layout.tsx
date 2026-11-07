@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import styles from "../features/workbench/workbench.module.css";
+import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Veriflow",
@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body className={styles.body}>{children}</body>
+      <body>{children}</body>
     </html>
   );
 }

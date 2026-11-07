@@ -10,4 +10,4 @@ Open `/demo?bug=1` for the known-fail target and `/demo?bug=0` for the known-pas
 
 The fixture workflow from `@veriflow/core/fixtures` navigates to the known-fail URL, fills the coupon, clicks Apply coupon, and asserts exact text `90000`. The links in the workbench preview both target URLs directly. They leave saved workflow revisions untouched. Coordinate the target switch with Dev 1 before the integrated browser rerun.
 
-The workbench uses shadcn/ui New York Card and Input adapted to local CSS modules. Dev 1 owns the shared dependencies and configuration for the standard Tailwind setup. [Card source](https://github.com/shadcn-ui/ui/blob/main/apps/v4/registry/new-york-v4/ui/card.tsx) · [Input source](https://github.com/shadcn-ui/ui/blob/main/apps/v4/registry/new-york-v4/ui/input.tsx) · [Standard setup](https://ui.shadcn.com/docs/installation/manual)
+The workbench and demo use shadcn/ui Radix Nova Card and Input, with Veriflow theme tokens and layout overrides. See the workbench README for the local setup. [shadcn/ui setup](https://ui.shadcn.com/docs/installation/manual)

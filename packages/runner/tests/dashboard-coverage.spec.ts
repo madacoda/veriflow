@@ -53,7 +53,7 @@ test("template UI saves, executes, exports and reruns the pinned revision with r
       .getByRole("button", { name: "Save workflow", exact: true })
       .click();
     await expect(editor.getByRole("status")).toHaveText("Saved revision 1.");
-    const runs = page.getByRole("region", { name: "Saved revisions and runs" });
+    const runs = page.getByRole("region", { name: "Timeline", exact: true });
     await runs.getByLabel("Run viewport").selectOption("mobile");
     const [response] = await Promise.all([
       page.waitForResponse(
@@ -66,7 +66,7 @@ test("template UI saves, executes, exports and reruns the pinned revision with r
     await expect(runs.getByRole("status")).toContainText("passed", {
       timeout: 20000,
     });
-    await expect(runs.getByText(/REQ-001/)).toBeVisible();
+    await expect(runs.getByRole("heading", { name: /REQ-001/ })).toBeVisible();
     const report = await request.get(
       `${path}/runs/${run.id}/report?format=csv`,
     );

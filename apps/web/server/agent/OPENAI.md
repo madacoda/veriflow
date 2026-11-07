@@ -7,6 +7,8 @@ Outcome: real model generation and reviewed-workflow decisions use the existing 
 
 ## Composition
 
+The application runtime now wires draft generation to these settings through a trusted per-request resolver in `server/composition/platform.ts`. See [runtime configuration](../../../../docs/generation-http.md#runtime-configuration). The agent-loop and summary adapters still require their own composition.
+
 `createOpenAISummaryProvider(config)` uses the same configuration/transport for optional failure interpretations. Inject it through `createFailureSummarizer` so report identity, output structure and reference validation remain enforced. It makes one request without tools; see [SUMMARIES.md](SUMMARIES.md) for the report projection and separately opt-in verification.
 
 Dev 1 loads trusted server configuration and supplies the saved revision. Neither request bodies nor model/page text may configure the provider or replace the reviewed workflow:

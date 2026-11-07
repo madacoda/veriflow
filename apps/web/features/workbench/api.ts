@@ -1,12 +1,18 @@
-import type {
-  ApiError,
-  TemplateDefinition,
-  AttachmentMetadata,
-  ProjectRecord,
-  ReportFormat,
-  RunRecord,
-  Workflow,
-  WorkflowRevision,
+import {
+  CONTRACT_VERSION,
+  entityIdSchema,
+  templateDefinitionSchema,
+  workflowSchema,
+  type generationRequestSchema,
+  type ApiError,
+  type AttachmentMetadata,
+  type ProjectRecord,
+  type ReportFormat,
+  type RunRecord,
+  type TemplateDefinition,
+  type Workflow,
+  type WorkflowDraft,
+  type WorkflowRevision,
 } from "@veriflow/core";
 
 export class RequestError extends Error {
@@ -24,6 +30,13 @@ export class RequestError extends Error {
 
 async function fetchResponse(path: string, options?: RequestInit) {
   const response = await fetch(path, { cache: "no-store", ...options });
+  if (response.status === 401 && typeof window !== "undefined") {
+    window.location.replace(
+      "/login?next=" +
+        encodeURIComponent(window.location.pathname + window.location.search),
+    );
+    throw new Error("Your session has expired. Sign in to continue.");
+  }
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     if (body?.error?.code && typeof body.error.message === "string") {
@@ -91,9 +104,66 @@ export const api = {
     request<{ workflows: WorkflowRevision[] }>(workflowsPath(projectId), {
       signal,
     }),
-  workflow: (projectId: string, workflowId: string, revision?: number) =>
+  generationTemplates: async (signal: AbortSignal) => {
+    const { templates, generationTemplateIds } = await request<{
+      templates: unknown;
+      generationTemplateIds: unknown;
+    }>("/api/templates", { signal });
+    const parsed = templateDefinitionSchema.array().safeParse(templates);
+    const supported = entityIdSchema.array().safeParse(generationTemplateIds);
+    if (
+      !parsed.success ||
+      !supported.success ||
+      new Set(supported.data).size !== supported.data.length ||
+      supported.data.some(
+        (id) => !parsed.data.some((template) => template.id === id),
+      )
+    )
+      throw new Error("The server returned an invalid template catalog.");
+    return parsed.data.filter((template) =>
+      supported.data.includes(template.id),
+    );
+  },
+  generateDraft: async (
+    projectId: string,
+    input: ReturnType<typeof generationRequestSchema.parse>,
+    signal: AbortSignal,
+  ): Promise<WorkflowDraft> => {
+    const { draft } = await request<{ draft?: WorkflowDraft }>(
+      `${workflowsPath(projectId)}/generate`,
+      { ...post(input), signal },
+    );
+    const workflow = workflowSchema.safeParse(draft?.workflow);
+    if (
+      !draft ||
+      draft.contractVersion !== CONTRACT_VERSION ||
+      (draft.provider !== "model" && draft.provider !== "fixture") ||
+      !workflow.success ||
+      !Array.isArray(draft.sourceAttachmentIds) ||
+      !draft.sourceAttachmentIds.every(
+        (id) => entityIdSchema.safeParse(id).success,
+      ) ||
+      new Set(draft.sourceAttachmentIds).size !==
+        draft.sourceAttachmentIds.length ||
+      draft.sourceAttachmentIds.length !== new Set(input.attachmentIds).size ||
+      draft.sourceAttachmentIds.some(
+        (id) => !input.attachmentIds.includes(id),
+      ) ||
+      !Array.isArray(draft.warnings) ||
+      !draft.warnings.every((warning) => typeof warning === "string")
+    )
+      throw new Error("The server returned an invalid workflow draft.");
+    return { ...draft, workflow: workflow.data };
+  },
+  workflow: (
+    projectId: string,
+    workflowId: string,
+    revision?: number,
+    signal?: AbortSignal,
+  ) =>
     request<{ workflow: WorkflowRevision }>(
       `${workflowsPath(projectId)}/${encodeURIComponent(workflowId)}${revision === undefined ? "" : `?revision=${revision}`}`,
+      { signal },
     ),
   saveWorkflow: (
     projectId: string,

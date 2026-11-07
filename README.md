@@ -2,7 +2,7 @@
 
 An AI-powered UAT and QA automation platform under development. One Next.js application serves the dashboard and HTTP API; a shared TypeScript engine executes reviewed workflows through Playwright. Bun manages the workspace, and Node.js runs the application.
 
-The current implementation supports persistent projects, editable workflow revisions, real browser execution, six testing categories, evidence capture and CSV reports. Live AI generation and agent execution still need application integration. See [implementation and release status](docs/project-status.md), including the existing browser-test CI failure on the documentation baseline. The [detailed audit](docs/project-audit.md) records confirmed defects, missing MVP work, unmerged branches, conflicts and the four-owner closure plan.
+The current implementation supports persistent projects, editable workflow revisions, real browser execution, six testing categories, evidence capture and CSV reports. Live draft generation uses the configured OpenAI-compatible provider. The bounded AI execution loop still needs application integration. See [implementation and release status](docs/project-status.md), including the existing browser-test CI failure on the documentation baseline. The [detailed audit](docs/project-audit.md) records confirmed defects, missing MVP work, unmerged branches, conflicts and the four-owner closure plan.
 
 ## Quick start
 
@@ -16,7 +16,11 @@ bun run dev
 
 Open [localhost:1111](http://localhost:1111). Chromium is required for real runs; starting the dashboard alone needs neither Chromium nor an AI key. Linux hosts may need `bun run browsers:install --with-deps`.
 
-Optional server configuration belongs in `apps/web/.env.local`; copy [the example](apps/web/.env.example) before editing it. Keep credentials out of Git. Workspace packages export TypeScript source, which Next.js transpiles directly; no preliminary package build or background compiler is required.
+Local development defaults to Next.js Webpack mode with Fast Refresh. This avoids the repeated Turbopack `HMR hash mismatch` reloads reproduced in this workspace. Explicit `bun run dev --turbopack` remains available for diagnosis; production builds keep their existing configuration.
+
+Configure shared-account login in ignored `apps/web/.env`: set `AUTH_USERNAME`, `AUTH_PASSWORD`, and a random `AUTH_SESSION_SECRET` of at least 32 characters. Copy [the example](apps/web/.env.example) when setting up a new checkout; missing authentication configuration fails closed. Open `/login` and sign in with those credentials. Sessions expire after eight hours, and **Sign out** invalidates the session. See [the authentication contract](docs/auth.md) for production TLS configuration.
+
+For **Generate draft**, set `OPENAI_API_KEY` and `OPENAI_MODEL`; `OPENAI_BASE_URL` is optional and defaults to the official OpenAI endpoint. Restart `bun run dev` after editing environment files to ensure Next.js reloads them. Keep credentials out of Git. Workspace packages export TypeScript source, which Next.js transpiles directly; no preliminary package build or background compiler is required.
 
 ## First workflow
 
@@ -32,27 +36,27 @@ The bundled coupon target at `/demo?bug=1` returns the incorrect total `100000`;
 
 ## Current capabilities
 
-| Area                   | Available in the application                                                                                             | Remaining work or limits                                                                              |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
-| Projects and workflows | Multiple projects, immutable revisions, explicit draft review/save                                                       | Single trusted team; project scoping is not user authorization                                        |
-| Templates              | Functional, responsive, basic security, supplied-requirement compliance, axe accessibility and saved-revision regression | Exact target parameters and prerequisites must match the application under test                       |
-| Execution              | Real Chromium, ordered steps, cancellation, pass/fail/blocked results, expected/actual observations                      | One process; bounded concurrency; no distributed job queue                                            |
-| Evidence and reports   | Registered PNG screenshots, report snapshots, CSV downloads                                                              | Product video/trace recording and PDF/XLSX are unfinished; capture can be partial; PPTX is optional   |
-| Attachments            | Project-scoped upload/list/download for supported formats                                                                | Extraction remains pending in the app; PDF/DOCX extraction and model image context are unsupported    |
-| AI                     | Validated draft generation, OpenAI-compatible provider and bounded tool-loop modules                                     | No generation HTTP route or live agent composition; the UI generation preview is explicitly a fixture |
+| Area                   | Available in the application                                                                                             | Remaining work or limits                                                                                             |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| Projects and workflows | Multiple projects, immutable revisions, explicit draft review/save                                                       | Single trusted team; project scoping is not user authorization                                                       |
+| Templates              | Functional, responsive, basic security, supplied-requirement compliance, axe accessibility and saved-revision regression | Exact target parameters and prerequisites must match the application under test                                      |
+| Execution              | Real Chromium, ordered steps, cancellation, pass/fail/blocked results, expected/actual observations                      | One process; bounded concurrency; no distributed job queue                                                           |
+| Evidence and reports   | Registered PNG screenshots, report snapshots, CSV downloads                                                              | Product video/trace recording and PDF/XLSX are unfinished; capture can be partial; PPTX is optional                  |
+| Attachments            | Project-scoped upload/list/download for supported formats                                                                | Text extraction is wired to draft generation; stored metadata remains pending; PDF/DOCX/image generation unsupported |
+| AI                     | Validated draft generation, OpenAI-compatible provider and bounded tool-loop modules                                     | Generation uses server environment settings; live agent execution composition remains pending                        |
 
 Read [testing coverage](docs/testing-coverage.md) for step semantics, secret references and the limits of automated checks. Template execution and fixture previews must not be presented as live AI generation.
 
 ## Configuration
 
-| Setting                                             | Purpose                                                                                                 |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `PORT`                                              | Local server and browser-test port; default `1111`                                                      |
-| `STORAGE_DIR`                                       | Persistent storage root; default `../../data` relative to `apps/web`                                    |
-| `VERIFLOW_MAX_CONCURRENT_RUNS`                      | Admission limit; default `2`; use `1` on the shared VPS                                                 |
-| `VERIFLOW_RUN_ADAPTER`                              | `browser` by default; `fake` is explicit, labeled fixture execution                                     |
-| `VERIFLOW_SECRET_<REFERENCE>`                       | Server-only values for `fillSecret` steps; values never belong in workflow JSON                         |
-| `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL` | Server-only provider configuration; setting these alone does not enable the unfinished HTTP integration |
+| Setting                                             | Purpose                                                                                        |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `PORT`                                              | Local server and browser-test port; default `1111`                                             |
+| `STORAGE_DIR`                                       | Persistent storage root; default `../../data` relative to `apps/web`                           |
+| `VERIFLOW_MAX_CONCURRENT_RUNS`                      | Admission limit; default `2`; use `1` on the shared VPS                                        |
+| `VERIFLOW_RUN_ADAPTER`                              | `browser` by default; `fake` is explicit, labeled fixture execution                            |
+| `VERIFLOW_SECRET_<REFERENCE>`                       | Server-only values for `fillSecret` steps; values never belong in workflow JSON                |
+| `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL` | Server-only draft provider configuration; key and model required, compatible base URL optional |
 
 Health is at `/health`; standalone workflow validation is at `/api/workflows/validate`. The [HTTP contract](docs/contracts-v1.md) lists the project, template, workflow, run, attachment and report endpoints.
 
@@ -83,7 +87,7 @@ bun run test:smoke
 
 Browser tests start the production app, so build first and leave the selected port free. CI enables the production HTTP dashboard checks with `VERIFLOW_U1_TEST_HTTP=1` and isolated `STORAGE_DIR`. The optional live-provider test is separate; credential-free tests do not prove live AI integration.
 
-For a shared Windows machine, set `$env:PORT = '1112'` in that checkout's PowerShell before starting the app or tests. For development reload checks, run `bun run test:dev` in another terminal against the running dev server, with the same `PORT`. To serve a production build locally, use `bun run start`.
+For a shared Windows machine, set `$env:PORT = '1112'` in that checkout's PowerShell before starting the app or tests. For development reload checks, run `bun run test:dev` in another terminal against the running dev server, with the same `PORT`. It checks two tabs for 30 seconds after catalog/API requests, including unsaved form state, navigation, reload messages and runtime errors. To serve a production build locally, use `bun run start`.
 
 ## Deployment and architecture
 

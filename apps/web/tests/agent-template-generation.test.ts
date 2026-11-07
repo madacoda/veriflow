@@ -161,6 +161,29 @@ test("supplied-requirement output must contain an assertion, even if the provide
   );
 });
 
+test("supplied-requirement generation accepts the native requirement assertion step", async () => {
+  const workflow = workflowSchema.parse({
+    ...demoWorkflow,
+    steps: [
+      {
+        id: "requirement",
+        code: "assertRequirement",
+        requirementId: "REQ-1",
+        requirement: "The checkout total reflects the discount",
+        source: "checkout.md",
+        target: { by: "testId", value: "order-total" },
+        expectation: { kind: "text", value: "90000" },
+      },
+    ],
+  });
+  const draft = await createDraftGenerator({
+    provider: createFixtureProvider(workflow),
+  }).generate(input(), active());
+  assert.deepEqual(draft.workflow, workflow);
+  assert.deepEqual(draft.sourceAttachmentIds, [demoContext.attachmentId]);
+  assert.match(draft.warnings.join(" "), /not a certification/);
+});
+
 test("ordinary functional generation keeps its existing warnings and needs no requirement attachment", async () => {
   const source = input([demoTemplate.id]);
   source.request.attachmentIds = [];

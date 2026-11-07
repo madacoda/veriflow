@@ -18,6 +18,8 @@ import { GenerationPreview } from "./generation-preview";
 import { ReportDownloads } from "./report-downloads";
 import { FixturePreview, isActive, RunTimeline } from "./timeline";
 import styles from "./workbench.module.css";
+import { WorkflowSteps } from "./workflow-steps";
+import { LogoutButton } from "../auth/logout-button";
 
 function message(error: unknown) {
   return error instanceof Error
@@ -48,7 +50,7 @@ function WorkflowEditor({
   const [draft, setDraft] = useState<{
     id: string;
     name: string;
-    steps: string;
+    steps: Workflow["steps"];
     base: number | null;
     source: string;
     category?: Workflow["category"];
@@ -105,7 +107,7 @@ function WorkflowEditor({
     setDraft({
       id: workflow.id,
       name: workflow.name,
-      steps: JSON.stringify(workflow.steps, null, 2),
+      steps: structuredClone(workflow.steps),
       base,
       source,
       category: workflow.category,
@@ -139,19 +141,12 @@ function WorkflowEditor({
     if (!draft || conflict) return;
     setError("");
     setNotice("");
-    let steps: unknown;
-    try {
-      steps = JSON.parse(draft.steps);
-    } catch {
-      setError("Enter a valid JSON array of workflow steps.");
-      return;
-    }
     const parsed = workflowSchema.safeParse({
       schemaVersion: "1",
       id: draft.id,
       name: draft.name,
       category: draft.category,
-      steps,
+      steps: draft.steps,
     });
     if (!parsed.success) {
       setError(
@@ -206,12 +201,18 @@ function WorkflowEditor({
         </CardHeader>
         <CardContent>
           <GenerationPreview
-            projectUrl={projectUrl}
+            projectId={projectId}
             attachments={attachments}
             hasDraft={draft !== null}
             pending={pending}
             onOpen={(preview) =>
-              openDraft(preview.workflow, null, "Generation fixture draft")
+              openDraft(
+                preview.workflow,
+                null,
+                preview.provider === "fixture"
+                  ? "Generation fixture draft"
+                  : "Generated workflow draft",
+              )
             }
           />
           <form className={styles.form} onSubmit={save}>
@@ -324,17 +325,13 @@ function WorkflowEditor({
                       }
                     />
                   </label>
-                  <label className={styles.field}>
-                    Workflow steps (JSON)
-                    <textarea
-                      rows={13}
-                      spellCheck={false}
-                      value={draft.steps}
-                      onChange={(event) =>
-                        setDraft({ ...draft, steps: event.currentTarget.value })
-                      }
+                  <div className={styles.form}>
+                    <h3>Workflow steps</h3>
+                    <WorkflowSteps
+                      steps={draft.steps}
+                      onChange={(steps) => setDraft({ ...draft, steps })}
                     />
-                  </label>
+                  </div>
                   <div className={styles.actions}>
                     <button type="submit" disabled={conflict}>
                       Save workflow
@@ -353,9 +350,7 @@ function WorkflowEditor({
                       </p>
                       <details>
                         <summary>Compare saved steps</summary>
-                        <pre className={styles.code}>
-                          {JSON.stringify(latest.workflow.steps, null, 2)}
-                        </pre>
+                        <WorkflowSteps steps={latest.workflow.steps} />
                       </details>
                       <div className={styles.actions}>
                         <button
@@ -402,6 +397,7 @@ function ProjectWorkbench({ project }: { project: ProjectRecord }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [pollError, setPollError] = useState("");
+  const [runWorkflow, setRunWorkflow] = useState<WorkflowRevision | null>(null);
   const [viewport, setViewport] = useState("default");
   const viewportPresets: Record<string, { width: number; height: number }> = {
     desktop: { width: 1440, height: 900 },
@@ -422,6 +418,8 @@ function ProjectWorkbench({ project }: { project: ProjectRecord }) {
       : null;
   const run = runs.find((item) => item.id === runId);
   const polling = run !== undefined && isActive(run);
+  const runWorkflowId = run?.workflowId;
+  const runRevision = run?.revision;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -446,6 +444,14 @@ function ProjectWorkbench({ project }: { project: ProjectRecord }) {
           return [...latest.values()];
         });
         setRuns((current) => runsResponse.runs.reduce(upsertRun, current));
+        setRunId(
+          (current) =>
+            current ||
+            [...runsResponse.runs].sort((a, b) =>
+              b.createdAt.localeCompare(a.createdAt),
+            )[0]?.id ||
+            "",
+        );
       })
       .catch((error) => {
         if (!controller.signal.aborted) setError(message(error));
@@ -455,6 +461,18 @@ function ProjectWorkbench({ project }: { project: ProjectRecord }) {
       });
     return () => controller.abort();
   }, [project.id, loadVersion]);
+
+  useEffect(() => {
+    if (!runWorkflowId || !runRevision) return;
+    const controller = new AbortController();
+    api
+      .workflow(project.id, runWorkflowId, runRevision, controller.signal)
+      .then(({ workflow }) => {
+        if (!controller.signal.aborted) setRunWorkflow(workflow);
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [project.id, runWorkflowId, runRevision]);
 
   useEffect(() => {
     if (!polling) return;
@@ -550,24 +568,19 @@ function ProjectWorkbench({ project }: { project: ProjectRecord }) {
 
   return (
     <>
-      <WorkflowEditor
-        projectId={project.id}
-        projectUrl={project.url}
-        attachments={attachments}
-        selected={selected}
-        onSaved={recordSave}
-      />
       <section aria-labelledby="runs-heading">
         <Card>
           <CardHeader>
-            <h2 id="runs-heading">Saved revisions and runs</h2>
-            <p>
-              Choose a saved revision. Draft edits take effect after saving.
-            </p>
+            <p className={styles.eyebrow}>Run workspace</p>
+            <h2 id="runs-heading">Timeline</h2>
+            <p>Follow each step and see what the browser observed.</p>
           </CardHeader>
           <CardContent>
             <form className={styles.form} onSubmit={start}>
-              <fieldset className={styles.form} disabled={pending || loading}>
+              <fieldset
+                className={styles.runControls}
+                disabled={pending || loading}
+              >
                 <label className={styles.field}>
                   Run viewport
                   <select
@@ -684,7 +697,28 @@ function ProjectWorkbench({ project }: { project: ProjectRecord }) {
                 {pollError}
               </p>
             )}
-            {run && <RunTimeline run={run} />}
+            {run ? (
+              <RunTimeline
+                run={run}
+                workflow={
+                  runWorkflow?.workflow.id === run.workflowId &&
+                  runWorkflow.revision === run.revision
+                    ? runWorkflow.workflow
+                    : undefined
+                }
+              />
+            ) : (
+              <div className={styles.emptyTimeline}>
+                <span className={styles.stepNumber} aria-hidden="true">
+                  01
+                </span>
+                <h3>Your next run starts here</h3>
+                <p>
+                  Generate and save a workflow, then start a run. Each step will
+                  appear here with its result and screenshot.
+                </p>
+              </div>
+            )}
             {run && !isActive(run) && (
               <ReportDownloads
                 key={run.id}
@@ -695,11 +729,20 @@ function ProjectWorkbench({ project }: { project: ProjectRecord }) {
           </CardContent>
         </Card>
       </section>
-      <ProjectAttachments
-        projectId={project.id}
-        attachments={attachments}
-        setAttachments={setAttachments}
-      />
+      <aside className={styles.setup} aria-label="Workflow setup">
+        <WorkflowEditor
+          projectId={project.id}
+          projectUrl={project.url}
+          attachments={attachments}
+          selected={selected}
+          onSaved={recordSave}
+        />
+        <ProjectAttachments
+          projectId={project.id}
+          attachments={attachments}
+          setAttachments={setAttachments}
+        />
+      </aside>
     </>
   );
 }
@@ -761,7 +804,7 @@ export function Workbench() {
           <div>
             <h1>Veriflow</h1>
             <p>
-              Review a workflow, run a saved revision, and inspect the evidence.
+              From intent to results. Follow every step in your run timeline.
             </p>
           </div>
           <div className={styles.actions}>
@@ -771,6 +814,7 @@ export function Workbench() {
             <Link href="/demo?bug=0" className={styles.demoLink}>
               Open known-pass target
             </Link>
+            <LogoutButton />
           </div>
         </div>
       </header>
@@ -847,8 +891,30 @@ export function Workbench() {
             </CardContent>
           </Card>
         </section>
-        {project && <ProjectWorkbench key={project.id} project={project} />}
-        <FixturePreview />
+        {project ? (
+          <ProjectWorkbench key={project.id} project={project} />
+        ) : (
+          <section className={styles.fullWidth} aria-label="Timeline">
+            <Card>
+              <CardHeader>
+                <h2>Timeline</h2>
+              </CardHeader>
+              <CardContent>
+                <div className={styles.emptyTimeline}>
+                  <h3>See your testing story unfold</h3>
+                  <p>
+                    Choose a project above, or create one to generate your first
+                    workflow.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+        )}
+        <details className={styles.fullWidth}>
+          <summary>Sample run previews</summary>
+          <FixturePreview />
+        </details>
       </div>
     </main>
   );
