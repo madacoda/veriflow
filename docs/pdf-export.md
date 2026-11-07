@@ -12,7 +12,7 @@ Rendering uses `pdf-lib`, `@pdf-lib/fontkit` and a bundled OFL Noto Sans font, w
 
 - Owner: Dev 4 for the renderer, report controls and renderer/UI tests; Dev 1 for runtime composition, dependency manifests, HTTP integration checks and documentation.
 - Reviewer: Dev 1 reviews Dev 4 output; Dev 4 reviews the lead's integration changes.
-- Branch/base: `codex/pdf-export` from `29f813148717b76479232f4882f1f002308efba5`, updated with main `9ae1126`; Dev 4 worked in the isolated `codex/pdf-renderer` checkout.
+- Branch/base: `codex/pdf-export` from `29f813148717b76479232f4882f1f002308efba5`, updated with main `d08caae` including the Amber/shadcn UI; Dev 4 worked in the isolated `codex/pdf-renderer` checkout. Review record: [PR #27](https://github.com/madacoda/veriflow/pull/27).
 - Frozen dependency: contract v1 `ReportSnapshot` and `ReportRenderer`; no shared contract changes.
 - Acceptance: real readable PDF downloaded through the existing control/API; pinned revision and observed result parity; clear failed/blocked/error/cancelled states; multipage/Unicode handling; ownership and active-run rejection; no snapshot mutation; retained CSV/JSON compatibility.
 - Verification: renderer tests parse output with an independent PDF reader; runtime tests verify download headers, persisted bytes and snapshot parity; Chromium checks exercise the built routes and UI; exported sample pages receive visual review.
@@ -23,7 +23,7 @@ Rendering uses `pdf-lib`, `@pdf-lib/fontkit` and a bundled OFL Noto Sans font, w
 
 The frozen install, lint, formatting, type checks, production build and Chromium installation passed. Unit suites passed 291 tests (9 core, 9 runner, 273 web); three opt-in live-provider tests were skipped. This includes six independent PDF parser tests and a real runtime download/storage/pinning test. Deployment and transport shell fixture checks also passed.
 
-The final Chromium check passed all 116 cases in 2.6 minutes: two complete runs with four workers and zero retries (`PORT=1133 VERIFLOW_U1_TEST_HTTP=1 VERIFLOW_RUN_ADAPTER=browser bun run test:smoke --workers=4 --retries=0 --repeat-each=2`, with isolated temporary `STORAGE_DIR`). Logs are retained locally under `/tmp/veriflow-pdf.ZpfgeE/`; visual samples are under ignored `test-results/pdf-export-preview/`.
+Before the later UI integration, Chromium passed all 116 cases in 2.6 minutes: two complete runs with four workers and zero retries (`PORT=1133 VERIFLOW_U1_TEST_HTTP=1 VERIFLOW_RUN_ADAPTER=browser bun run test:smoke --workers=4 --retries=0 --repeat-each=2`, with isolated temporary `STORAGE_DIR`). After integrating main `d08caae`, the full local gate passed again, including 291 unit tests and all 58 Chromium cases with four workers and zero retries (1.0 minute). The new shadcn PDF button was exercised through the real download journey. Logs are retained locally under `/tmp/veriflow-pdf.ZpfgeE/`; visual samples are under ignored `test-results/pdf-export-preview/`.
 
 The built HTTP check downloads a PDF after a workflow edit and server restart, compares stored bytes and verifies that the earlier snapshot is unchanged. The real UI journey downloads both CSV and PDF, checking the PDF response, filename, file structure and success message. Normal two-page and long Unicode/error four-page samples were rendered to PNG and visually inspected for margins, pagination and readable text.
 
