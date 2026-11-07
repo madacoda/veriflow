@@ -208,7 +208,11 @@ test("report storage cannot write through a symlink into another directory", asy
       rm(outside, { recursive: true, force: true }),
     ]),
   );
-  await symlink(outside, join(root, "reports"));
+  await symlink(
+    outside,
+    join(root, "reports"),
+    process.platform === "win32" ? "junction" : "dir",
+  );
   const response = await http.reportGET(request("pdf"), project.id, run.id);
   assert.equal(response.status, 500);
   assert.deepEqual(await readdir(outside), []);

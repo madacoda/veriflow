@@ -15,16 +15,54 @@ import {
 } from "../projects/platform-store.ts";
 import { validateEvidence } from "./evidence.ts";
 
+export interface RunCoordinatorOptions {
+  maxConcurrentRuns?: number;
+  /** Trusted clock seam for deterministic pre/post-allocation deadline tests. */
+  deadlineSignal?: (timeoutMs: number) => AbortSignal;
+}
 /** One process owns jobs and their shared session lifetime. No fire-and-forget cleanup. */
 export class RunCoordinator {
   private readonly controllers = new Map<string, AbortController>();
   private readonly jobs = new Map<string, Promise<void>>();
+  private admitted = 0;
+  private readonly capacity: number;
+  private readonly deadlineSignal: (timeoutMs: number) => AbortSignal;
   constructor(
     private readonly store: PlatformStore,
     private readonly factory?: SessionFactory,
     private readonly adapter: RunRecord["adapter"] = "browser",
     private readonly maxRunMs = 120000,
-  ) {}
+    options: RunCoordinatorOptions = {},
+  ) {
+    this.capacity = options.maxConcurrentRuns ?? 2;
+    if (
+      !Number.isSafeInteger(this.capacity) ||
+      this.capacity < 1 ||
+      this.capacity > 8
+    )
+      throw new Error("Run concurrency must be an integer from 1 to 8");
+    if (!Number.isSafeInteger(maxRunMs) || maxRunMs < 1 || maxRunMs > 120000)
+      throw new Error("Invalid run deadline");
+    this.deadlineSignal =
+      options.deadlineSignal ?? ((ms) => AbortSignal.timeout(ms));
+  }
+  private admit() {
+    if (this.admitted >= this.capacity)
+      throw new PlatformError(
+        "adapter_unavailable",
+        503,
+        "Run capacity reached; retry after another run finishes",
+      );
+    // No await between checking and reserving: concurrent starts cannot over-admit.
+    this.admitted++;
+    let released = false;
+    return () => {
+      if (!released) {
+        released = true;
+        this.admitted--;
+      }
+    };
+  }
 
   async start(projectId: string, input: unknown): Promise<RunRecord> {
     const parsed = startRunSchema.parse(input);
@@ -35,19 +73,32 @@ export class RunCoordinator {
         503,
         "Browser adapter is not configured",
       );
-    const context = await this.store.createRun(projectId, parsed, this.adapter);
-    const controller = new AbortController();
-    this.controllers.set(context.run.id, controller);
-    const task = this.execute(context, controller).finally(() => {
-      this.controllers.delete(context.run.id);
-      this.jobs.delete(context.run.id);
-    });
-    // Errors are handled inside execute; keep a rejection observer for persistence failures too.
-    task.catch(() =>
-      console.error("Run state persistence failed", { runId: context.run.id }),
-    );
-    this.jobs.set(context.run.id, task);
-    return context.run;
+    const release = this.admit();
+    try {
+      const context = await this.store.createRun(
+        projectId,
+        parsed,
+        this.adapter,
+      );
+      const controller = new AbortController();
+      this.controllers.set(context.run.id, controller);
+      const task = this.execute(context, controller).finally(() => {
+        this.controllers.delete(context.run.id);
+        this.jobs.delete(context.run.id);
+        release();
+      });
+      // Errors are handled inside execute; observe persistence failures without exposing details.
+      task.catch(() =>
+        console.error("Run state persistence failed", {
+          runId: context.run.id,
+        }),
+      );
+      this.jobs.set(context.run.id, task);
+      return context.run;
+    } catch (error) {
+      release();
+      throw error;
+    }
   }
   async wait(runId: string) {
     await this.jobs.get(runId);
@@ -68,10 +119,10 @@ export class RunCoordinator {
     controller: AbortController,
   ) {
     const { run, project, workflow, viewport } = context;
-    const deadline = AbortSignal.timeout(this.maxRunMs);
+    const deadline = this.deadlineSignal(this.maxRunMs);
     const signal = AbortSignal.any([controller.signal, deadline]);
     const published = new Map<string, StepResult>();
-    let cleanupFailed = false;
+    let openAttempted = false;
     try {
       const started = await this.store.updateRun(
         project.id,
@@ -91,6 +142,8 @@ export class RunCoordinator {
       const factory = this.factory!;
       const wrapped: SessionFactory = {
         open: async (options, sessionSignal) => {
+          sessionSignal.throwIfAborted();
+          openAttempted = true;
           const session = await factory.open(options, sessionSignal);
           return {
             execute: async (command, commandSignal) => {
@@ -120,14 +173,7 @@ export class RunCoordinator {
               );
               return artifacts;
             },
-            close: async () => {
-              try {
-                await session.close();
-              } catch (error) {
-                cleanupFailed = true;
-                throw error;
-              }
-            },
+            close: () => session.close(),
           };
         },
       };
@@ -160,21 +206,19 @@ export class RunCoordinator {
         };
         this.finish(
           record,
-          !cleanupFailed &&
-            (controller.signal.aborted || !!record.cancelRequestedAt),
+          controller.signal.aborted || !!record.cancelRequestedAt,
           deadline.aborted ||
             result.steps.some((step) => step.failureKind === "infrastructure"),
           result.status,
         );
       });
-    } catch {
+    } catch (error) {
+      // Only a pre-allocation abort proves there were no resources/captures to finalize.
+      // An open/evidence/close rejection remains infrastructure failure even during cancellation.
+      const cleanCancellation =
+        !openAttempted && controller.signal.aborted && error === signal.reason;
       await this.store.updateRun(project.id, run.id, (record) => {
-        this.finish(
-          record,
-          !cleanupFailed &&
-            (controller.signal.aborted || !!record.cancelRequestedAt),
-          true,
-        );
+        this.finish(record, cleanCancellation, !cleanCancellation);
       });
     }
   }
@@ -185,11 +229,7 @@ export class RunCoordinator {
     outcome?: "passed" | "failed" | "blocked",
   ) {
     record.finishedAt = new Date().toISOString();
-    if (cancelled) {
-      record.lifecycle = "cancelled";
-      record.outcome = null;
-      addRunEvent(record, "cancelled");
-    } else if (infrastructureError) {
+    if (infrastructureError) {
       record.lifecycle = "error";
       record.outcome = null;
       record.error = {
@@ -197,6 +237,10 @@ export class RunCoordinator {
         message: "Execution or evidence finalization could not be completed",
       };
       addRunEvent(record, "error", { message: record.error.message });
+    } else if (cancelled) {
+      record.lifecycle = "cancelled";
+      record.outcome = null;
+      addRunEvent(record, "cancelled");
     } else {
       record.lifecycle = "completed";
       record.outcome = outcome ?? "blocked";
