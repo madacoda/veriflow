@@ -2,7 +2,7 @@
 
 An AI-powered UAT and QA automation platform under development. One Next.js application serves the dashboard and HTTP API; a shared TypeScript engine executes reviewed workflows through Playwright. Bun manages the workspace, and Node.js runs the application.
 
-The current implementation supports persistent projects, editable workflow revisions, real browser execution, six testing categories, evidence capture and CSV reports. Live draft generation uses the configured OpenAI-compatible provider. The bounded AI execution loop still needs application integration. See [implementation and release status](docs/project-status.md), including the existing browser-test CI failure on the documentation baseline. The [detailed audit](docs/project-audit.md) records confirmed defects, missing MVP work, unmerged branches, conflicts and the four-owner closure plan.
+The current implementation supports persistent projects, editable workflow revisions, real browser execution, six testing categories, evidence capture and CSV/PDF reports. Live draft generation uses the configured OpenAI-compatible provider. The bounded AI execution loop still needs application integration. See [implementation and release status](docs/project-status.md), including the existing browser-test CI failure on the documentation baseline. The [detailed audit](docs/project-audit.md) records confirmed defects, missing MVP work, unmerged branches, conflicts and the four-owner closure plan.
 
 ## Quick start
 
@@ -27,7 +27,7 @@ For **Generate draft**, set `OPENAI_API_KEY` and `OPENAI_MODEL`; `OPENAI_BASE_UR
 1. Create a project with its title and target URL. The project URL establishes its allowed origin. The API also accepts description/goals; binding those fields into the product form remains open work.
 2. Choose **Testing template**, edit its parameters for the target's exact labels or test IDs, and create a draft. Templates are deterministic and make no model call.
 3. Review/edit the workflow, explicitly save it, and run that saved revision.
-4. Inspect the ordered timeline, expected/actual results, findings and available evidence. Download CSV from the terminal run's report.
+4. Inspect the ordered timeline, expected/actual results, findings and available evidence. Choose **Download CSV** or **Download PDF** in the terminal run's **Run report** section. Both exports use the run's pinned workflow revision.
 5. Use **Rerun revision** to execute the same saved steps again with a new run ID.
 
 The bundled fixture defaults use `127.0.0.1:1111`; on another port, adjust both the project URL and draft navigation URL to the intended server before saving. Automatic fixture URL binding is an open audit finding.
@@ -36,14 +36,14 @@ The bundled coupon target at `/demo?bug=1` returns the incorrect total `100000`;
 
 ## Current capabilities
 
-| Area                   | Available in the application                                                                                             | Remaining work or limits                                                                                             |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
-| Projects and workflows | Multiple projects, immutable revisions, explicit draft review/save                                                       | Single trusted team; project scoping is not user authorization                                                       |
-| Templates              | Functional, responsive, basic security, supplied-requirement compliance, axe accessibility and saved-revision regression | Exact target parameters and prerequisites must match the application under test                                      |
-| Execution              | Real Chromium, ordered steps, cancellation, pass/fail/blocked results, expected/actual observations                      | One process; bounded concurrency; no distributed job queue                                                           |
-| Evidence and reports   | Registered PNG screenshots, report snapshots, CSV downloads                                                              | Product video/trace recording and PDF/XLSX are unfinished; capture can be partial; PPTX is optional                  |
-| Attachments            | Project-scoped upload/list/download for supported formats                                                                | Text extraction is wired to draft generation; stored metadata remains pending; PDF/DOCX/image generation unsupported |
-| AI                     | Validated draft generation, OpenAI-compatible provider and bounded tool-loop modules                                     | Generation uses server environment settings; live agent execution composition remains pending                        |
+| Area                   | Available in the application                                                                                             | Remaining work or limits                                                                                                       |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| Projects and workflows | Multiple projects, immutable revisions, explicit draft review/save                                                       | Single trusted team; project scoping is not user authorization                                                                 |
+| Templates              | Functional, responsive, basic security, supplied-requirement compliance, axe accessibility and saved-revision regression | Exact target parameters and prerequisites must match the application under test                                                |
+| Execution              | Real Chromium, ordered steps, cancellation, pass/fail/blocked results, expected/actual observations                      | One process; bounded concurrency; no distributed job queue                                                                     |
+| Evidence and reports   | Registered PNG screenshots, report snapshots, CSV/PDF downloads                                                          | Product video/trace recording and XLSX are unfinished; capture can be partial; PDF lists evidence references; PPTX is optional |
+| Attachments            | Project-scoped upload/list/download for supported formats                                                                | Text extraction is wired to draft generation; stored metadata remains pending; PDF/DOCX/image generation unsupported           |
+| AI                     | Validated draft generation, OpenAI-compatible provider and bounded tool-loop modules                                     | Generation uses server environment settings; live agent execution composition remains pending                                  |
 
 Read [testing coverage](docs/testing-coverage.md) for step semantics, secret references and the limits of automated checks. Template execution and fixture previews must not be presented as live AI generation.
 
