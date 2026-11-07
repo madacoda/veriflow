@@ -7,7 +7,7 @@ export const MAX_TIMEOUT_MS = 120_000;
 export async function withBudget<T>(
   parent: AbortSignal,
   timeoutMs: number,
-  operation: (signal: AbortSignal) => Promise<T>,
+  operation: (signal: AbortSignal, checkActive: () => void) => Promise<T>,
 ): Promise<T> {
   if (
     !Number.isInteger(timeoutMs) ||
@@ -17,6 +17,13 @@ export async function withBudget<T>(
     throw new AgentError("validation_error");
   checkCancellation(parent);
   const controller = new AbortController();
+  const deadline = performance.now() + timeoutMs;
+  const checkActive = () => {
+    // Fast promise chains can delay timer callbacks; check elapsed time too.
+    if (!controller.signal.aborted && performance.now() >= deadline)
+      controller.abort(new AgentError("timeout"));
+    checkCancellation(controller.signal);
+  };
   const cancel = () =>
     controller.abort(
       parent.reason instanceof AgentError
@@ -36,9 +43,9 @@ export async function withBudget<T>(
   try {
     return await Promise.race([
       (async () => {
-        checkCancellation(controller.signal);
-        const result = await operation(controller.signal);
-        checkCancellation(controller.signal);
+        checkActive();
+        const result = await operation(controller.signal, checkActive);
+        checkActive();
         return result;
       })(),
       aborted,

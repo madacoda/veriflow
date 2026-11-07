@@ -88,20 +88,22 @@ export async function assembleContext(
     }).success
   )
     throw new AgentError("validation_error");
-  return withBudget(signal, timeoutMs, async (boundedSignal) => {
+  const { projectId } = input;
+  const attachmentIds = [...new Set(input.attachmentIds)];
+  return withBudget(signal, timeoutMs, async (boundedSignal, checkActive) => {
     const documents: ContextDocument[] = [];
-    for (const attachmentId of new Set(input.attachmentIds)) {
-      checkCancellation(boundedSignal);
+    for (const attachmentId of attachmentIds) {
+      checkActive();
       let attachment: Awaited<ReturnType<AttachmentReader["read"]>>;
       try {
-        attachment = await reader.read(input.projectId, attachmentId);
+        attachment = await reader.read(projectId, attachmentId);
       } catch {
-        checkCancellation(boundedSignal);
+        checkActive();
         throw new AgentError("attachment_unavailable");
       }
-      checkCancellation(boundedSignal);
+      checkActive();
       if (
-        attachment?.metadata?.projectId !== input.projectId ||
+        attachment?.metadata?.projectId !== projectId ||
         attachment.metadata.id !== attachmentId
       )
         throw new AgentError("context_mismatch");

@@ -427,3 +427,25 @@ test("per-step and total deadlines abort pending tools even when adapters ignore
     assert.equal(toolSignal?.aborted, true);
   }
 });
+
+test("elapsed deadline prevents dispatch even before a delayed timer callback runs", async () => {
+  const fixture = recordingPort();
+  await assert.rejects(
+    runAgentLoop(
+      {
+        tools: fixture.port,
+        timeoutMs: 5,
+        next: async () => {
+          const until = performance.now() + 10;
+          while (performance.now() < until) {
+            /* Simulate synchronous provider work. */
+          }
+          return tool({ tool: "observe" });
+        },
+      },
+      signal(),
+    ),
+    code("timeout"),
+  );
+  assert.equal(fixture.observations(), 0);
+});

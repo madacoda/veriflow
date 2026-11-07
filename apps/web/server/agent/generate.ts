@@ -10,7 +10,7 @@ import {
 } from "@veriflow/core";
 import { resolveTemplates } from "../templates/catalog.ts";
 import { DEFAULT_TIMEOUT_MS, withBudget } from "./budget.ts";
-import { AgentError, checkCancellation } from "./errors.ts";
+import { AgentError } from "./errors.ts";
 
 type GenerationInput = Parameters<DraftGenerator["generate"]>[0];
 
@@ -36,7 +36,7 @@ export function createDraftGenerator(
       return withBudget(
         signal,
         options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
-        async (boundedSignal) => {
+        async (boundedSignal, checkActive) => {
           const provider = options.provider;
           if (
             !provider ||
@@ -46,7 +46,7 @@ export function createDraftGenerator(
             throw new AgentError("adapter_unavailable");
           const providerKind = provider.kind;
           const request = generationRequestSchema.safeParse(input.request);
-          const project = input.project;
+          const project = structuredClone(input.project);
           if (
             !request.success ||
             !entityIdSchema.safeParse(project?.id).success ||
@@ -66,6 +66,8 @@ export function createDraftGenerator(
           )
             throw new AgentError("validation_error");
           const sourceAttachmentIds = [...new Set(request.data.attachmentIds)];
+          if (!Array.isArray(input.documents))
+            throw new AgentError("context_mismatch");
           const documents = input.documents.map((document) => {
             const parsed = contextDocumentSchema.safeParse(document);
             if (!parsed.success) throw new AgentError("context_mismatch");
@@ -96,10 +98,10 @@ export function createDraftGenerator(
               boundedSignal,
             );
           } catch {
-            checkCancellation(boundedSignal);
+            checkActive();
             throw new AgentError("provider_failed");
           }
-          checkCancellation(boundedSignal);
+          checkActive();
           try {
             const serialized =
               typeof output === "string" ? output : JSON.stringify(output);

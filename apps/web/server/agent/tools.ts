@@ -8,7 +8,7 @@ import {
   type StepResult,
 } from "@veriflow/core";
 import { DEFAULT_TIMEOUT_MS, withBudget } from "./budget.ts";
-import { AgentError, checkCancellation } from "./errors.ts";
+import { AgentError } from "./errors.ts";
 
 export const DEFAULT_MAX_CALLS = 12;
 export const MAX_CALLS = 100;
@@ -121,20 +121,20 @@ export async function runAgentLoop(
   return withBudget(
     signal,
     input.timeoutMs ?? DEFAULT_TIMEOUT_MS,
-    async (boundedSignal) => {
+    async (boundedSignal, checkActive) => {
       const history: ToolRecord[] = [];
       const steps: StepResult[] = [];
       const stepIds = new Set<string>();
       while (true) {
-        checkCancellation(boundedSignal);
+        checkActive();
         let turn: unknown;
         try {
           turn = await input.next(structuredClone(history), boundedSignal);
         } catch {
-          checkCancellation(boundedSignal);
+          checkActive();
           throw new AgentError("provider_failed");
         }
-        checkCancellation(boundedSignal);
+        checkActive();
         if (
           object(turn) &&
           turn.kind === "done" &&
@@ -161,13 +161,13 @@ export async function runAgentLoop(
         )
           throw new AgentError("invalid_tool_call");
         try {
-          checkCancellation(boundedSignal);
+          checkActive();
           if (call.tool === "observe") {
             const raw = await input.tools.observe(
               call.maxCharacters,
               boundedSignal,
             );
-            checkCancellation(boundedSignal);
+            checkActive();
             history.push({
               call,
               observation: boundedObservation(raw, call.maxCharacters),
@@ -184,7 +184,7 @@ export async function runAgentLoop(
               command.timeoutMs,
               (stepSignal) => input.tools.execute(command, stepSignal),
             );
-            checkCancellation(boundedSignal);
+            checkActive();
             const result = observedResult(raw, call.step.id);
             stepIds.add(call.step.id);
             steps.push(result);
@@ -193,7 +193,7 @@ export async function runAgentLoop(
             if (result.status !== "passed") return { history, steps };
           }
         } catch (error) {
-          checkCancellation(boundedSignal);
+          checkActive();
           if (error instanceof AgentError) throw error;
           throw new AgentError("tool_failed");
         }
