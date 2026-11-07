@@ -4,7 +4,7 @@
 
 The full MVP in the user's latest brief is the product scope. The seven-hour event is the first demonstration milestone. Features deferred from that demonstration remain required MVP work. This allocation supersedes the earlier feature-category team split.
 
-Dev 1 is the single lead orchestrator and merge owner. REVIEW.md defines the merge process. The team contains four developers including the lead. Keep the existing Next.js monolith and Bun toolchain.
+Dev 1 is the single lead orchestrator and merge owner. [REVIEW.md](../REVIEW.md) defines the merge process. The team contains four developers including the lead. Keep the existing Next.js monolith and Bun toolchain. [Current implementation status](project-status.md) separates the original allocation below from completed delivery and remaining integrations. The [detailed audit and next-task boundaries](project-audit.md#four-developer-execution-plan) record current defects, branch conflicts and nonoverlapping next work; use them when dispatching new tasks.
 
 ## Exclusive implementation ownership
 
@@ -19,7 +19,7 @@ Reserve approximately 40 percent of Dev 1's capacity for review, integration and
 
 ## File ownership
 
-New paths below are planned destinations, not implemented features.
+These paths define ownership for existing and future work; a path allocation is not a completion claim. Dev 1 also owns `apps/web/server/auth/**` and authentication HTTP adapters; Dev 4 owns `apps/web/app/login/**` and `apps/web/features/auth/**` when the AUTH-1 contract is frozen.
 
 | Owner | Paths                                                                                                                                                                                                                                          |
 | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -32,7 +32,7 @@ Legacy functionality/security/accessibility server directories are not active wo
 
 ## Shared contract gate
 
-L0 is a small contract PR, authored by Dev 1 and reviewed by the affected implementers. Freeze one happy-path fixture and failure fixtures for each boundary before consumer implementation.
+L0 was merged in PR #1. Start from current main and the [v1 contract](contracts-v1.md). For each extension, Dev 1 authors a small contract change reviewed by affected implementers. Freeze one happy-path fixture and failure fixtures before consumer implementation.
 
 | Contract                        | Producer → consumer                  | Required semantics                                                                                    |
 | ------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------------- |
@@ -45,9 +45,9 @@ L0 is a small contract PR, authored by Dev 1 and reviewed by the affected implem
 | EvidenceManifest                | Dev 3 → Dev 1/4                      | Run/step identity, media type, storage-relative path, capture completeness                            |
 | ReportSnapshot                  | Dev 1 → Dev 4 renderer               | Immutable workflow revision, observed results, evidence metadata and optional AI summary              |
 
-These additions are not all implemented in the current core. Existing workflow/session/fake contracts are the starting point. Until L0 lands, work on fixtures, pure layout and the local demo rather than inventing competing interfaces.
+The shared contracts and fixtures are implemented. Browser execution, platform routes and UI are integrated; AI modules still need runtime composition. Reuse those interfaces instead of creating competing contracts. New additive workflow steps preserve schema version 1; see [testing coverage](testing-coverage.md).
 
-The AI loop and deterministic workflow execution share one session lifetime owned by the run coordinator. Dev 2 requests validated actions through Dev 3's adapter; it never imports Playwright directly. Run finalization happens only after checks and evidence capture finish.
+The intended AI integration must share the coordinator-owned session lifetime used by deterministic execution. Dev 2 requests validated actions through Dev 3's adapter; it never imports Playwright directly. Run finalization happens only after checks and evidence capture finish.
 
 Browser/check adapters produce observed results. AI summarizes them and cannot replace them. The run coordinator computes the final outcome. A skipped prerequisite is blocked. Transport/infrastructure lifecycle errors are distinct from failed test assertions.
 
@@ -66,7 +66,7 @@ A1 and B1 are independently testable. Neither must wait for the other's real imp
 
 ## Full MVP follow-through
 
-These remain required after I1.
+These are full-MVP acceptance requirements. Some are already implemented; use [project status](project-status.md) for completion and gaps rather than reassigning completed tasks.
 
 | Task group                    | Primary owner                             | Required acceptance                                                                                                                               |
 | ----------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -97,10 +97,10 @@ Template and workflow contract changes use explicit versions. Additive changes p
 
 The source plan uses WIB. By 10:00, land L0. By 11:00, fake agent, browser fixture and UI run independently. By 12:30, connect real model-driven actions. By 14:00, verify I1 and freeze new demonstration features. By 15:00, review critical fixes and record fallback. Rehearse by 16:00 and submit by 16:30.
 
-The complete MVP is not promised within seven hours. The lead reports demonstration readiness and full-MVP completion separately. Platform multi-user authentication, distributed queues, complex analytics and autonomous code fixing are outside this MVP allocation.
+The complete MVP is not promised within seven hours. The lead reports demonstration readiness and full-MVP completion separately. Distributed queues, complex analytics, autonomous code fixing and multi-user account management remain outside this allocation. A subsequent request adds trusted-team username/password login: Dev 1 owns [AUTH-1](https://github.com/madacoda/veriflow/issues/16), and Dev 4 owns [AUTH-UI](https://github.com/madacoda/veriflow/issues/17). The backend contract precedes UI binding; keep the Nginx access gate until a separately verified cutover.
 
 ## Verification
 
-Run bun install --frozen-lockfile, bun run lint, bun run format:check, bun run typecheck, bun run test:unit, bun run build and bun run test:smoke. Install Chromium first with bun run browsers:install. Browser tests need port 1111 free.
+Run bun install --frozen-lockfile, bun run lint, bun run format:check, bun run typecheck, bun run test:unit, bun run build and bun run test:smoke. Install Chromium first with bun run browsers:install. Browser tests need the selected port free (1111 by default); use distinct `PORT` values for local checkouts.
 
 For every milestone, verify the integrated result with real adapters as well as deterministic fixtures. Record current commit, commands, screenshots and limitations. Green scaffold CI alone does not prove any unimplemented capability.

@@ -1,6 +1,6 @@
 # Six-category workflow coverage
 
-This implementation extends workflow schema version 1 additively. Existing workflows and saved revisions remain valid. Template definitions use version 1.1.0; the legacy coupon template remains 1.0.0.
+Source status and the unresolved baseline CI gate are recorded in [project status](project-status.md). This implementation extends workflow schema version 1 additively. Existing workflows and saved revisions remain valid. Template definitions use version 1.1.0; the legacy coupon template remains 1.0.0.
 
 ## Acceptance and verification
 
@@ -34,4 +34,4 @@ Compliance checks validate the supplied checklist only. Security templates are b
 
 ## Verification evidence
 
-Verified locally with frozen Bun install, lint, formatting, type checking, 110 passing unit tests, production build, Chromium installation and 46 passing Chromium tests in the complete browser suite with isolated storage and `VERIFLOW_U1_TEST_HTTP=1`. Runtime artifact paths are excluded from Turbopack dependency tracing. Run `bun run test:dev` against the running development server to check for reload loops and lost form state. No remote deployment or CI result is claimed.
+The original coverage implementation recorded local verification with frozen Bun install, lint, formatting, type checking, 110 passing unit tests, production build, Chromium installation and 46 passing Chromium tests in the complete browser suite with isolated storage and `VERIFLOW_U1_TEST_HTTP=1`. Runtime artifact paths are excluded from Turbopack dependency tracing. Run `bun run test:dev` against the running development server to check for reload loops and lost form state. Those local counts describe the original implementation session. The later main `0e2d732` browser gate failed during test-module loading, before these cases executed; no successful CI or deployment of this coverage extension is claimed.

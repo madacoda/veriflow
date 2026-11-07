@@ -1,6 +1,6 @@
 # P1: durable project and run platform
 
-Owner: Dev 1. Reviewers: Dev 3 for session lifecycle/evidence, Dev 4 for HTTP consumption. Branch: `codex/p1-platform`, updated against merged L0 main `3c432f1` in `0dd05f2`. L0's merge has no contract changes from `36feb2d`, and main CI passed. P1 still needs its own consumer review and current GitHub checks before merging. The user created and merged L0 PR #1; the connector returned 403 for issue/PR creation, and browser access timed out.
+Owner: Dev 1. Reviewers: Dev 3 for session lifecycle/evidence, Dev 4 for HTTP consumption. P1 was merged in [PR #2](https://github.com/madacoda/veriflow/pull/2) as `aec5515`; runtime browser wiring followed in [PR #10](https://github.com/madacoda/veriflow/pull/10). This document retains P1's original verification record. Use [project status](project-status.md) for the current implementation and release gates.
 
 ## Implemented
 
@@ -8,7 +8,7 @@ The P1 surface in contracts-v1.md is implemented, plus registered evidence retri
 
 `PlatformStore` persists to `STORAGE_DIR/platform-v1.json` with serialized transactions, a synced temporary file and atomic rename. Instances in one Node process share a filename-keyed lock. Run jobs/controllers live in that same process. This implementation is for one long-running Next.js service and one writer process with persistent storage; it does not support multiple replicas, serverless invocation lifetimes, distributed queues or multi-user authorization. Project isolation is not authentication. A corrupted data file causes an error instead of an empty replacement.
 
-The composition root is `apps/web/server/composition/platform.ts`. It creates one process-level platform instance and recovers interrupted runs before serving platform routes. Dev 1 must supply Dev 3's reviewed SessionFactory at this point for real browser execution. No credentials are required for platform startup. The default configuration returns JSON 503 `adapter_unavailable` when starting a run, and creates no fake run as a fallback.
+The composition root is `apps/web/server/composition/platform.ts`. It creates one process-level platform instance and recovers interrupted runs before serving platform routes. It now supplies Dev 3's real Playwright SessionFactory by default. No AI credentials are required for startup or deterministic execution, but Chromium must be installed for browser runs. Invalid adapter settings reject explicitly, and there is no automatic fake fallback.
 
 For explicit fixture development only:
 
@@ -18,15 +18,15 @@ VERIFLOW_RUN_ADAPTER=fake VERIFLOW_FAKE_OUTCOME=failed bun run dev
 
 Every such run and report says `adapter: fake`. Fake assertions have explicit fixture messages; no screenshot/video/trace files are fabricated. `passed` config produces a labeled fixture success. Changing this environment setting requires restarting the service.
 
-Report JSON uses the same immutable snapshot for future renderers. CSV/XLSX/PDF export currently returns 503 until Dev 4's renderer is integrated. Attachments, generation/catalog HTTP adapters and bounded AI-loop composition are subsequent tasks. Current composition supports deterministic workflow execution only; it does not claim a model-driven browser journey.
+Report JSON and the integrated CSV renderer use the same immutable snapshot. The CSV-only runtime renderer rejects XLSX/PDF with 422; a custom instance with no renderer still returns 503. Attachments and deterministic project-template HTTP adapters are integrated. Live generation HTTP and bounded AI-loop composition remain pending; deterministic execution is not a model-driven browser journey.
 
 ## Evidence
 
 Artifacts are registered only after checking unique IDs, run/step ownership, supported kind/media type, file existence and a storage-relative path under that run. Symlink aliases and traversal are rejected. Retrieval accepts an evidence ID registered in the selected project's run; it never accepts a filesystem path. Responses use the recorded media type and no-store caching.
 
-The current session port does not declare the completeness of every requested capture format. P1 therefore conservatively marks nonempty evidence as partial and empty evidence as unavailable. Dev 3 must confirm capture completeness semantics with Dev 1 before claiming complete PNG/WebM/trace evidence. Browser adapters must flush media in evidence() and release resources idempotently in close(); terminal run persistence follows both operations. Cooperative aborts are required. An uncooperative adapter cannot be forcibly terminated by the coordinator; browser-process supervision remains part of B1 acceptance.
+The current session port does not declare the completeness of every requested capture format. P1 therefore conservatively marks nonempty evidence as partial and empty evidence as unavailable. The current product runner captures PNG only. WebM/trace recording remains pending despite supported transport types; Playwright test-runner recordings do not satisfy product capture. Browser adapters must flush media in evidence() and release resources idempotently in close(); terminal run persistence follows both operations. Cooperative aborts are required. An uncooperative adapter cannot be forcibly terminated by the coordinator; browser-process supervision remains part of B1 acceptance.
 
-## Verification on 7 November 2026 (WIB)
+## Original P1 verification on 7 November 2026 (WIB)
 
 Passed locally:
 
@@ -49,11 +49,10 @@ Production HTTP checks also ran against next start on port 3001 with an isolated
 2. Restart with explicit failed fake adapter: the project/revision survive; a new run completes failed with adapter=fake, ordered events, unavailable media and a revision-1 report.
 3. Restart with explicit passed fake adapter: the prior failed record survives, a fresh run ID completes passed with adapter=fake, and the earlier result stays failed.
 
-The filesystem-tracing warning was resolved with the build's documented turbopackIgnore annotation on the runtime storage root. The resulting build has no broad filesystem-tracing warning, and production HTTP storage resolution was checked afterward. GitHub CI status and affected-consumer approval are separate, still-required merge evidence.
+The filesystem-tracing warning was resolved with the build's documented turbopackIgnore annotation on the runtime storage root. The resulting build has no broad filesystem-tracing warning, and production HTTP storage resolution was checked afterward. These checks preceded later adapter integration; their original default-503 behavior is not the current production default. Subsequent merge and CI records are in the [task board](task-board.md).
 
-## Next integration actions
+## Remaining integration actions
 
-- Dev 2 reviews L0 generation/context/tool interfaces, then delivers A1 without persistence writes or direct Playwright access.
-- Dev 3 reviews L0 and P1 session/error/evidence semantics, then supplies B1 with a real session factory and a deterministic target test.
-- Dev 4 reviews API/report envelopes and confirms the proposed coupon target IDs, then binds U1 to P1 after L0 review.
-- Dev 1 merges serially after review and current CI, wires real adapters, then verifies the generated/edit/save/real-fail/screenshot/fix/real-pass journey. That I1 milestone is not complete yet.
+- A1/B1/U1 and deterministic browser composition have landed; do not reassign those completed foundation tasks.
+- Dev 1 coordinates real AI generation/context/session integration with Dev 2 and Dev 3, and Dev 4 binds the UI to the agreed HTTP contract.
+- The complete I1 journey still requires actual model generation, explicit review/save, real fail/evidence and target-only fix/rerun verification. See [current priorities](project-status.md).
