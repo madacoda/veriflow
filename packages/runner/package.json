@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test:smoke": "playwright test"
+    "test:smoke": "playwright test",
+    "browsers:install": "playwright install chromium",
+    "report": "playwright show-report"
   },
   "dependencies": {
     "@axe-core/playwright": "^4.14.0",
