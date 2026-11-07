@@ -300,6 +300,7 @@ export class PlatformStore {
         projectId,
         workflowId: parsed.workflowId,
         revision: parsed.revision,
+        ...(parsed.viewport ? { viewport: parsed.viewport } : {}),
         adapter,
         lifecycle: "queued",
         outcome: null,
@@ -342,6 +343,7 @@ export class PlatformStore {
       );
       if (!snapshot) throw new Error("Missing run snapshot");
       snapshot.run = structuredClone(run);
+      snapshot.findings = run.steps.flatMap((step) => step.findings ?? []);
       return run;
     });
   }
@@ -379,7 +381,12 @@ export class PlatformStore {
           const snapshot = data.snapshots.find(
             (entry) => entry.run.id === run.id,
           );
-          if (snapshot) snapshot.run = structuredClone(run);
+          if (snapshot) {
+            snapshot.run = structuredClone(run);
+            snapshot.findings = run.steps.flatMap(
+              (step) => step.findings ?? [],
+            );
+          }
           recovered++;
         }
       return recovered;

@@ -1,0 +1,40 @@
+# Implementation and release status
+
+This is a source snapshot, not a substitute for live GitHub checks. Documentation was reconciled on 7 November 2026 against main [`0e2d732`](https://github.com/madacoda/veriflow/commit/0e2d732cfd51635b52e5f29649ec2981fedaf807). The original seven-hour plan remains a demonstration milestone within the full MVP.
+
+## Release evidence
+
+- The baseline's [CI run](https://github.com/madacoda/veriflow/actions/runs/42345424420) passed Linux lint, formatting, type checks, unit tests and build, plus Windows unit checks. Its Linux browser suite failed while importing `apps/web/server/templates/coverage.ts`: `SyntaxError: Unexpected token 'export'` from the core TypeScript entry. Container publication and deployment were skipped. The newer coverage implementation must not be described as a verified deployed release.
+- The preceding verified release [`1266309`](https://github.com/madacoda/veriflow/commit/1266309) passed [Linux, Windows, container publication and VPS deployment](https://github.com/madacoda/veriflow/actions/runs/42344768665). It predates the newer six-category execution changes.
+- Local results in older delivery notes describe their original commits. They do not override a failing check on newer main. Consult [current Actions runs](https://github.com/madacoda/veriflow/actions) before releasing.
+
+## Capability matrix
+
+| Capability                                                                   | State in the source baseline                      | Evidence and limits                                                                                                                                                            |
+| ---------------------------------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Multiple projects and workflow revisions                                     | Integrated                                        | Atomic JSON persistence, project scoping, optimistic saves and immutable revisions; one writer process                                                                         |
+| Editable drafts and workbench                                                | Integrated                                        | Explicit save, pinned-revision execution, polling timeline and saved-run history                                                                                               |
+| Functional/responsive/security/compliance/accessibility/regression templates | Integrated in source; newer CI gate unresolved    | Deterministic parameterized drafts, executable steps and new coverage suites; see [coverage](testing-coverage.md)                                                              |
+| Real Playwright execution                                                    | Integrated                                        | Chromium sessions, exact targets, assertions, bounded origin policy, cancellation and cleanup                                                                                  |
+| Evidence                                                                     | Integrated                                        | Real PNG capture and registered evidence retrieval; WebM/trace transport types exist but the product runner does not record them; secret use suppresses subsequent screenshots |
+| Report delivery                                                              | JSON and CSV integrated                           | Immutable snapshots and project/run-owned downloads; current CSV-only renderer rejects XLSX/PDF with 422                                                                       |
+| Attachment storage and UI                                                    | Integrated                                        | Upload/read/list/download, 10 MiB per file, metadata initially pending                                                                                                         |
+| Context extraction                                                           | Module available; application integration pending | Strict UTF-8 TXT/MD/CSV/JSON; PDF/DOCX unsupported; images are references, not OCR or supported generation context                                                             |
+| AI workflow generation                                                       | Module available; application integration pending | OpenAI-compatible adapter and schema validation; no `/workflows/generate` route; fixture preview is labeled                                                                    |
+| Bounded AI execution loop                                                    | Module available; coordinator integration pending | Validated tools and bounded calls; no model-controlled production run path or verified live end-to-end journey                                                                 |
+| AI failure summaries                                                         | Pending                                           | Do not count open PRs as implemented functionality; reports remain based on observed results                                                                                   |
+| Deployment                                                                   | GHCR/VPS pipeline integrated                      | Publishes only after gates pass; Nginx HTTPS access gate; single container with persistent data and rollback                                                                   |
+| Application login                                                            | Assigned, not implemented                         | [AUTH-1 #16](https://github.com/madacoda/veriflow/issues/16) and [AUTH-UI #17](https://github.com/madacoda/veriflow/issues/17); retain the Nginx gate                          |
+
+## Next integration priorities
+
+Dev 1 dispatches concrete tasks using [REVIEW.md](../REVIEW.md), with exact paths, base commit, reviewer and acceptance evidence. This order describes dependencies, not permission to edit another owner's files.
+
+1. Restore the current main browser-test gate with Dev 3 and any affected template/test consumer. Require the exact resulting commit to pass Linux, Windows and container checks before claiming the coverage release is ready.
+2. Dev 1 and Dev 2 freeze generation and agent-composition boundaries; Dev 2 supplies provider/context behavior, Dev 3 supplies the session-bound tool adapter, and Dev 4 replaces the fixture preview only after the real response contract exists. Acceptance: an actual model returns a reviewable draft; the saved revision executes with authoritative browser results and real evidence.
+3. Dev 3 completes product WebM/trace recording and verifies finalization, cancellation, ownership and secret handling. Playwright's own test artifacts do not satisfy this product requirement.
+4. Dev 4 implements XLSX/PDF rendering against the existing immutable snapshot while Dev 1 integrates downloads. Verify real file formats, result parity and explicit unavailable/error states. CSV is already connected.
+5. Complete extraction integration with Dev 2 and Dev 1, with source references and explicit unsupported-format behavior. Upload acceptance alone is not extraction acceptance.
+6. Deliver the assigned authentication backend and UI against one reviewed contract. Username `madacoda` is the intended initial account; password material is provisioned privately. Do not remove the Nginx access gate as part of the initial implementation.
+
+The full MVP remains incomplete until these product integrations and required exports are verified. SQLite and PPTX remain optional. The original 14:00 WIB feature cutoff and judging preparation plan are historical event targets, not evidence that a milestone was achieved.

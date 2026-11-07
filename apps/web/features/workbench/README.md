@@ -8,7 +8,7 @@ The attachment panel lists files for the selected project and uploads one file a
 
 Open **Preview draft generation** to enter an objective and select templates and attachment references. **API generation** reads the template catalog and requests a project-scoped draft. The preview displays the returned provider, source references, warnings, and workflow steps. **Fixture preview** is a separate mode for reviewing seeded steps. The editor changes when the user explicitly opens a draft. Saving remains a separate action.
 
-The API flow uses the generation and catalog routes from the platform integration. Catalog and provider errors stay visible with the entered inputs available for retry. Dashboard tests exercise the response contract with mock HTTP routes.
+API generation requires `GET /api/templates` and `POST /api/projects/:projectId/workflows/generate`. These platform routes are pending. **Testing template** uses the existing project template API to build a deterministic draft from parameters. Catalog and provider errors stay visible with the entered inputs available for retry. Dashboard tests exercise the generation response contract with mock HTTP routes.
 
 Terminal runs expose CSV, XLSX, and PDF download controls through P2. Each format requires a configured renderer. The UI displays an unavailable renderer response and allows retry. Dashboard tests use labeled transport fixtures to verify response handling and downloaded bytes.
 

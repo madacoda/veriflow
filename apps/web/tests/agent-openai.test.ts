@@ -640,3 +640,47 @@ test("an exact reviewed sequence completes without model outcome authority", asy
   );
   assert.equal("outcome" in result, false);
 });
+
+test("merged optional workflow fields and new commands survive provider projection", async () => {
+  const workflow = workflowSchema.parse({
+    ...demoWorkflow,
+    category: "responsive",
+    steps: [{ id: "layout", code: "assertLayout" }],
+  });
+  const generation = transport([response(message(workflow))]);
+  const draft = await createDraftGenerator({
+    provider: createOpenAIDraftProvider(generation.options),
+  }).generate(task(), active());
+  assert.deepEqual(draft.workflow, workflow);
+  const http = transport([
+    response(call("execute", { step: workflow.steps[0] })),
+  ]);
+  const input = reviewed();
+  input.reviewedWorkflow.workflow = workflow;
+  const next = createOpenAIAgentTurn(http.options, input);
+  assert.deepEqual(await next([], active()), {
+    kind: "tool",
+    call: { tool: "execute", step: workflow.steps[0] },
+  });
+});
+
+test("reviewed HTTP assertions cannot bypass the merged allowed-origin policy", () => {
+  const http = transport([]);
+  const input = reviewed();
+  input.reviewedWorkflow.workflow = workflowSchema.parse({
+    ...demoWorkflow,
+    steps: [
+      {
+        id: "foreign",
+        code: "assertHttp",
+        url: "https://other.example/private",
+        statuses: [403],
+      },
+    ],
+  });
+  assert.throws(
+    () => createOpenAIAgentTurn(http.options, input),
+    code("validation_error"),
+  );
+  assert.equal(http.requests.length, 0);
+});

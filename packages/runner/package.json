@@ -8,7 +8,8 @@
     "test:smoke": "playwright test",
     "browsers:install": "playwright install chromium",
     "report": "playwright show-report",
-    "test": "node --import tsx --test unit/*.test.ts"
+    "test": "node --import tsx --test unit/*.test.ts",
+    "test:dev": "node scripts/check-dev-refresh.mjs"
   },
   "dependencies": {
     "@axe-core/playwright": "^4.14.0",

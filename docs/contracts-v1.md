@@ -1,10 +1,10 @@
 # L0: integration contracts v1
 
-Status: merged in [PR #1](https://github.com/madacoda/veriflow/pull/1), main commit `3c432f1`. The merged contracts are unchanged from reviewed head `36feb2d`. Names and fixtures are the v1 baseline for independent work; implementation status remains separate. Reviewers: Dev 4 for API/result/report consumption, Dev 2 for context/tools/templates, Dev 3 for session/evidence behavior. Subsequent contract changes require affected-consumer review.
+Status: merged in [PR #1](https://github.com/madacoda/veriflow/pull/1), main commit `3c432f1`. That PR established the v1 baseline; additive step and result extensions have since landed. Names and fixtures remain shared across independent work. See [current implementation status](project-status.md) and [coverage extensions](testing-coverage.md). Reviewers: Dev 4 for API/result/report consumption, Dev 2 for context/tools/templates, Dev 3 for session/evidence behavior. Subsequent contract changes require affected-consumer review.
 
-Import runtime schemas and DTOs from `@veriflow/core`; import clearly labeled, non-network fixtures from `@veriflow/core/fixtures`. `CONTRACT_VERSION` is `1`. Existing schemaVersion `1` workflows remain valid; `click` is additive. Label and test-ID targets remain exact. No CSS selectors, scripts, credentials, arbitrary filesystem paths or silently invented tools are accepted.
+Import runtime schemas and DTOs from `@veriflow/core`; import clearly labeled, non-network fixtures from `@veriflow/core/fixtures`. `CONTRACT_VERSION` is `1`. Existing schemaVersion `1` workflows remain valid. Current steps also cover viewport/layout, HTTP status, axe accessibility, supplied requirements and server-side secret references. Label and test-ID targets remain exact. No arbitrary CSS selectors, scripts, filesystem paths or invented tools are accepted. Use `fillSecret` references for credentials; ordinary `fill` values are persisted and must not contain secrets.
 
-## P1 HTTP surface
+## Implemented HTTP surface
 
 All endpoints are same-origin, Node runtime, JSON unless specified. IDs are opaque; encode path segments with `encodeURIComponent`. A local single-user deployment is the P1 scope. Project scoping is data separation, not multi-user authentication.
 
@@ -22,9 +22,24 @@ All endpoints are same-origin, Node runtime, JSON unless specified. IDs are opaq
 | POST `/api/projects/:projectId/runs/:runId/cancel`              | no body                                               | `{ run: RunRecord }`                                   |
 | GET `/api/projects/:projectId/runs/:runId/report`               | terminal run only                                     | `{ snapshot: ReportSnapshot }`                         |
 
-P1 implements the table above and evidence `GET .../runs/:runId/evidence/:evidenceId` on `codex/p1-platform`, pending its own review/merge. Further thin adapters, owned by Dev 1: multipart `POST .../attachments` with field `file`, `GET .../attachments`, generation `POST .../workflows/generate` with `generationRequestSchema`, template `GET /api/templates`, and binary report export `GET .../runs/:runId/report?format=csv|xlsx|pdf`. Dev 2 supplies extraction/generation/catalog functions. Dev 4 supplies a pure `ReportRenderer`, never HTTP or storage.
+The table above is integrated. Additional implemented routes under `/api/projects/:projectId` are:
 
-Errors use `ApiError`: `{ error: { code, message, issues?: [{ path, message }] } }`. HTTP mapping: malformed JSON 400 `invalid_json`; input 422 `validation_error`; unknown project or cross-project resource 404 `not_found`; stale writes 409 `revision_conflict`; active report 409 `run_not_finished`; upload overflow 413 `payload_too_large`; unsupported media 415 `unsupported_format`; missing configured adapter 503 `adapter_unavailable`; unexpected failure 500 `internal_error`. Do not return provider messages, stacks, credentials or local absolute paths. The existing standalone workflow validation endpoint retains its original response for compatibility.
+| Method and relative path                 | Input                             | Response                                                                  |
+| ---------------------------------------- | --------------------------------- | ------------------------------------------------------------------------- |
+| GET `/templates`                         | none                              | `{ templates }` with deterministic template options, schemas and defaults |
+| POST `/templates`                        | `{ templateId, parameters }`      | `{ workflow }`, an unsaved draft with validated project origins           |
+| GET `/attachments`                       | none                              | `{ attachments: AttachmentMetadata[] }`                                   |
+| POST `/attachments`                      | multipart with exactly one `file` | 201 `{ attachment: AttachmentMetadata }`                                  |
+| GET `/attachments/:attachmentId`         | none                              | `{ attachment: AttachmentMetadata }`                                      |
+| GET `/attachments/:attachmentId/content` | none                              | Binary attachment download                                                |
+| GET `/runs/:runId/evidence/:evidenceId`  | registered evidence ID            | Binary evidence download                                                  |
+| GET `/runs/:runId/report?format=csv`     | terminal run                      | CSV from the immutable snapshot                                           |
+
+The report transport also recognizes `xlsx|pdf`, but the configured CSV-only renderer rejects those formats with 422 `unsupported_format`. A custom platform instance with no renderer returns 503. Attachment storage acceptance does not imply extraction support; see [P2](platform-p2.md).
+
+Generation `POST .../workflows/generate` and global `GET /api/templates` are **not implemented routes**. The existing project template endpoint constructs deterministic drafts without AI. Dev 1 owns HTTP/composition, Dev 2 extraction/generation/catalog functions, and Dev 4 pure report renderers.
+
+Errors use `ApiError`: `{ error: { code, message, issues?: [{ path, message }] } }`. HTTP mapping: malformed JSON 400 `invalid_json`; input 422 `validation_error`; unknown project or cross-project resource 404 `not_found`; stale writes 409 `revision_conflict`; active report 409 `run_not_finished`; upload overflow 413 `payload_too_large`; unsupported upload media 415 `unsupported_format`; unconfigured export format 422 `unsupported_format`; missing configured adapter 503 `adapter_unavailable`; unexpected failure 500 `internal_error`. Do not return provider messages, stacks, credentials or local absolute paths. The existing standalone workflow validation endpoint retains its original response for compatibility.
 
 ## Persistence and run semantics
 
@@ -36,7 +51,7 @@ Errors use `ApiError`: `{ error: { code, message, issues?: [{ path, message }] }
 - Cancellation sets `cancelRequestedAt`, emits `cancellation_requested`, and aborts the shared signal. Terminal `cancelled` is persisted only after the adapter has cleaned up. Cancellation is idempotent, and cannot rewrite an already terminal run. Timeouts and incomplete shutdown must not be reported as success.
 - Events are persisted with increasing, one-based sequence numbers and UTC ISO timestamps, scoped to a run. Poll the run endpoint for the current timeline; SSE is not required for P1.
 - P1 uses a single long-running Node process and atomic file persistence. No distributed queue or multi-process writer is claimed. On restart, queued/running records become infrastructure errors with code `interrupted`; they never silently become passed.
-- A fake adapter is opt-in and every fake run says `adapter: fake`. Production composition defaults to unavailable until Dev 3's real adapter is integrated. A fixture is never evidence of a real browser run.
+- A fake adapter is opt-in and every fake run says `adapter: fake`. Production composition defaults to the real Playwright adapter; Chromium must be installed to execute runs. Unknown adapter settings reject explicitly. A fixture is never evidence of a real browser run.
 
 ## Adapter boundaries
 
@@ -50,10 +65,10 @@ Errors use `ApiError`: `{ error: { code, message, issues?: [{ path, message }] }
 - Templates have a semantic version, category, prerequisites, JSON parameter schema and required capabilities. Missing execution capabilities produce blocked checks. Core does not claim all catalog capabilities are implemented.
 - `ReportSnapshot` binds an immutable workflow revision, project metadata captured for the run, observed results and evidence. AI summary is optional and labeled by provider. CSV/XLSX/PDF reconcile against this same snapshot; renderers perform no persistence or browser execution.
 
-## Shared demo target proposed for Dev 4
+## Shared demo target
 
-`/demo?bug=1` is known-fail and `/demo?bug=0` is known-pass. A base total of 100000 with coupon SAVE10 must become exact text `90000`. Freeze test IDs `coupon-input`, `apply-coupon`, `order-total`. Dev 4 confirms this contract before binding the browser tests. The core fixture contains a click and exact assertion; failed UI fixtures show expected `90000`, actual `100000` and a fake screenshot reference. Fixture artifact files are not real captures.
+`/demo?bug=1` is known-fail and `/demo?bug=0` is known-pass. A base total of 100000 with coupon SAVE10 must become exact text `90000`. Freeze test IDs `coupon-input`, `apply-coupon`, `order-total`. The target and browser tests use this contract. The core fixture contains a click and exact assertion; failed UI fixtures show expected `90000`, actual `100000` and a fake screenshot reference. Fixture artifact files are not real captures.
 
 ## Acceptance evidence
 
-Core contract tests cover valid fixtures, legacy workflows, additive click translation, rejected unknown tools, observation bounds, unsupported attachments, create-only versus revision writes, and URL credentials. P1 must add actual restart, optimistic concurrency, project isolation, cancellation/cleanup and error mapping tests. Those storage/run guarantees are not established by DTO tests alone.
+Core contract tests cover valid fixtures, legacy workflows, additive click translation, rejected unknown tools, observation bounds, unsupported attachments, create-only versus revision writes, and URL credentials. Platform tests cover restart, optimistic concurrency, project isolation, cancellation/cleanup and error mapping. Browser and production-route suites cover real execution and evidence ownership. DTO tests alone do not establish those guarantees; use exact-commit CI evidence, including the [current baseline limitation](project-status.md).

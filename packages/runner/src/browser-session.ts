@@ -1,3 +1,4 @@
+import axe from "axe-core";
 import {
   chromium,
   expect,
@@ -31,6 +32,7 @@ export interface BrowserFactoryOptions {
   storageRoot: string;
   /** Browser launch seam for lifecycle tests or a caller-supplied Chromium build. */
   launchBrowser?: () => Promise<Browser>;
+  resolveSecret?: (name: string) => string | undefined;
 }
 
 function validateCommand(command: Command): void {
@@ -39,6 +41,12 @@ function validateCommand(command: Command): void {
     case "navigate":
       stepSchema.parse({ ...parameters, id: stepId, code: "redirect" });
       break;
+    case "viewport":
+    case "assertLayout":
+    case "accessibility":
+    case "assertHttp":
+    case "fillSecret":
+    case "assertRequirement":
     case "fill":
     case "click":
     case "assert":
@@ -109,6 +117,7 @@ export class PlaywrightSessionFactory implements SessionFactory {
         location,
         origins,
         signal,
+        this.config.resolveSecret,
       );
       await session.initialize();
       signal.throwIfAborted();
@@ -123,6 +132,7 @@ export class PlaywrightSessionFactory implements SessionFactory {
 }
 
 class PlaywrightSession implements BrowserSession {
+  private readonly secrets = new Set<string>();
   private readonly artifacts: Evidence[] = [];
   private closePromise?: Promise<void>;
   private busy = false;
@@ -144,6 +154,7 @@ class PlaywrightSession implements BrowserSession {
     private readonly location: { path: string; directory: string },
     private readonly origins: ReadonlySet<string>,
     private readonly runSignal: AbortSignal,
+    private readonly resolveSecret?: (name: string) => string | undefined,
   ) {}
 
   async initialize() {
@@ -290,6 +301,16 @@ class PlaywrightSession implements BrowserSession {
         }
       }
       await this.capture(command.stepId);
+      if (result.findings)
+        result = {
+          ...result,
+          findings: result.findings.map((finding) => ({
+            ...finding,
+            evidenceIds: this.artifacts
+              .filter((a) => a.stepId === command.stepId)
+              .map((a) => a.id),
+          })),
+        };
       if (this.networkFailure) throw this.networkFailure;
       if (this.policyViolation) {
         this.policyReported = true;
@@ -300,7 +321,16 @@ class PlaywrightSession implements BrowserSession {
           reason: "Target is outside the allowed browser policy",
         };
       }
-      return { ...result, startedAt, finishedAt: new Date().toISOString() };
+      const safe = {
+        ...result,
+        expected:
+          result.expected === undefined
+            ? undefined
+            : this.redact(result.expected),
+        actual:
+          result.actual === undefined ? undefined : this.redact(result.actual),
+      };
+      return { ...safe, startedAt, finishedAt: new Date().toISOString() };
     });
   }
 
@@ -309,6 +339,176 @@ class PlaywrightSession implements BrowserSession {
     workUntil: number,
   ): Promise<StepResult> {
     const remaining = () => Math.max(1, workUntil - Date.now());
+    if (command.action === "viewport") {
+      await this.page.setViewportSize({
+        width: command.width,
+        height: command.height,
+      });
+      return {
+        stepId: command.stepId,
+        status: "passed",
+        actual: `${command.width}×${command.height}`,
+      };
+    }
+    if (command.action === "assertHttp") {
+      if (!permitsUrl(command.url, this.origins))
+        throw new BrowserPolicyError("Navigation rejected");
+      const response = await this.page.goto(command.url, {
+        waitUntil: "domcontentloaded",
+        timeout: remaining(),
+      });
+      if (!response)
+        return {
+          stepId: command.stepId,
+          status: "blocked",
+          failureKind: "prerequisite",
+          reason: "No HTTP response was received",
+        };
+      return this.check(
+        command.stepId,
+        command.statuses.includes(response.status()),
+        command.statuses.join(" or "),
+        String(response.status()),
+        "security",
+        "http-access",
+      );
+    }
+    if (command.action === "assertLayout") {
+      await this.page.evaluate(
+        () =>
+          new Promise<void>((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+          ),
+      );
+      const size = await this.page.evaluate(() => ({
+        width: innerWidth,
+        content: Math.max(
+          document.documentElement.scrollWidth,
+          document.body?.scrollWidth ?? 0,
+        ),
+      }));
+      let contained = true;
+      if (command.target) {
+        const locator = this.target(command.target);
+        if ((await locator.count()) !== 1)
+          return {
+            stepId: command.stepId,
+            status: "blocked",
+            failureKind: "prerequisite",
+            reason: "Layout target must match exactly one element",
+          };
+        const box = await locator.boundingBox();
+        contained =
+          !!box &&
+          box.width > 0 &&
+          box.height > 0 &&
+          box.x >= -1 &&
+          box.x + box.width <= size.width + 1 &&
+          (await locator.isVisible());
+      }
+      return this.check(
+        command.stepId,
+        size.content <= size.width + 1 && contained,
+        "No horizontal overflow; target visible within viewport width",
+        `viewport=${size.width}; content=${size.content}; targetContained=${contained}`,
+        "responsive",
+        "viewport-layout",
+      );
+    }
+    if (command.action === "accessibility") {
+      await this.page.evaluate(axe.source);
+      const result = await this.page.evaluate(async (tags) => {
+        return (window as unknown as { axe: typeof axe }).axe.run(document, {
+          runOnly: { type: "tag", values: tags },
+        });
+      }, command.tags);
+      const findings = result.violations.map((rule) => ({
+        id: randomUUID(),
+        category: "accessibility" as const,
+        ruleId: rule.id,
+        severity:
+          rule.impact === "critical"
+            ? ("critical" as const)
+            : rule.impact === "serious"
+              ? ("high" as const)
+              : ("medium" as const),
+        message: `${rule.help} (${rule.nodes.length} affected elements)`,
+        stepId: command.stepId,
+        evidenceIds: [],
+      }));
+      const checked = this.check(
+        command.stepId,
+        findings.length === 0,
+        "0 automated WCAG violations",
+        `${findings.length} violations; ${result.incomplete.length} rules need manual review`,
+        "accessibility",
+        "axe",
+      );
+      if (!findings.length && result.incomplete.length)
+        return {
+          ...checked,
+          status: "blocked",
+          failureKind: "prerequisite",
+          reason: "Axe reported incomplete checks requiring manual review",
+          findings,
+        };
+      return { ...checked, findings };
+    }
+    if (command.action === "assertRequirement") {
+      const result = await this.perform(
+        {
+          action: "assert",
+          stepId: command.stepId,
+          timeoutMs: command.timeoutMs,
+          target: command.target,
+          expectation: command.expectation,
+        },
+        workUntil,
+      );
+      return {
+        ...result,
+        requirement: {
+          id: command.requirementId,
+          text: command.requirement,
+          source: command.source,
+        },
+        findings:
+          result.status === "failed"
+            ? [
+                {
+                  id: randomUUID(),
+                  category: "compliance",
+                  ruleId: command.requirementId,
+                  severity: "medium",
+                  message: command.requirement,
+                  stepId: command.stepId,
+                  evidenceIds: [],
+                },
+              ]
+            : [],
+      };
+    }
+    if (command.action === "fillSecret") {
+      const value = this.resolveSecret?.(command.secret);
+      if (!value)
+        return {
+          stepId: command.stepId,
+          status: "blocked",
+          failureKind: "prerequisite",
+          reason: "Required server-side secret is not configured",
+        };
+      this.secrets.add(value);
+      return this.perform(
+        {
+          action: "fill",
+          stepId: command.stepId,
+          timeoutMs: command.timeoutMs,
+          target: command.target,
+          value,
+        },
+        workUntil,
+      );
+    }
     if (command.action === "navigate") {
       if (!permitsUrl(command.url, this.origins))
         throw new BrowserPolicyError("Navigation rejected");
@@ -326,6 +526,13 @@ class PlaywrightSession implements BrowserSession {
         };
     } else {
       const locator = this.target(command.target);
+      if (
+        command.action === "assert" &&
+        command.expectation.kind === "visible" &&
+        command.expectation.value === false &&
+        (await locator.count()) <= 1
+      )
+        return this.assert(command, locator, workUntil);
       // Presence is a prerequisite. Multiple exact matches must never select an arbitrary element.
       let count = 0;
       let readFailure: unknown;
@@ -347,6 +554,18 @@ class PlaywrightSession implements BrowserSession {
       } catch {
         if (readFailure) throw readFailure;
       }
+      if (
+        count === 0 &&
+        command.action === "assert" &&
+        command.expectation.kind === "visible" &&
+        command.expectation.value === false
+      )
+        return {
+          stepId: command.stepId,
+          status: "passed",
+          expected: "false",
+          actual: "false",
+        };
       if (count !== 1)
         return {
           stepId: command.stepId,
@@ -447,7 +666,45 @@ class PlaywrightSession implements BrowserSession {
         };
   }
 
+  private redact(text: string) {
+    for (const secret of this.secrets)
+      text = text.replaceAll(secret, "[REDACTED]");
+    return text;
+  }
+
+  private check(
+    stepId: string,
+    passed: boolean,
+    expected: string,
+    actual: string,
+    category: "responsive" | "security" | "accessibility",
+    ruleId: string,
+  ): StepResult {
+    const base = { stepId, expected, actual };
+    return passed
+      ? { ...base, status: "passed" }
+      : {
+          ...base,
+          status: "failed",
+          failureKind: "assertion",
+          reason: "Observed check did not meet the expected condition",
+          findings: [
+            {
+              id: randomUUID(),
+              category,
+              ruleId,
+              severity: "medium",
+              message: expected,
+              stepId,
+              evidenceIds: [],
+            },
+          ],
+        };
+  }
+
   private async capture(stepId: string) {
+    // Authenticated pages can echo secrets anywhere; omit media rather than leak them.
+    if (this.secrets.size) return;
     const id = randomUUID();
     try {
       const bytes = await this.page.screenshot({
@@ -522,7 +779,18 @@ class PlaywrightSession implements BrowserSession {
         url.hash = "";
         url.username = "";
         url.password = "";
-        return { ...observation, url: url.toString().slice(0, 2048) };
+        return {
+          ...observation,
+          title: this.redact(observation.title),
+          text: this.redact(observation.text),
+          targets: observation.targets.filter(
+            (target) =>
+              ![...this.secrets].some((secret) =>
+                target.value.includes(secret),
+              ),
+          ),
+          url: this.redact(url.toString().slice(0, 2048)),
+        };
       },
     );
   }

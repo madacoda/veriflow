@@ -1,3 +1,4 @@
+import { coverageTemplates } from "./coverage.ts";
 import {
   templateDefinitionSchema,
   workflowSchema,
@@ -9,7 +10,11 @@ import { additionalDefinitions } from "./definitions.ts";
 import { AgentError } from "../agent/errors.ts";
 
 // Parse once from private copies so neither consumers nor shared fixture mutations alter the catalog.
-const definitions = [demoTemplate, ...additionalDefinitions].map((definition) =>
+const definitions = [
+  demoTemplate,
+  ...additionalDefinitions,
+  ...coverageTemplates.map((template) => template.definition),
+].map((definition) =>
   templateDefinitionSchema.parse(structuredClone(definition)),
 );
 
@@ -27,7 +32,8 @@ export function resolveTemplates(ids: readonly string[]): TemplateDefinition[] {
   });
 }
 
-/** V1 can draft functional and supplied-requirement checks only. Never silently downgrade a category. */
+/** Generation has no parameter bindings for the executable coverage templates.
+ * Keep its supported IDs explicit so matching categories cannot silently bypass prerequisites. */
 export function resolveGenerationTemplates(
   ids: readonly string[],
   documents: readonly ContextDocument[],
@@ -35,7 +41,10 @@ export function resolveGenerationTemplates(
   const templates = resolveTemplates(ids);
   if (
     templates.some(
-      (template) => !["functional", "compliance"].includes(template.category),
+      (template) =>
+        !["functional-exact-total", "requirements-acceptance"].includes(
+          template.id,
+        ),
     ) ||
     (templates.some((template) => template.category === "compliance") &&
       !documents.some(

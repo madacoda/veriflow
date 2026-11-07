@@ -65,6 +65,8 @@ export async function artifactLocation(
     path = resolve(path, part);
     await mkdir(path, { recursive: true, mode: 0o700 });
     const info = await lstat(path);
+    // Runtime artifacts are data, not module dependencies. Tracing this dynamic
+    // path makes Turbopack watch its own output and continuously invalidate HMR.
     const actual = await realpath(/* turbopackIgnore: true */ path);
     const descendant = relative(root, actual);
     if (

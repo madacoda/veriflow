@@ -1,6 +1,6 @@
 import { isDeepStrictEqual } from "node:util";
 import OpenAI from "openai";
-import { zodFunction, zodResponseFormat } from "openai/helpers/zod";
+import { z } from "zod";
 import type { ChatCompletionCreateParamsNonStreaming } from "openai/resources/chat/completions";
 import {
   browserToolCallSchema,
@@ -54,8 +54,10 @@ function apiSchema(
   );
 }
 
+// JSON mode and non-strict tools need the input schema, including optional fields.
+// Strict SDK response-format helpers reject these additive workflow fields at import time.
 const workflowJsonSchema = apiSchema(
-  zodResponseFormat(workflowSchema, "workflow_v1").json_schema.schema,
+  z.toJSONSchema(workflowSchema, { io: "input" }),
 );
 const toolDefinitions = [
   {
@@ -67,9 +69,8 @@ const toolDefinitions = [
     parameters: browserToolCallSchema.options[1].omit({ tool: true }),
   },
 ].map(({ name, parameters }) => {
-  const tool = zodFunction({ name, parameters });
   return {
-    type: tool.type,
+    type: "function" as const,
     function: {
       name,
       description:
@@ -78,7 +79,7 @@ const toolDefinitions = [
           : "Execute the next exact step from the supplied reviewed workflow, preserving every field.",
       // Compatibility mode: local schema and saved-step checks, not model compliance, enforce policy.
       strict: false,
-      parameters: apiSchema(tool.function.parameters),
+      parameters: apiSchema(z.toJSONSchema(parameters, { io: "input" })),
     },
   };
 });

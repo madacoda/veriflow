@@ -43,7 +43,13 @@ export async function runWorkflow(
         if (result.stepId !== command.stepId)
           throw new Error("Adapter returned an incorrect step ID");
         steps.push(result);
-        stopped = result.status !== "passed";
+        stopped =
+          result.status !== "passed" &&
+          !(
+            (command.action === "assertRequirement" ||
+              command.action === "assertLayout") &&
+            result.failureKind === "assertion"
+          );
       } catch {
         steps.push({
           stepId: command.stepId,

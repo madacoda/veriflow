@@ -15,15 +15,16 @@ VPS_PORT=${VPS_PORT:-22}
 VPS_PATH=${VPS_PATH:-/opt/veriflow}
 
 # These values become SSH arguments/remote paths; reject shell syntax and options.
-[[ "$VPS_HOST" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]]
-[[ "$VPS_USER" =~ ^[a-zA-Z_][a-zA-Z0-9_-]*$ ]]
-[[ "$VPS_PORT" =~ ^[0-9]{1,5}$ ]] && ((10#$VPS_PORT > 0 && 10#$VPS_PORT < 65536))
-[[ "$VPS_PATH" =~ ^/[a-zA-Z0-9_/-]+$ && "$VPS_PATH" != / ]]
-[[ "/$VPS_PATH/" != *'/../'* && "/$VPS_PATH/" != *'/./'* ]]
-[[ "$GITHUB_SHA" =~ ^[a-f0-9]{40}$ ]]
-[[ "$GITHUB_RUN_ID" =~ ^[0-9]+$ && "$GITHUB_RUN_ATTEMPT" =~ ^[0-9]+$ ]]
-[[ "$VERIFLOW_IMAGE" =~ ^ghcr\.io/[a-z0-9._/-]+@sha256:[a-f0-9]{64}$ ]]
-[[ "$GHCR_USER" != *"'"* && "$GHCR_USER" != *$'\n'* ]]
+# Explicit exits also enforce validation when the caller tests our exit status.
+[[ "$VPS_HOST" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]] || exit 1
+[[ "$VPS_USER" =~ ^[a-zA-Z_][a-zA-Z0-9_-]*$ ]] || exit 1
+{ [[ "$VPS_PORT" =~ ^[0-9]{1,5}$ ]] && ((10#$VPS_PORT > 0 && 10#$VPS_PORT < 65536)); } || exit 1
+[[ "$VPS_PATH" =~ ^/[a-zA-Z0-9_/-]+$ && "$VPS_PATH" != / ]] || exit 1
+[[ "/$VPS_PATH/" != *'/../'* && "/$VPS_PATH/" != *'/./'* ]] || exit 1
+[[ "$GITHUB_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 1
+[[ "$GITHUB_RUN_ID" =~ ^[0-9]+$ && "$GITHUB_RUN_ATTEMPT" =~ ^[0-9]+$ ]] || exit 1
+[[ "$VERIFLOW_IMAGE" =~ ^ghcr\.io/[a-z0-9._/-]+@sha256:[a-f0-9]{64}$ ]] || exit 1
+[[ "$GHCR_USER" != *"'"* && "$GHCR_USER" != *$'\n'* ]] || exit 1
 
 umask 077
 ssh_dir=$(mktemp -d)

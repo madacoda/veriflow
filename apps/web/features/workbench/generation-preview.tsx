@@ -51,7 +51,7 @@ export function GenerationPreview({
     if (!open || fixture) return;
     const controller = new AbortController();
     api
-      .templates(controller.signal)
+      .generationTemplates(controller.signal)
       .then((templates) => {
         if (!controller.signal.aborted) setCatalog({ templates });
       })

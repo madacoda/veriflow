@@ -1,21 +1,71 @@
 # Veriflow
 
-A modular Next.js monolith for developing AI-powered UAT and QA automation.
+An AI-powered UAT and QA automation platform under development. One Next.js application serves the dashboard and HTTP API; a shared TypeScript engine executes reviewed workflows through Playwright. Bun manages the workspace, and Node.js runs the application.
 
-## Start
+The current implementation supports persistent projects, editable workflow revisions, real browser execution, six testing categories, evidence capture and CSV reports. Live AI generation and agent execution still need application integration. See [implementation and release status](docs/project-status.md), including the existing browser-test CI failure on the documentation baseline.
 
-Install Node.js 24 and Bun 1.4.4.
+## Quick start
+
+Install **Node.js 24** and **Bun 1.4.4**, then run from the repository root:
 
 ```sh
 bun install --frozen-lockfile
+bun run browsers:install
 bun run dev
 ```
 
-Open http://localhost:1111. Health is at /health and workflow validation at /api/workflows/validate. Copy apps/web/.env.example to apps/web/.env.local when configuring server integrations. Startup requires no AI key or browser download.
+Open [localhost:1111](http://localhost:1111). Chromium is required for real runs; starting the dashboard alone needs neither Chromium nor an AI key. Linux hosts may need `bun run browsers:install --with-deps`.
 
-Workspace packages export TypeScript source. Next.js transpiles core directly and tests use tsx, so a fresh checkout needs no preliminary package build or background compiler.
+Optional server configuration belongs in `apps/web/.env.local`; copy [the example](apps/web/.env.example) before editing it. Keep credentials out of Git. Workspace packages export TypeScript source, which Next.js transpiles directly; no preliminary package build or background compiler is required.
 
-## Verify
+## First workflow
+
+1. Create a project with its title, target URL, description and goals. The project URL establishes its allowed origin.
+2. Choose **Testing template**, edit its parameters for the target's exact labels or test IDs, and create a draft. Templates are deterministic and make no model call.
+3. Review/edit the workflow, explicitly save it, and run that saved revision.
+4. Inspect the ordered timeline, expected/actual results, findings and available evidence. Download CSV from the terminal run's report.
+5. Use **Rerun revision** to execute the same saved steps again with a new run ID.
+
+The bundled coupon target at `/demo?bug=1` returns the incorrect total `100000`; `/demo?bug=0` returns `90000` after applying `SAVE10`. Both pages expose `coupon-input`, `apply-coupon` and `order-total` test IDs. Target URLs must be reachable from the server running Chromium. For the deployed monolith, use its internal `http://127.0.0.1:1111/demo` URL, as explained in [deployment](docs/deployment.md).
+
+## Current capabilities
+
+| Area                   | Available in the application                                                                                             | Remaining work or limits                                                                              |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| Projects and workflows | Multiple projects, immutable revisions, explicit draft review/save                                                       | Single trusted team; project scoping is not user authorization                                        |
+| Templates              | Functional, responsive, basic security, supplied-requirement compliance, axe accessibility and saved-revision regression | Exact target parameters and prerequisites must match the application under test                       |
+| Execution              | Real Chromium, ordered steps, cancellation, pass/fail/blocked results, expected/actual observations                      | One process; bounded concurrency; no distributed job queue                                            |
+| Evidence and reports   | Registered PNG screenshots, report snapshots, CSV downloads                                                              | Product video/trace recording and PDF/XLSX are unfinished; capture can be partial; PPTX is optional   |
+| Attachments            | Project-scoped upload/list/download for supported formats                                                                | Extraction remains pending in the app; PDF/DOCX extraction and model image context are unsupported    |
+| AI                     | Validated draft generation, OpenAI-compatible provider and bounded tool-loop modules                                     | No generation HTTP route or live agent composition; the UI generation preview is explicitly a fixture |
+
+Read [testing coverage](docs/testing-coverage.md) for step semantics, secret references and the limits of automated checks. Template execution and fixture previews must not be presented as live AI generation.
+
+## Configuration
+
+| Setting                                             | Purpose                                                                                                 |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `PORT`                                              | Local server and browser-test port; default `1111`                                                      |
+| `STORAGE_DIR`                                       | Persistent storage root; default `../../data` relative to `apps/web`                                    |
+| `VERIFLOW_MAX_CONCURRENT_RUNS`                      | Admission limit; default `2`; use `1` on the shared VPS                                                 |
+| `VERIFLOW_RUN_ADAPTER`                              | `browser` by default; `fake` is explicit, labeled fixture execution                                     |
+| `VERIFLOW_SECRET_<REFERENCE>`                       | Server-only values for `fillSecret` steps; values never belong in workflow JSON                         |
+| `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL` | Server-only provider configuration; setting these alone does not enable the unfinished HTTP integration |
+
+Health is at `/health`; standalone workflow validation is at `/api/workflows/validate`. The [HTTP contract](docs/contracts-v1.md) lists the project, template, workflow, run, attachment and report endpoints.
+
+## Four-developer workflow
+
+| Owner           | Responsibility                                                                          |
+| --------------- | --------------------------------------------------------------------------------------- |
+| Dev 1 — lead    | Shared contracts, persistence, HTTP adapters, integration, deployment and serial merges |
+| Dev 2 — AI      | Generation, context extraction, template definitions and bounded model/tool decisions   |
+| Dev 3 — browser | Actions, observations, assertions, browser lifecycle and evidence capture               |
+| Dev 4 — product | Dashboard, workflow review, report renderers and demo target                            |
+
+Use separate branches/checkouts and nonconflicting local ports. [AGENTS.md](AGENTS.md), [the allocation](docs/developer-handoff.md) and [REVIEW.md](REVIEW.md) define exclusive paths, acceptance criteria and the lead's merge gates. [The task board](docs/task-board.md) records delivery history and follow-ups; GitHub issues/PRs hold live task status.
+
+## Verification
 
 ```sh
 bun run lint
@@ -27,26 +77,12 @@ bun run browsers:install
 bun run test:smoke
 ```
 
-Browser tests start the production app on port 1111, which must be free. Run the build first. CI installs Chromium and its Linux dependencies. Run `bun run start` after building to serve the production monolith.
+Browser tests start the production app, so build first and leave the selected port free. CI enables the production HTTP dashboard checks with `VERIFLOW_U1_TEST_HTTP=1` and isolated `STORAGE_DIR`. The optional live-provider test is separate; credential-free tests do not prove live AI integration.
 
-## Developer handoff
+For a shared Windows machine, set `$env:PORT = '1112'` in that checkout's PowerShell before starting the app or tests. For development reload checks, run `bun run test:dev` in another terminal against the running dev server, with the same `PORT`. To serve a production build locally, use `bun run start`.
 
-Read [architecture](docs/architecture.md), [team ownership and first tasks](docs/developer-handoff.md), and [workflow contracts](packages/core/README.md).
+## Deployment and architecture
 
-- apps/web owns pages, HTTP routes and server-side QA modules.
-- packages/core owns workflow schemas, translation, execution orchestration and shared ports.
-- packages/runner owns browser adapter development, deterministic testing fakes and integration tests.
+Deploy one long-running Node.js service with persistent storage. The [architecture](docs/architecture.md) describes the core engine, adapters and lifecycle. CI tests the Linux container before publishing an immutable GHCR image. Optional VPS deployment uses `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY` and related settings, health checks and rollback. See [deployment setup](docs/deployment.md) for the complete configuration.
 
-The scaffold supplies a working validation endpoint, typed assertions, sequential orchestration, module evaluation entry points, and fakes.
-
-The P1 platform adds persistent projects/workflow revisions, run create/status/cancel APIs, ordered timelines, immutable report snapshots and registered evidence retrieval. See [platform verification and integration status](docs/platform-p1.md), [v1 HTTP contracts](docs/contracts-v1.md) and the [team task board](docs/task-board.md). Real AI/browser adapters, product UI, attachment storage and report rendering are still separate integration tasks. Without a configured browser adapter, run creation returns 503; explicitly enabled fake runs are labeled in their records.
-
-[P2 attachment and report delivery](docs/platform-p2.md) adds project-scoped multipart uploads, attachment metadata/content reads, a reader port for extraction, and binary report delivery through an injected renderer. Uploads remain pending until extraction is integrated. The default service still returns 503 for binary reports until the real renderer is connected.
-
-## Deployment
-
-Build and start one long-running Next.js service with Node.js 24 on port 1111. CI tests a Docker image and publishes it to GHCR after successful main checks. Optional automatic VPS deployment uses `VPS_*` secrets, persistent storage and health-gated rollback. See [deployment setup](docs/deployment.md) for server provisioning, secrets and activation. Unfinished runs recover as interrupted infrastructure errors after a process restart; keep one writer process and schedule releases between active runs.
-
-## Dependency review
-
-The prior audit identified transitive advisories in TypeScript ESLint and ExcelJS. Review current results with `bun audit` before shipping the product.
+The deployed site uses an Nginx HTTPS access gate. Application username/password sessions are planned, not implemented. Keep the gate in place until their end-to-end verification. Releases can interrupt active runs, which recover as infrastructure errors; schedule deployments between runs. Run `bun audit` when reviewing dependency changes and record current findings.

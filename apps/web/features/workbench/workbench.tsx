@@ -58,7 +58,37 @@ function WorkflowEditor({
     steps: string;
     base: number | null;
     source: string;
+    category?: Workflow["category"];
   } | null>(null);
+  const [templates, setTemplates] = useState<
+    Awaited<ReturnType<typeof api.templates>>["templates"]
+  >([]);
+  const [templateId, setTemplateId] = useState("");
+  const [parameters, setParameters] = useState("{}");
+  useEffect(() => {
+    const controller = new AbortController();
+    api
+      .templates(projectId, controller.signal)
+      .then((response) => setTemplates(response.templates))
+      .catch(() => {});
+    return () => controller.abort();
+  }, [projectId]);
+  async function loadTemplate() {
+    setPending(true);
+    setError("");
+    try {
+      const response = await api.draftTemplate(
+        projectId,
+        templateId,
+        JSON.parse(parameters),
+      );
+      openDraft(response.workflow, null, "Template draft");
+    } catch (error) {
+      setError(message(error));
+    } finally {
+      setPending(false);
+    }
+  }
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -72,6 +102,7 @@ function WorkflowEditor({
       steps: JSON.stringify(workflow.steps, null, 2),
       base,
       source,
+      category: workflow.category,
     });
     setError("");
     setNotice("");
@@ -113,6 +144,7 @@ function WorkflowEditor({
       schemaVersion: "1",
       id: draft.id,
       name: draft.name,
+      category: draft.category,
       steps,
     });
     if (!parsed.success) {
@@ -184,6 +216,55 @@ function WorkflowEditor({
           />
           <form className={styles.form} onSubmit={save}>
             <fieldset className={styles.form} disabled={pending}>
+              <label className={styles.field}>
+                Testing template
+                <select
+                  value={templateId}
+                  onChange={(event) => {
+                    const id = event.currentTarget.value;
+                    setTemplateId(id);
+                    setParameters(
+                      JSON.stringify(
+                        templates.find((t) => t.id === id)?.defaults ?? {},
+                        null,
+                        2,
+                      ),
+                    );
+                  }}
+                >
+                  <option value="">Choose a testing category</option>
+                  {templates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {templateId && (
+                <>
+                  <p>
+                    {templates
+                      .find((t) => t.id === templateId)
+                      ?.prerequisites.join(" ")}
+                  </p>
+                  <label className={styles.field}>
+                    Template parameters (JSON)
+                    <textarea
+                      rows={8}
+                      value={parameters}
+                      onChange={(event) =>
+                        setParameters(event.currentTarget.value)
+                      }
+                    />
+                  </label>
+                  <div className={styles.actions}>
+                    <button type="button" onClick={loadTemplate}>
+                      Create template draft
+                    </button>
+                  </div>
+                </>
+              )}
+
               <div className={styles.actions}>
                 <button
                   type="button"
@@ -294,6 +375,12 @@ function ProjectWorkbench({ project }: { project: ProjectRecord }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [pollError, setPollError] = useState("");
+  const [viewport, setViewport] = useState("default");
+  const viewportPresets: Record<string, { width: number; height: number }> = {
+    desktop: { width: 1440, height: 900 },
+    tablet: { width: 768, height: 1024 },
+    mobile: { width: 390, height: 844 },
+  };
 
   const selectedWorkflow = workflows.find(
     (item) => item.workflow.id === selection.id,
@@ -387,9 +474,31 @@ function ProjectWorkbench({ project }: { project: ProjectRecord }) {
         project.id,
         selected.workflowId,
         selected.revision,
+        viewportPresets[viewport],
       );
       setRuns((current) => upsertRun(current, run));
       setRunId(run.id);
+      setPollError("");
+    } catch (error) {
+      setError(message(error));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function rerun() {
+    if (!run) return;
+    setPending(true);
+    setError("");
+    try {
+      const response = await api.startRun(
+        project.id,
+        run.workflowId,
+        run.revision,
+        run.viewport,
+      );
+      setRuns((current) => upsertRun(current, response.run));
+      setRunId(response.run.id);
       setPollError("");
     } catch (error) {
       setError(message(error));
@@ -431,6 +540,18 @@ function ProjectWorkbench({ project }: { project: ProjectRecord }) {
           <CardContent>
             <form className={styles.form} onSubmit={start}>
               <fieldset className={styles.form} disabled={pending || loading}>
+                <label className={styles.field}>
+                  Run viewport
+                  <select
+                    value={viewport}
+                    onChange={(event) => setViewport(event.currentTarget.value)}
+                  >
+                    <option value="default">Default (1280 × 720)</option>
+                    <option value="desktop">Desktop (1440 × 900)</option>
+                    <option value="tablet">Tablet (768 × 1024)</option>
+                    <option value="mobile">Mobile (390 × 844)</option>
+                  </select>
+                </label>
                 <div className={styles.fields}>
                   <label className={styles.field}>
                     Saved workflow
@@ -476,6 +597,11 @@ function ProjectWorkbench({ project }: { project: ProjectRecord }) {
                   <button type="submit" disabled={!selected}>
                     Start run
                   </button>
+                  {run && !isActive(run) && (
+                    <button type="button" onClick={rerun}>
+                      Rerun revision {run.revision}
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => {

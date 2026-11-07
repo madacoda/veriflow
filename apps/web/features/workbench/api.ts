@@ -9,6 +9,7 @@ import {
   type ProjectRecord,
   type ReportFormat,
   type RunRecord,
+  type TemplateDefinition,
   type Workflow,
   type WorkflowDraft,
   type WorkflowRevision,
@@ -96,7 +97,7 @@ export const api = {
     request<{ workflows: WorkflowRevision[] }>(workflowsPath(projectId), {
       signal,
     }),
-  templates: async (signal: AbortSignal) => {
+  generationTemplates: async (signal: AbortSignal) => {
     const { templates } = await request<{ templates: unknown }>(
       "/api/templates",
       { signal },
@@ -146,10 +147,25 @@ export const api = {
     ),
   runs: (projectId: string, signal: AbortSignal) =>
     request<{ runs: RunRecord[] }>(runsPath(projectId), { signal }),
-  startRun: (projectId: string, workflowId: string, revision: number) =>
+  templates: (projectId: string, signal: AbortSignal) =>
+    request<{ templates: (TemplateDefinition & { defaults: object })[] }>(
+      `${projectPath(projectId)}/templates`,
+      { signal },
+    ),
+  draftTemplate: (projectId: string, templateId: string, parameters: unknown) =>
+    request<{ workflow: Workflow }>(
+      `${projectPath(projectId)}/templates`,
+      post({ templateId, parameters }),
+    ),
+  startRun: (
+    projectId: string,
+    workflowId: string,
+    revision: number,
+    viewport?: { width: number; height: number },
+  ) =>
     request<{ run: RunRecord }>(
       runsPath(projectId),
-      post({ workflowId, revision }),
+      post({ workflowId, revision, ...(viewport ? { viewport } : {}) }),
     ),
   run: (projectId: string, runId: string, signal: AbortSignal) =>
     request<{ run: RunRecord }>(runPath(projectId, runId), { signal }),

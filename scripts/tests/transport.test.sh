@@ -51,4 +51,12 @@ if bash scripts/deploy-vps.sh; then
   echo 'Expected invalid host to reject before any SSH call.' >&2; exit 1
 fi
 [[ ! -s "$TRANSPORT_LOG" ]]
+export VPS_HOST=example.test
+for invalid_port in invalid 0 65536; do
+  export VPS_PORT="$invalid_port"
+  if bash scripts/deploy-vps.sh; then
+    echo 'Expected invalid port to reject before any SSH call.' >&2; exit 1
+  fi
+  [[ ! -s "$TRANSPORT_LOG" ]]
+done
 echo 'Transport tests passed: strict host keys, stdin token, cleanup, unique retries and invalid input.'
