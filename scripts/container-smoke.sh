@@ -24,7 +24,7 @@ grep -q Veriflow <<< "$body"
 project_id=$(curl --fail --silent http://127.0.0.1:1111/api/projects \
   -H 'Content-Type: application/json' \
   -d '{"title":"Container persistence smoke","url":"https://example.com"}' \
-  | node -pe 'JSON.parse(require("node:fs").readFileSync(0,"utf8")).project.id')
+  | docker exec -i "$name" node -pe 'JSON.parse(require("node:fs").readFileSync(0,"utf8")).project.id')
 docker exec "$name" node -e '
   const assert = require("node:assert/strict");
   const { chromium } = require("/opt/playwright");
@@ -40,8 +40,9 @@ docker exec "$name" node -e '
     } finally { await browser.close(); }
   })().catch(error => { console.error(error); process.exit(1); });
 '
+docker exec -i "$name" node --input-type=module < scripts/container-workflow-smoke.mjs
 docker restart "$name"
 wait_healthy
 curl --fail --silent "http://127.0.0.1:1111/api/projects/$project_id" \
-  | node -e 'const p=JSON.parse(require("node:fs").readFileSync(0,"utf8")).project; require("node:assert/strict").equal(p.title,"Container persistence smoke")'
-echo 'Container smoke passed: UI, health, non-root Chromium/PNG, persistent storage.'
+  | docker exec -i "$name" node -e 'const p=JSON.parse(require("node:fs").readFileSync(0,"utf8")).project; require("node:assert/strict").equal(p.title,"Container persistence smoke")'
+echo 'Container smoke passed: UI, health, non-root Chromium, real fail/pass PNGs, persistent storage.'

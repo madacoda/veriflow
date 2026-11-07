@@ -58,13 +58,14 @@ export async function artifactLocation(
     throw new BrowserPolicyError("Artifact directory must belong to the run");
   }
   await mkdir(resolve(storageRoot), { recursive: true, mode: 0o700 });
-  const root = await realpath(resolve(storageRoot));
+  // Evidence belongs to the runtime volume, never the Next.js build output.
+  const root = await realpath(/* turbopackIgnore: true */ resolve(storageRoot));
   let path = root;
   for (const part of ["runs", options.runId]) {
     path = resolve(path, part);
     await mkdir(path, { recursive: true, mode: 0o700 });
     const info = await lstat(path);
-    const actual = await realpath(path);
+    const actual = await realpath(/* turbopackIgnore: true */ path);
     const descendant = relative(root, actual);
     if (
       info.isSymbolicLink() ||

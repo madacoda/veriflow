@@ -42,7 +42,9 @@ else
     [[ "$previous" == "$root/releases/"* && -f "$previous/image.ref" ]]
     export VERIFLOW_IMAGE
     VERIFLOW_IMAGE=$(cat "$previous/image.ref")
-    [[ "$VERIFLOW_IMAGE" =~ ^ghcr\.io/[a-z0-9._/-]+@sha256:[a-f0-9]{64}$ ]]
+    # A one-time bootstrap can retain a verified local image ID before the first
+    # main release is published. New deployments still require a GHCR digest.
+    [[ "$VERIFLOW_IMAGE" =~ ^(ghcr\.io/[a-z0-9._/-]+@)?sha256:[a-f0-9]{64}$ ]]
     "${compose[@]}" -f "$previous/compose.yaml" up -d --no-build --pull never --wait --wait-timeout 120
   else
     # No previous release exists. Remove only this failed service; keep its data.

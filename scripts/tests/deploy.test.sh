@@ -49,6 +49,15 @@ if grep -q ' up ' "$DOCKER_TEST_LOG"; then exit 1; fi
 [[ $(cat "$root/current-release") == "$old" ]]
 unset FAIL_PULL
 
+# The first GHCR release can roll back to the local bootstrap image by exact ID.
+printf 'sha256:%s\n' "$(printf 'c%.0s' {1..64})" > "$old/image.ref"
+: > "$DOCKER_TEST_LOG"
+if printf 'fixture-token\n' | bash "$new/vps-release.sh" "$root" "$new_image" fixture-user; then
+  echo 'Expected unhealthy deployment to restore bootstrap and fail.' >&2; exit 1
+fi
+grep -q -- 'sha256:cccc.*--pull never --wait' "$DOCKER_TEST_LOG"
+[[ $(cat "$root/current-release") == "$old" ]]
+
 rm -- "$root/current-release"
 : > "$DOCKER_TEST_LOG"
 if printf 'fixture-token\n' | bash "$new/vps-release.sh" "$root" "$new_image" fixture-user; then
