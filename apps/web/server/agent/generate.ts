@@ -73,7 +73,10 @@ export function createDraftGenerator(
             const workflow = workflowSchema.parse(decoded);
             if (
               (requirementsSelected &&
-                !workflow.steps.some((step) => step.code === "assert")) ||
+                !workflow.steps.some(
+                  (step) =>
+                    step.code === "assert" || step.code === "assertRequirement",
+                )) ||
               workflow.steps.some(
                 (step) =>
                   (step.code === "redirect" || step.code === "assertHttp") &&
