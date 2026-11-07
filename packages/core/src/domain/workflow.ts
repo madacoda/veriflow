@@ -29,6 +29,16 @@ export const stepSchema = z.discriminatedUnion("code", [
   }),
   z.strictObject({ ...common, code: z.literal("check"), target }),
   z.strictObject({ ...common, code: z.literal("uncheck"), target }),
+  z.strictObject({
+    ...common,
+    code: z.literal("assert"),
+    target,
+    expectation: z.discriminatedUnion("kind", [
+      z.strictObject({ kind: z.literal("visible"), value: z.boolean() }),
+      z.strictObject({ kind: z.literal("checked"), value: z.boolean() }),
+      z.strictObject({ kind: z.literal("text"), value: z.string() }),
+    ]),
+  }),
 ]);
 
 export const workflowSchema = z

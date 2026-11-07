@@ -1,60 +1,35 @@
-# Modular architecture
+# Modular monolith
 
-Veriflow starts as a modular monolith. Functionality, security and accessibility are initial bounded-context candidates with separate vocabulary and ownership. Refine their boundaries as real use cases emerge. Each module owns its business rules and persistence contracts.
-
-`packages/core` owns all workflow definitions, step codes, validation and translation. See its [workflow contract](../packages/core/README.md). Feature modules depend on the core public API. The core is independent of feature modules, HTTP servers and browser libraries. `packages/runner` will implement the core execution port with Playwright. Project adapters will store workflow instances using this common contract.
-
-## Dependency direction
+Next.js serves UI and HTTP endpoints in one application. The former Fastify app has been consolidated into apps/web.
 
 ```text
-Next.js routes -> feature UI -> HTTP
-API composition root -> module public entry point
-presentation -> application -> domain
-infrastructure -> application ports + domain
-QA modules -> core workflow contract -> execution plan
-runner adapter -> core execution port
+apps/web/app             pages and thin HTTP route handlers
+apps/web/features        feature UI
+apps/web/server/modules  functionality, security, accessibility
+packages/core            workflow language, translation, execution ports
+packages/runner          future browser adapter and current testing fakes
 ```
 
-`apps/api/src/app.ts` composes the HTTP server. `index.ts` owns process startup, storage initialization and shutdown. `platform` holds platform HTTP concerns. Importing `createApp` allows isolated HTTP tests without opening a port.
+## Dependencies
 
-Each module under `apps/api/src/modules` has four layers.
+HTTP adapters validate incoming data and call application functions. Module application code depends on local domain types and the core public contract. Infrastructure implements ports. Domain code owns business invariants. The core must remain independent of Next.js, Playwright and feature modules. Static imports are checked by ESLint; runtime imports and semantic coupling need review.
 
-| Layer          | Responsibility                                                                 |
-| -------------- | ------------------------------------------------------------------------------ |
-| domain         | Entities, value objects, invariants and policies using the module's vocabulary |
-| application    | Use cases and small interfaces for external capabilities                       |
-| infrastructure | Implementations of those interfaces using storage, OpenAI, Playwright or axe   |
-| presentation   | Request validation, HTTP mapping and response DTOs                             |
+Each QA module exports createEvaluation through its index.ts. Supply a QaEvaluator implementation via dependency injection. The evaluator receives run identity, step results and evidence and returns shared Evaluation/Finding DTOs. Its initial tests use FakeEvaluator. No fake is wired into production HTTP routes.
 
-Create each module's `index.ts` when its first capability is implemented. Export only the module registration function and explicitly reviewed public contracts. The composition root supplies concrete dependencies. Cross-module orchestration belongs in application services with injected ports. Keep imports of another module's implementation private. Avoid a generic shared entity or repository abstraction until there is a demonstrated common requirement.
+The core workflow schema is the single source of step definitions. Translation produces ordered commands. runWorkflow accepts a SessionFactory, opens one session per run, executes sequentially and closes in finally. Adapter failures fail the current step and block the rest. Cancellation blocks remaining work. Startup, evidence collection or cleanup failures reject the run so the future job owner can persist an infrastructure failure.
 
-`apps/web/features/{functionality,security,accessibility}` owns feature-specific UI and HTTP adapters. The Next.js `app` directory composes pages and layouts. Server implementation types must stay out of browser imports.
+Session adapters must honor cancellation and timeout signals and release partial allocations if opening fails. The engine cannot forcibly terminate an uncooperative adapter. Browser-process supervision is part of the engine developer's production adapter acceptance criteria.
 
-`packages/runner` owns browser tooling and its smoke test. Future reusable Playwright adapters belong there, while each QA module owns its evaluation policies. Platform authentication and permissions belong to platform work. The security module evaluates security scenarios on target applications.
+## Package development
 
-## SOLID in implementation
+Core exports TypeScript source through its public package entry. Next.js transpiles it and tsx runs unit tests. Runner declares a workspace dependency on core. Web declares core and a development-only dependency on runner for fixtures. All consumers resolve fresh source, avoiding stale dist files and build-order races. Declaration/build checks still run for core.
 
-- Give each use case one business operation and each adapter one external capability.
-- Extend behavior through injected policy or execution ports when a second implementation is needed.
-- Require adapters to honor the same success, failure and cancellation semantics. Verify these with contract tests.
-- Define narrow ports around actual use-case needs, such as executing a scenario or saving evidence.
-- Have application code depend on these ports. Instantiate concrete SDKs in infrastructure and wire them at the composition root.
+The monolith build is the deployable artifact. These private packages are not published JavaScript libraries. A future standalone Node worker will need a bundle or a compiled package export strategy.
 
-Prefer functions and plain TypeScript interfaces where sufficient. Add entities and value objects when they enforce actual invariants. The initial module directories are intentionally ready for feature implementation.
+## SOLID and DDD
 
-## Four-developer workflow
+Keep entities and value objects around real invariants. Use small ports for session allocation, step execution and QA evaluation. Treat the three QA modules as bounded-context candidates that can evolve with domain knowledge. Keep shared workflow semantics in core, and category-specific checks in their module. Platform authentication is distinct from evaluating a target application's security.
 
-| Branch               | Primary ownership                                                                      |
-| -------------------- | -------------------------------------------------------------------------------------- |
-| `feat/functionality` | Functionality API module and frontend feature                                          |
-| `feat/security`      | Security QA API module and frontend feature                                            |
-| `feat/accessibility` | Accessibility API module and frontend feature                                          |
-| `feat/platform`      | Composition, project management, execution tooling, AI, reporting and shared contracts |
+A new step requires schema, exhaustive translation, adapter behavior and tests in the same contract change. Existing schemaVersion 1 documents remain valid. Added assert steps support exact text, visibility and checked-state expectations.
 
-Start each branch from the latest `main` using `git switch -c feat/functionality` or the relevant branch name. Push with `git push -u origin HEAD`. Open pull requests into `main`, merge reviewed changes, and regularly incorporate `origin/main`. For later tasks use names such as `feat/security-input-validation` rather than keeping permanent feature branches.
-
-Agree request/response DTOs and port semantics in a small contract PR before parallel implementation. Keep changes within the owned module where possible. Coordinate edits to `app.ts`, root manifests, `bun.lock`, CI and runner configuration with the platform developer. Regenerate the lockfile with Bun after resolving manifest conflicts.
-
-## Verification
-
-Run `bun run lint`, `bun run typecheck`, `bun run test:unit`, `bun run build` and `bun run test:smoke` before a PR. ESLint rejects direct framework imports in domain/application layers, outward layer imports and sibling-module implementation imports. These static-import checks complement review; runtime imports and semantic coupling still need review. Add use-case tests with fake ports, adapter contract tests and HTTP tests as modules gain behavior.
+See [developer handoff](developer-handoff.md) for ownership and acceptance criteria.

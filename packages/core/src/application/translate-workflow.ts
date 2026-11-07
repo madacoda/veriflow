@@ -1,4 +1,8 @@
-import { workflowSchema, type Target } from "../domain/workflow.js";
+import {
+  workflowSchema,
+  type Target,
+  type WorkflowStep,
+} from "../domain/workflow.ts";
 
 type CommandMetadata = { stepId: string; timeoutMs: number };
 export type Command = CommandMetadata &
@@ -6,6 +10,11 @@ export type Command = CommandMetadata &
     | { action: "navigate"; url: string }
     | { action: "fill"; target: Target; value: string }
     | { action: "setChecked"; target: Target; checked: boolean }
+    | {
+        action: "assert";
+        target: Target;
+        expectation: Extract<WorkflowStep, { code: "assert" }>["expectation"];
+      }
   );
 export interface ExecutionPlan {
   workflowId: string;
@@ -41,6 +50,13 @@ export function translateWorkflow(input: unknown): ExecutionPlan {
           action: "setChecked",
           target: step.target,
           checked: false,
+        };
+      case "assert":
+        return {
+          ...metadata,
+          action: "assert",
+          target: step.target,
+          expectation: step.expectation,
         };
       default: {
         const unsupported: never = step;

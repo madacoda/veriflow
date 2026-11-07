@@ -39,12 +39,12 @@ export default defineConfig([
   })),
   ...tseslint.configs.recommended.map((config) => ({
     ...config,
-    files: ["apps/api/**/*.ts", "packages/**/*.ts"],
+    files: ["apps/web/server/**/*.ts", "packages/**/*.ts"],
   })),
   ...["functionality", "security", "accessibility"].flatMap((module) =>
     ["domain", "application", "infrastructure", "presentation"].map(
       (layer) => ({
-        files: [`apps/api/src/modules/${module}/${layer}/**/*.ts`],
+        files: [`apps/web/server/modules/${module}/${layer}/**/*.ts`],
         rules: {
           "no-restricted-imports": [
             "error",

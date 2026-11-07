@@ -7,12 +7,17 @@
     "typecheck": "tsc --noEmit",
     "test:smoke": "playwright test",
     "browsers:install": "playwright install chromium",
-    "report": "playwright show-report"
+    "report": "playwright show-report",
+    "test": "node --import tsx --test unit/*.test.ts"
   },
   "dependencies": {
     "@axe-core/playwright": "^4.14.0",
     "@playwright/test": "^1.65.0",
     "axe-core": "^4.14.0",
-    "exceljs": "^4.4.0"
+    "exceljs": "^4.4.0",
+    "@veriflow/core": "workspace:*"
+  },
+  "exports": {
+    "./testing": "./src/testing.ts"
   }
 }

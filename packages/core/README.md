@@ -43,10 +43,12 @@ Import `translateWorkflow` from the package public entry point. It accepts unkno
 
 ## Execution adapter contract
 
-The runner will implement `StepExecutor`, receiving one command and an abort signal. It must enforce timeout and cancellation, resolve a single target, and return a result with the same step ID. A future orchestrator will execute commands in order, stop on failure and mark remaining steps blocked. Automatic retries of workflows that mutate a target application require explicit policy.
+The runner will implement `StepExecutor`, receiving one command and an abort signal. It must enforce timeout and cancellation, resolve a single target, and return a result with the same step ID. runWorkflow executes commands in order, stops on failure, marks remaining steps blocked and closes its session. Automatic retries of workflows that mutate a target application require explicit policy.
 
-The browser adapter must enforce the configured project origin policy, including redirect destinations, before navigation. HTTP URL syntax validation in the core is not a network access policy. Keep credentials out of persisted fill values and evidence. Runtime secret references, assertions, orchestration, persistence, and browser adapters are future capabilities that require their own reviewed contracts.
+The browser adapter must enforce the configured project origin policy, including redirect destinations, before navigation. HTTP URL syntax validation in the core is not a network access policy. Keep credentials out of persisted fill values and evidence. Runtime secret references, persistence, and browser adapters are future capabilities that require their own reviewed contracts.
 
 ## Extension workflow
 
 Add a discriminated step schema, exhaustive translation case, representative example and contract tests together. Add the matching runner implementation in a separate adapter change. Modules add QA-specific policies through application ports instead of copying the workflow language. Core changes require review from affected module owners.
+
+Assertions use code assert, a target, and expectation with kind visible, checked or text and its typed value. Text matching is exact. Session lifecycle, evaluator, finding and evidence contracts are exported from the public package entry.

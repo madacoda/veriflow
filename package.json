@@ -10,7 +10,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "concurrently -k -n web,api \"bun run --cwd apps/web dev\" \"bun run --cwd apps/api dev\"",
+    "dev": "bun run --cwd apps/web dev",
     "build": "bun run --filter \"@veriflow/*\" --if-present build",
     "typecheck": "bun run --filter \"@veriflow/*\" typecheck",
     "lint": "eslint .",
@@ -18,11 +18,11 @@
     "format:check": "prettier --check .",
     "test:smoke": "bun run --cwd packages/runner test:smoke",
     "browsers:install": "bun run --cwd packages/runner browsers:install",
-    "test:unit": "bun run --filter \"@veriflow/*\" --if-present test"
+    "test:unit": "bun run --filter \"@veriflow/*\" --if-present test",
+    "start": "bun run --cwd apps/web start"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
-    "concurrently": "^10.0.6",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.4.5",
     "prettier": "^3.9.10",

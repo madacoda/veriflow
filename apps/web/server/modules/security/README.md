@@ -9,4 +9,4 @@ Owned by the developer working on `feat/security`.
 - `infrastructure` implements ports using persistence, AI or browser tools.
 - `presentation` adapts HTTP requests and responses to use cases.
 
-Add an `index.ts` public entry point when implementing the first use case. Wire its dependencies in the API composition root. Keep infrastructure out of domain and application imports. Coordinate cross-module contracts through a separate reviewed change.
+The `index.ts` public entry point exports createEvaluation. Inject your evaluator from a thin Next.js route or composition function. Keep infrastructure out of domain and application imports. Coordinate cross-module contracts through a separate reviewed change.

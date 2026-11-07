@@ -1,52 +1,48 @@
 # Veriflow
 
-Initial workspace for an AI-powered UAT and QA automation platform.
+A modular Next.js monolith for developing AI-powered UAT and QA automation.
 
-## Requirements
+## Start
 
-- Node.js 24 and Bun (version pinned in package.json)
-- Chromium installed through Playwright
-
-## Getting started
+Install Node.js 24 and Bun 1.4.4.
 
 ```sh
 bun install --frozen-lockfile
-bun run browsers:install
+bun run dev
 ```
 
-Copy `apps/api/.env.example` to `apps/api/.env`, then run `bun run dev`.
-The frontend runs at http://localhost:3000 and the API health endpoint at http://127.0.0.1:4000/health.
-API environment variables load from `apps/api/.env`. AI credentials are server-only and are optional for startup. Set the provider URL and model when implementing generation.
+Open http://localhost:3000. Health is at /health and workflow validation at /api/workflows/validate. Copy apps/web/.env.example to apps/web/.env.local when configuring server integrations. Startup requires no AI key or browser download.
 
-## Workspace ownership
+Workspace packages export TypeScript source. Next.js transpiles core directly and tests use tsx, so a fresh checkout needs no preliminary package build or background compiler.
 
-Feature ownership and the branch workflow are defined in [the architecture guide](docs/architecture.md). The three QA modules are functionality, security and accessibility, with a fourth developer owning platform integration.
-
-Next.js App Router powers the frontend. Fastify provides the Node.js API. The runner includes Playwright, axe-core integration and ExcelJS. The API includes the OpenAI SDK for later provider integration. Runtime files belong in the ignored `data` directory. SQLite can be added when persistence contracts are agreed.
-
-## Checks
+## Verify
 
 ```sh
 bun run lint
+bun run format:check
 bun run typecheck
 bun run test:unit
 bun run build
+bun run browsers:install
 bun run test:smoke
-bun run format:check
 ```
 
-`bun run format` formats the workspace. The browser smoke test uses a local intercepted page and checks browser startup plus axe integration. Playwright retains traces, screenshots and WebM video on failure. Open reports with `bun run --cwd packages/runner report`.
+Browser tests start the production app on port 3000, which must be free. Run the build first. CI installs Chromium and its Linux dependencies. Run `bun run start` after building to serve the production monolith.
 
-## Development scope
+## Developer handoff
 
-This scaffold supplies a placeholder homepage, API health endpoint, storage directory setup and tooling verification. Product development includes project management and attachments, AI workflow generation and editing, execution orchestration, QA templates, result comparison, evidence management and CSV/XLSX/PDF exports. PPTX and SQLite are optional. MP4 requires a later conversion choice.
+Read [architecture](docs/architecture.md), [team ownership and first tasks](docs/developer-handoff.md), and [workflow contracts](packages/core/README.md).
 
-## Collaboration
+- apps/web owns pages, HTTP routes and server-side QA modules.
+- packages/core owns workflow schemas, translation, execution orchestration and shared ports.
+- packages/runner owns browser adapter development, deterministic testing fakes and integration tests.
 
-Branch from `main` using `feat/short-description` or `fix/short-description`. Submit pull requests with verification results and request a teammate review. Coordinate API shapes before implementing consumers. Commit dependency lockfile changes with their package manifests. Each developer keeps credentials in their own ignored environment files.
+The scaffold supplies a working validation endpoint, typed assertions, sequential orchestration, module evaluation entry points, and fakes. Product UI, real browser execution adapters, authentication, AI generation, persistence and exports are assigned development work.
 
-CI runs formatting, lint, type checks, builds and the browser smoke test. Repository administrators should configure main-branch protection with the `check` job and one approving review when enabling the team's workflow.
+## Deployment
+
+Build and start one long-running Next.js service with Node.js 24. Use persistent storage for later project/evidence adapters. Workflow execution should eventually use a supervised worker with job tracking, sharing the repository and release. The validation endpoint performs no execution or storage writes. Deployment hosting and CD remain unconfigured.
 
 ## Dependency review
 
-The initialization dependency audit reported moderate transitive advisories in minimatch through TypeScript ESLint and uuid through ExcelJS. Review current advisories with `bun audit`. Review upstream updates before implementing reporting or exposing the application. The suggested forced fixes downgrade major tooling dependencies and require separate validation.
+The prior audit identified transitive advisories in TypeScript ESLint and ExcelJS. Review current results with `bun audit` before shipping the product.
