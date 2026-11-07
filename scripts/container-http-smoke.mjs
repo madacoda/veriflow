@@ -33,7 +33,9 @@ async function completed(path) {
   assert.fail("Browser run did not complete within 60 seconds");
 }
 async function evidence(projectPath, run) {
-  assert.equal(run.evidence.capture, "complete");
+  // The current adapter provides PNGs, not a completeness declaration for all media.
+  assert.equal(run.evidence.capture, "partial");
+  assert.ok(run.evidence.warnings.length > 0);
   assert.equal(run.evidence.artifacts.length, 4);
   assert.equal(new Set(run.evidence.artifacts.map((item) => item.id)).size, 4);
   assert.deepEqual(run.evidence.artifacts.map((item) => item.stepId).sort(), [
