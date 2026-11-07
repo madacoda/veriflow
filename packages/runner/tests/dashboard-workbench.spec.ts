@@ -8,6 +8,32 @@ import {
 } from "@veriflow/core/fixtures";
 import type { ProjectRecord, RunRecord } from "@veriflow/core";
 
+test("timeline hydrates without locale or timezone differences", async ({
+  browser,
+  context,
+  baseURL,
+}) => {
+  const foreign = await browser.newContext({
+    timezoneId: "Asia/Bangkok",
+    locale: "en-GB",
+    storageState: await context.storageState(),
+  });
+  try {
+    const page = await foreign.newPage();
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.goto(baseURL!, { waitUntil: "networkidle" });
+    await page.getByText("Sample run previews", { exact: true }).click();
+    const preview = page.getByRole("region", { name: "Run previews" });
+    await expect(preview.locator("time").first()).toHaveText(
+      `${new Date(demoFailedRun.events[0]!.timestamp).toISOString().slice(11, 19)} UTC`,
+    );
+    expect(errors).toEqual([]);
+  } finally {
+    await foreign.close();
+  }
+});
+
 test("recovers from a poll error and displays a partial capture warning", async ({
   page,
   baseURL,
