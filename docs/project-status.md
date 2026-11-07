@@ -4,6 +4,8 @@ This is a source snapshot, not a substitute for live GitHub checks. The deeper a
 
 ## Release evidence
 
+The browser-gate recovery is tracked separately in [CI/CD recovery](ci-recovery.md) and PR #19. It fixes test collection and the production axe bundling failure exposed afterward. The baseline evidence below is historical; use the PR and resulting main checks to establish the repaired release.
+
 - The baseline's [CI run](https://github.com/madacoda/veriflow/actions/runs/42346061721) passed Linux lint, formatting, type checks, unit tests and build, plus Windows unit checks. Its Linux browser suite failed while importing `apps/web/server/templates/coverage.ts`: `SyntaxError: Unexpected token 'export'` from the core TypeScript entry. Container publication and deployment were skipped. The newer coverage implementation must not be described as a verified deployed release.
 - The preceding verified release [`1266309`](https://github.com/madacoda/veriflow/commit/1266309) passed [Linux, Windows, container publication and VPS deployment](https://github.com/madacoda/veriflow/actions/runs/42344768665). It predates the newer six-category execution changes.
 - Local results in older delivery notes describe their original commits. They do not override a failing check on newer main. Consult [current Actions runs](https://github.com/madacoda/veriflow/actions) before releasing.

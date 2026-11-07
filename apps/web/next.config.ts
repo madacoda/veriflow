@@ -6,6 +6,8 @@ const config: NextConfig = {
   output: process.env.BUILD_STANDALONE === "1" ? "standalone" : undefined,
   outputFileTracingRoot: resolve(import.meta.dirname, "../.."),
   transpilePackages: ["@veriflow/core", "@veriflow/runner"],
+  // axe.source serializes its own function body for browser injection. Preserve
+  // the original package so bundler closure names never leak into that script.
   serverExternalPackages: [
     "@playwright/test",
     "playwright",
