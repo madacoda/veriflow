@@ -54,7 +54,8 @@ test("previews generation inputs without changing or saving the current draft", 
   await name.fill("My unsaved changes");
   await editor.getByText("Preview draft generation", { exact: true }).click();
 
-  const fixture = editor.getByRole("region", { name: "Generation fixture" });
+  const fixture = editor.getByRole("region", { name: "Workflow generation" });
+  await fixture.getByLabel("Generation mode").selectOption("fixture");
   await fixture
     .getByLabel("Objective")
     .fill("Verify the discount from the checkout requirements.");
@@ -91,6 +92,151 @@ test("previews generation inputs without changing or saving the current draft", 
   await name.fill("Reviewed fixture workflow");
   await expect(name).toHaveValue("Reviewed fixture workflow");
   expect(writeRequests).toBe(0);
+});
+
+test("loads the API catalog and reviews a generated draft after recoverable errors", async ({
+  page,
+  baseURL,
+}) => {
+  const origin = baseURL ?? new URL(demoProject.url).origin;
+  const pendingAttachment = {
+    ...demoAttachment,
+    id: "attachment-pending",
+    filename: "pending.md",
+    extraction: { status: "pending" },
+  };
+  const generated = { ...demoWorkflow, name: "Generated checkout review" };
+  let catalogAttempts = 0;
+  const generationInputs: unknown[] = [];
+  let saves = 0;
+
+  await page.route("**/api/projects", (route) =>
+    route.fulfill({ json: { projects: [demoProject] } }),
+  );
+  await page.route(`${projectPath}/workflows`, (route) => {
+    if (route.request().method() === "POST") saves++;
+    return route.fulfill({ json: { workflows: [] } });
+  });
+  await page.route(`${projectPath}/runs`, (route) =>
+    route.fulfill({ json: { runs: [] } }),
+  );
+  await page.route(`${projectPath}/attachments`, (route) =>
+    route.fulfill({
+      json: { attachments: [demoAttachment, pendingAttachment] },
+    }),
+  );
+  await page.route("**/api/templates", (route) => {
+    catalogAttempts++;
+    return catalogAttempts === 1
+      ? route.fulfill({
+          status: 404,
+          json: {
+            error: {
+              code: "not_found",
+              message: "Template catalog is unavailable",
+            },
+          },
+        })
+      : route.fulfill({ json: { templates: [demoTemplate] } });
+  });
+  await page.route(`${projectPath}/workflows/generate`, (route) => {
+    generationInputs.push(route.request().postDataJSON());
+    if (generationInputs.length === 1) {
+      return route.fulfill({
+        status: 503,
+        json: {
+          error: {
+            code: "adapter_unavailable",
+            message: "Generation provider is not configured",
+          },
+        },
+      });
+    }
+    return route.fulfill({
+      json: {
+        draft: {
+          contractVersion: "1",
+          provider: "model",
+          workflow:
+            generationInputs.length === 2
+              ? { ...generated, steps: [] }
+              : generated,
+          sourceAttachmentIds: [demoAttachment.id],
+          warnings: ["One attachment could not be used."],
+        },
+      },
+    });
+  });
+
+  await page.goto(origin);
+  await page.getByLabel("Selected project").selectOption(demoProject.id);
+  const editor = page.getByRole("region", { name: "Workflow draft" });
+  await editor.getByRole("button", { name: "Load coupon fixture" }).click();
+  const name = editor.getByLabel("Workflow name");
+  await name.fill("Keep my current edits");
+  await editor.getByText("Preview draft generation", { exact: true }).click();
+  const panel = editor.getByRole("region", { name: "Workflow generation" });
+  const generate = panel.getByRole("button", { name: "Generate draft" });
+  await expect(panel.getByRole("alert")).toContainText(
+    "Could not load templates",
+  );
+  await expect(generate).toBeDisabled();
+  expect(generationInputs).toHaveLength(0);
+  await panel.getByRole("button", { name: "Retry templates" }).click();
+
+  const objective = "Review the checkout requirement";
+  await panel.getByLabel("Objective").fill(objective);
+  await panel.getByLabel("Template").selectOption(demoTemplate.id);
+  await panel.getByRole("checkbox", { name: /checkout\.md/ }).check();
+  await panel.getByRole("checkbox", { name: /pending\.md/ }).check();
+  await generate.click();
+  await expect(panel.getByRole("alert")).toContainText(
+    "Generation is currently unavailable",
+  );
+  await expect(name).toHaveValue("Keep my current edits");
+  await expect(panel.getByLabel("Objective")).toHaveValue(objective);
+  await expect(
+    panel.getByRole("button", { name: /replace editor/i }),
+  ).toHaveCount(0);
+
+  await generate.click();
+  await expect(panel.getByRole("alert")).toContainText(
+    "invalid workflow draft",
+  );
+  await expect(
+    panel.getByRole("button", { name: /replace editor/i }),
+  ).toHaveCount(0);
+  await generate.click();
+  await expect(
+    panel.getByRole("heading", { name: generated.name }),
+  ).toBeVisible();
+  await expect(panel.getByText(/Provider: model/)).toBeVisible();
+  await expect(
+    panel.getByRole("list", { name: "Draft warnings" }),
+  ).toContainText("One attachment could not be used.");
+  await expect(
+    panel.getByRole("listitem").filter({ hasText: demoAttachment.filename }),
+  ).toBeVisible();
+  await expect(
+    panel.getByRole("listitem").filter({ hasText: "pending.md" }),
+  ).toHaveCount(0);
+  await expect(name).toHaveValue("Keep my current edits");
+  expect(generationInputs).toEqual(
+    Array.from({ length: 3 }, () => ({
+      objective,
+      attachmentIds: [demoAttachment.id, pendingAttachment.id],
+      templateIds: [demoTemplate.id],
+    })),
+  );
+
+  await panel
+    .getByRole("button", { name: "Replace editor with generated draft" })
+    .click();
+  await expect(name).toHaveValue(generated.name);
+  await expect(
+    editor.getByText("Generated workflow draft · Unsaved draft"),
+  ).toBeVisible();
+  expect(saves).toBe(0);
 });
 
 test("downloads reports for terminal runs and handles an unavailable renderer", async ({

@@ -168,11 +168,18 @@ function WorkflowEditor({
         </CardHeader>
         <CardContent>
           <GenerationPreview
+            projectId={projectId}
             attachments={attachments}
             hasDraft={draft !== null}
             pending={pending}
             onOpen={(preview) =>
-              openDraft(preview.workflow, null, "Generation fixture draft")
+              openDraft(
+                preview.workflow,
+                null,
+                preview.provider === "fixture"
+                  ? "Generation fixture draft"
+                  : "Generated workflow draft",
+              )
             }
           />
           <form className={styles.form} onSubmit={save}>
