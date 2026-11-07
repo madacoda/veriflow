@@ -69,6 +69,8 @@ Use separate branches/checkouts and nonconflicting local ports. [AGENTS.md](AGEN
 
 ## Verification
 
+For the recurring browser-test failure and its repair, see [CI/CD recovery](docs/ci-recovery.md).
+
 ```sh
 bun run lint
 bun run format:check
