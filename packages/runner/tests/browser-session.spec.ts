@@ -229,10 +229,6 @@ test("rejects initial and redirected disallowed origins without reaching destina
         "redirect",
         `${target.origin}/redirect?to=${encodeURIComponent(`${destination.origin}/demo`)}`,
       ],
-      [
-        "credentials",
-        `${target.origin.replace("://", "://user:secret@")}/demo`,
-      ],
     ]) {
       const session = await fixture.factory.open(
         { runId: id, allowedOrigins: [target.origin] },
@@ -421,6 +417,14 @@ test("malformed commands and browser failures never become assertion failures", 
       { runId: "invalid", allowedOrigins: [target.origin] },
       noopSignal(),
     );
+    await expect(
+      session.execute(
+        command("navigate", {
+          url: `${target.origin.replace("://", "://user:secret@")}/demo`,
+        }),
+        noopSignal(),
+      ),
+    ).rejects.toThrow("credentials");
     await expect(
       session.execute(
         command("assert", {
