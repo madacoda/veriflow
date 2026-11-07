@@ -250,10 +250,15 @@ test("evidence resolves registered IDs, rejects cross-project access and confine
   await assert.rejects(
     validateEvidence(root, run.id, new Set(["total"]), [artifact, artifact]),
   );
-  await symlink(join(root, "platform-v1.json"), join(directory, "alias.png"));
+  // Directory junctions exercise the escape on Windows without symlink privileges.
+  await symlink(
+    root,
+    join(directory, "alias"),
+    process.platform === "win32" ? "junction" : "dir",
+  );
   await assert.rejects(
     validateEvidence(root, run.id, new Set(["total"]), [
-      { ...artifact, artifactPath: `runs/${run.id}/alias.png` },
+      { ...artifact, artifactPath: `runs/${run.id}/alias/platform-v1.json` },
     ]),
   );
 });
