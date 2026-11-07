@@ -1,7 +1,10 @@
 import { resolve } from "node:path";
 import type { SessionFactory, ReportRenderer } from "@veriflow/core";
 import { PlatformStore } from "../projects/platform-store.ts";
-import { RunCoordinator } from "../runs/coordinator.ts";
+import {
+  RunCoordinator,
+  type RunCoordinatorOptions,
+} from "../runs/coordinator.ts";
 import { createFakeSessionFactory } from "../runs/fake-session.ts";
 import { PlatformHttp, errorResponse } from "./http.ts";
 import { AttachmentStore } from "../attachments/store.ts";
@@ -11,11 +14,20 @@ export async function createPlatform(
   storageRoot: string,
   factory?: SessionFactory,
   adapter: "browser" | "fake" = "browser",
-  integrations: { reportRenderer?: ReportRenderer } = {},
+  integrations: {
+    reportRenderer?: ReportRenderer;
+    runOptions?: RunCoordinatorOptions;
+  } = {},
 ) {
   const store = new PlatformStore(storageRoot);
   await store.recoverInterruptedRuns();
-  const coordinator = new RunCoordinator(store, factory, adapter);
+  const coordinator = new RunCoordinator(
+    store,
+    factory,
+    adapter,
+    120000,
+    integrations.runOptions,
+  );
   const attachments = new AttachmentStore(store);
   const reports = new ReportDownloads(store, integrations.reportRenderer);
   return {
@@ -45,6 +57,13 @@ export async function platformHttp() {
       ),
       factory,
       fake ? "fake" : "browser",
+      {
+        runOptions: {
+          maxConcurrentRuns: Number(
+            process.env.VERIFLOW_MAX_CONCURRENT_RUNS ?? "2",
+          ),
+        },
+      },
     );
     processState.__veriflowPlatform = pending;
     pending.catch(() => {
