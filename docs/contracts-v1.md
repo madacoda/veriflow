@@ -34,8 +34,9 @@ The table above is integrated. Additional implemented routes under `/api/project
 | GET `/attachments/:attachmentId/content` | none                              | Binary attachment download                                                |
 | GET `/runs/:runId/evidence/:evidenceId`  | registered evidence ID            | Binary evidence download                                                  |
 | GET `/runs/:runId/report?format=csv`     | terminal run                      | CSV from the immutable snapshot                                           |
+| GET `/runs/:runId/report?format=pdf`     | terminal run                      | Paginated PDF from the same immutable snapshot                            |
 
-The report transport also recognizes `xlsx|pdf`, but the configured CSV-only renderer rejects those formats with 422 `unsupported_format`. A custom platform instance with no renderer returns 503. Attachment storage acceptance does not imply extraction support; see [P2](platform-p2.md).
+The runtime renders CSV and PDF. PDF uses the same project/run ownership, terminal-run checks, immutable snapshot and stored-download adapter as CSV; see [PDF export](pdf-export.md). The transport also recognizes `xlsx`, which currently returns 422 `unsupported_format`. A custom platform instance with no renderer returns 503. Attachment storage acceptance does not imply extraction support; see [P2](platform-p2.md).
 
 I1-C adds the existing planned generation/catalog routes without changing core DTOs:
 

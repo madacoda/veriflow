@@ -10,6 +10,7 @@ import { createFakeSessionFactory } from "../runs/fake-session.ts";
 import { PlatformHttp, errorResponse } from "./http.ts";
 import { AttachmentStore } from "../attachments/store.ts";
 import { renderCsv } from "../reports/csv.ts";
+import { renderPdf } from "../reports/pdf.ts";
 import { ReportDownloads } from "../runs/report-downloads.ts";
 import { createOpenAIDraftProvider } from "../agent/index.ts";
 import {
@@ -93,13 +94,13 @@ export function createRuntimePlatform(env: NodeJS.ProcessEnv = process.env) {
       }),
     reportRenderer: {
       async render(snapshot, format) {
-        if (format !== "csv")
-          throw new PlatformError(
-            "unsupported_format",
-            422,
-            "Only CSV rendering is configured",
-          );
-        return renderCsv(snapshot);
+        if (format === "csv") return renderCsv(snapshot);
+        if (format === "pdf") return renderPdf(snapshot);
+        throw new PlatformError(
+          "unsupported_format",
+          422,
+          "XLSX export is not available yet. Choose CSV or PDF.",
+        );
       },
     },
     runOptions: {

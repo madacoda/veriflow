@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -281,6 +281,32 @@ test("production browser routes persist observed fail/pass and serve registered 
     expect(snapshot.workflow.revision).toBe(1);
     expect(snapshot.run.outcome).toBe("failed");
     expect(snapshot.run.evidence.artifacts[0].runId).toBe(runs[0]);
+    // Exercise the built production renderer after a revision edit and restart.
+    const pdf = await fetch(
+      `${restarted.origin}${projectPath}/runs/${runs[0]}/report?format=pdf`,
+      { headers: fixtureHeaders(restarted.origin) },
+    );
+    expect(pdf.status).toBe(200);
+    expect(pdf.headers.get("Content-Type")).toBe("application/pdf");
+    expect(pdf.headers.get("Content-Disposition")).toBe(
+      `attachment; filename="veriflow-${runs[0]}.pdf"`,
+    );
+    expect(pdf.headers.get("Cache-Control")).toBe("no-store");
+    const pdfBytes = Buffer.from(await pdf.arrayBuffer());
+    expect(pdfBytes.subarray(0, 8).toString()).toMatch(/^%PDF-1\./);
+    expect(pdfBytes.subarray(-20).toString()).toContain("%%EOF");
+    const reportDirectory = join(root, "reports", runs[0]);
+    const [reportFile] = await readdir(reportDirectory);
+    expect(reportFile).toMatch(/\.pdf$/);
+    expect(await readFile(join(reportDirectory, reportFile))).toEqual(pdfBytes);
+    await testInfo.attach("pinned-failure-report", {
+      body: pdfBytes,
+      contentType: "application/pdf",
+    });
+    expect(
+      (await get(restarted.origin, `${projectPath}/runs/${runs[0]}/report`))
+        .snapshot,
+    ).toEqual(snapshot);
   } finally {
     await restarted?.close();
     await platformToClose?.close();
