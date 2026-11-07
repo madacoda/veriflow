@@ -2,6 +2,7 @@
 
 import {
   workflowSchema,
+  type AttachmentMetadata,
   type ProjectRecord,
   type RunRecord,
   type Workflow,
@@ -14,6 +15,8 @@ import { type FormEvent, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, Input } from "../ui/primitives";
 import { api, RequestError } from "./api";
 import { ProjectAttachments } from "./attachments";
+import { GenerationPreview } from "./generation-preview";
+import { ReportDownloads } from "./report-downloads";
 import { FixturePreview, isActive, RunTimeline } from "./timeline";
 import styles from "./workbench.module.css";
 
@@ -40,10 +43,12 @@ function upsertRun(runs: RunRecord[], updated: RunRecord) {
 
 function WorkflowEditor({
   projectId,
+  attachments,
   selected,
   onSaved,
 }: {
   projectId: string;
+  attachments: readonly AttachmentMetadata[];
   selected: { workflowId: string; revision: number } | null;
   onSaved: (workflow: WorkflowRevision) => void;
 }) {
@@ -162,6 +167,14 @@ function WorkflowEditor({
           <p>Review the draft and save it explicitly before starting a run.</p>
         </CardHeader>
         <CardContent>
+          <GenerationPreview
+            attachments={attachments}
+            hasDraft={draft !== null}
+            pending={pending}
+            onOpen={(preview) =>
+              openDraft(preview.workflow, null, "Generation fixture draft")
+            }
+          />
           <form className={styles.form} onSubmit={save}>
             <fieldset className={styles.form} disabled={pending}>
               <div className={styles.actions}>
@@ -264,6 +277,7 @@ function WorkflowEditor({
 }
 
 function ProjectWorkbench({ project }: { project: ProjectRecord }) {
+  const [attachments, setAttachments] = useState<AttachmentMetadata[]>([]);
   const [workflows, setWorkflows] = useState<WorkflowRevision[]>([]);
   const [selection, setSelection] = useState({ id: "", revision: "" });
   const [runs, setRuns] = useState<RunRecord[]>([]);
@@ -395,6 +409,7 @@ function ProjectWorkbench({ project }: { project: ProjectRecord }) {
     <>
       <WorkflowEditor
         projectId={project.id}
+        attachments={attachments}
         selected={selected}
         onSaved={recordSave}
       />
@@ -509,9 +524,21 @@ function ProjectWorkbench({ project }: { project: ProjectRecord }) {
               </p>
             )}
             {run && <RunTimeline run={run} />}
+            {run && !isActive(run) && (
+              <ReportDownloads
+                key={run.id}
+                projectId={project.id}
+                runId={run.id}
+              />
+            )}
           </CardContent>
         </Card>
       </section>
+      <ProjectAttachments
+        projectId={project.id}
+        attachments={attachments}
+        setAttachments={setAttachments}
+      />
     </>
   );
 }
@@ -652,15 +679,7 @@ export function Workbench() {
             </CardContent>
           </Card>
         </section>
-        {project && (
-          <>
-            <ProjectWorkbench key={project.id} project={project} />
-            <ProjectAttachments
-              key={`attachments-${project.id}`}
-              projectId={project.id}
-            />
-          </>
-        )}
+        {project && <ProjectWorkbench key={project.id} project={project} />}
         <FixturePreview />
       </div>
     </main>
