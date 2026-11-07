@@ -6,6 +6,10 @@ The run panel sends the chosen workflow ID and exact revision to P1. It polls ac
 
 The attachment panel lists files for the selected project and uploads one file at a time through P2. A successful upload starts at **Extraction pending**. Refresh the list to see updated extraction status or a failure reason. The browser checks the file size and supported formats before upload and keeps the selected file available for retry after a failed request.
 
+Open **Preview draft generation** to select an objective, the shared fixture template, and attachment references. The preview shows its fixture provider, source references, warnings, and workflow steps. The editor changes when the user explicitly opens the preview. Saving remains a separate action.
+
+Terminal runs expose CSV, XLSX, and PDF download controls through P2. Each format requires a configured renderer. The UI displays an unavailable renderer response and allows retry. Dashboard tests use labeled transport fixtures to verify response handling and downloaded bytes.
+
 ## Dashboard verification
 
 Run the [repository merge gate](../../../../REVIEW.md#required-merge-gate) from the checkout root. The dashboard tests capture screenshots under the Playwright test results directory for each fixture state and both coupon targets.
