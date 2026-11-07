@@ -51,6 +51,7 @@ export async function runWorkflow(
           reason: signal.aborted
             ? "Run cancelled"
             : "Execution failed or timed out",
+          failureKind: signal.aborted ? "cancelled" : "infrastructure",
         });
         stopped = true;
       }

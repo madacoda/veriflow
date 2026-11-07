@@ -29,6 +29,7 @@ export const stepSchema = z.discriminatedUnion("code", [
   }),
   z.strictObject({ ...common, code: z.literal("check"), target }),
   z.strictObject({ ...common, code: z.literal("uncheck"), target }),
+  z.strictObject({ ...common, code: z.literal("click"), target }),
   z.strictObject({
     ...common,
     code: z.literal("assert"),
