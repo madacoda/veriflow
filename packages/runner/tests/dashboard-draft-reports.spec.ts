@@ -195,7 +195,7 @@ test("previews generation inputs without changing or saving the current draft", 
   await expect(
     fixture
       .getByRole("listitem")
-      .filter({ hasText: "pending.md · Extraction pending" }),
+      .filter({ hasText: "pending.md · Text supplied to model" }),
   ).toBeVisible();
   await expect(
     fixture.getByRole("listitem").filter({ hasText: demoAttachment.filename }),
@@ -249,7 +249,18 @@ test("loads the API catalog and reviews a generated draft after recoverable erro
   );
   await page.route(`${projectPath}/attachments`, (route) =>
     route.fulfill({
-      json: { attachments: [demoAttachment, pendingAttachment] },
+      json: {
+        attachments: [
+          demoAttachment,
+          pendingAttachment,
+          {
+            ...demoAttachment,
+            id: "reference-pdf",
+            filename: "reference.pdf",
+            mediaType: "application/pdf",
+          },
+        ],
+      },
     }),
   );
   await page.route("**/api/templates", (route) => {
@@ -318,6 +329,10 @@ test("loads the API catalog and reviews a generated draft after recoverable erro
   await expect(generate).toBeDisabled();
   expect(generationInputs).toHaveLength(0);
   await panel.getByRole("button", { name: "Retry templates" }).click();
+  await expect(
+    panel.getByRole("checkbox", { name: /reference\.pdf/ }),
+  ).toBeDisabled();
+  await expect(panel.getByText(/Stored for reference only/)).toBeVisible();
 
   const objective = "Review the checkout requirement";
   await panel.getByLabel("Objective").fill(objective);

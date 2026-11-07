@@ -36,6 +36,11 @@ async function setup(
   const project = await platform.store.createProject({
     title: "Generation",
     url: demoProject.url,
+    description: "Checkout for a subscription business with discount rules.",
+    goals: [
+      "SAVE10 must reduce the total by 10%",
+      "Invalid coupons must keep the total unchanged",
+    ],
   });
   return { ...platform, project };
 }
@@ -47,6 +52,14 @@ test("HTTP generation delivers uploaded context and returns an editable draft wi
     async generate(input) {
       calls++;
       assert.equal(input.project.id, project.id);
+      assert.equal(
+        input.project.description,
+        "Checkout for a subscription business with discount rules.",
+      );
+      assert.deepEqual(input.project.goals, [
+        "SAVE10 must reduce the total by 10%",
+        "Invalid coupons must keep the total unchanged",
+      ]);
       assert.deepEqual(input.request.attachmentIds, [source.id, source.id]);
       assert.deepEqual(input.documents, [
         {
