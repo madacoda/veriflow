@@ -14,11 +14,11 @@
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "@veriflow/core": "workspace:*",
+    "@veriflow/runner": "workspace:*",
     "openai": "^7.53.0"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",
-    "@types/react-dom": "^19.3.0",
-    "@veriflow/runner": "workspace:*"
+    "@types/react-dom": "^19.3.0"
   }
 }

@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import type { SessionFactory, ReportRenderer } from "@veriflow/core";
-import { PlatformStore } from "../projects/platform-store.ts";
+import { PlaywrightSessionFactory } from "@veriflow/runner/browser";
+import { PlatformError, PlatformStore } from "../projects/platform-store.ts";
 import {
   RunCoordinator,
   type RunCoordinatorOptions,
@@ -41,30 +42,34 @@ export async function createPlatform(
 const processState = globalThis as typeof globalThis & {
   __veriflowPlatform?: ReturnType<typeof createPlatform>;
 };
+/** Trusted server configuration; browser is the default and fixtures require opt-in. */
+export function createRuntimePlatform(env: NodeJS.ProcessEnv = process.env) {
+  const adapter = env.VERIFLOW_RUN_ADAPTER ?? "browser";
+  if (adapter !== "browser" && adapter !== "fake")
+    throw new PlatformError(
+      "adapter_unavailable",
+      503,
+      "Run adapter configuration is invalid",
+    );
+  // Persistent runtime data lives on its own volume and must not be bundled.
+  const storageRoot = resolve(
+    /* turbopackIgnore: true */ env.STORAGE_DIR ?? "../../data",
+  );
+  const factory =
+    adapter === "fake"
+      ? createFakeSessionFactory(
+          env.VERIFLOW_FAKE_OUTCOME === "failed" ? "failed" : "passed",
+        )
+      : new PlaywrightSessionFactory({ storageRoot });
+  return createPlatform(storageRoot, factory, adapter, {
+    runOptions: {
+      maxConcurrentRuns: Number(env.VERIFLOW_MAX_CONCURRENT_RUNS ?? "2"),
+    },
+  });
+}
 export async function platformHttp() {
   if (!processState.__veriflowPlatform) {
-    const fake = process.env.VERIFLOW_RUN_ADAPTER === "fake";
-    // Dev 1 wires Dev 3's real SessionFactory here after its reviewed B1 PR lands.
-    const factory = fake
-      ? createFakeSessionFactory(
-          process.env.VERIFLOW_FAKE_OUTCOME === "failed" ? "failed" : "passed",
-        )
-      : undefined;
-    const pending = createPlatform(
-      // Persistent runtime data lives on its own volume and must not be bundled.
-      resolve(
-        /* turbopackIgnore: true */ process.env.STORAGE_DIR ?? "../../data",
-      ),
-      factory,
-      fake ? "fake" : "browser",
-      {
-        runOptions: {
-          maxConcurrentRuns: Number(
-            process.env.VERIFLOW_MAX_CONCURRENT_RUNS ?? "2",
-          ),
-        },
-      },
-    );
+    const pending = createRuntimePlatform();
     processState.__veriflowPlatform = pending;
     pending.catch(() => {
       if (processState.__veriflowPlatform === pending)
