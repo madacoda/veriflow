@@ -5,7 +5,8 @@ const config: NextConfig = {
   // working on Windows without requiring permission to create symlinks.
   output: process.env.BUILD_STANDALONE === "1" ? "standalone" : undefined,
   outputFileTracingRoot: resolve(import.meta.dirname, "../.."),
-  transpilePackages: ["@veriflow/core"],
+  transpilePackages: ["@veriflow/core", "@veriflow/runner"],
+  serverExternalPackages: ["@playwright/test", "playwright", "playwright-core"],
   agentRules: false,
 };
 export default config;

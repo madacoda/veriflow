@@ -18,6 +18,7 @@
     "@veriflow/core": "workspace:*"
   },
   "exports": {
+    "./browser": "./src/browser-session.ts",
     "./testing": "./src/testing.ts"
   }
 }
