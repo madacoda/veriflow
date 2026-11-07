@@ -18,7 +18,7 @@ async function setup() {
   const store = new PlatformStore(root);
   const project = await store.createProject({
     title: "Run fixture",
-    url: "http://127.0.0.1:3000/demo",
+    url: "http://127.0.0.1:1111/demo",
   });
   await store.saveWorkflow(project.id, {
     workflow: {
@@ -49,7 +49,7 @@ test("observed failures block later steps and finalization waits for evidence th
   const fixture = createFakeSessionFactory("failed");
   const factory: SessionFactory = {
     open: async (options, signal) => {
-      assert.deepEqual(options.allowedOrigins, ["http://127.0.0.1:3000"]);
+      assert.deepEqual(options.allowedOrigins, ["http://127.0.0.1:1111"]);
       assert.equal(options.artifactDirectory, `runs/${options.runId}`);
       const session = await fixture.open(options, signal);
       return {

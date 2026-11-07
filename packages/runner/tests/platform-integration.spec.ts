@@ -218,7 +218,7 @@ test("production fixture mode stays explicitly labeled with no fabricated eviden
     const { project } = await (
       await post(platform.origin, "/api/projects", {
         title: "Explicit fixture",
-        url: "http://127.0.0.1:3000/demo",
+        url: "http://127.0.0.1:1111/demo",
       })
     ).json();
     const path = `/api/projects/${project.id}`;

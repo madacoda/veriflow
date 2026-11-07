@@ -338,7 +338,7 @@ export const coverageTemplates = [
         id: "baseline",
         name: "Reviewed baseline",
         steps: [
-          navigation("http://localhost:3000/demo"),
+          navigation("http://localhost:1111/demo"),
           assertion("total", "order-total", "100000"),
         ],
       },

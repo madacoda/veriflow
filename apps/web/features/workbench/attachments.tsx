@@ -5,7 +5,14 @@ import {
   MAX_ATTACHMENT_BYTES,
   type AttachmentMetadata,
 } from "@veriflow/core";
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import {
+  type Dispatch,
+  type FormEvent,
+  type SetStateAction,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { Card, CardContent, CardHeader, Input } from "../ui/primitives";
 import { api } from "./api";
 import styles from "./workbench.module.css";
@@ -49,14 +56,21 @@ function uploadFile(file: File) {
     : new File([file], file.name, { type: mediaType });
 }
 
-const extractionLabels = {
+export const extractionLabels = {
   pending: "Extraction pending",
   ready: "Extraction ready",
   failed: "Extraction failed",
 };
 
-export function ProjectAttachments({ projectId }: { projectId: string }) {
-  const [attachments, setAttachments] = useState<AttachmentMetadata[]>([]);
+export function ProjectAttachments({
+  projectId,
+  attachments,
+  setAttachments,
+}: {
+  projectId: string;
+  attachments: readonly AttachmentMetadata[];
+  setAttachments: Dispatch<SetStateAction<AttachmentMetadata[]>>;
+}) {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -84,7 +98,7 @@ export function ProjectAttachments({ projectId }: { projectId: string }) {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [projectId, refresh]);
+  }, [projectId, refresh, setAttachments]);
 
   useEffect(() => () => upload.current?.abort(), []);
 

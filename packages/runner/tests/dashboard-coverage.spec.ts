@@ -5,6 +5,7 @@ import { startCoverageTarget } from "../unit/coverage-target.ts";
 test("template UI saves, executes, exports and reruns the pinned revision with real Chromium", async ({
   page,
   request,
+  baseURL,
 }, testInfo) => {
   test.setTimeout(60000);
   test.skip(
@@ -13,7 +14,7 @@ test("template UI saves, executes, exports and reruns the pinned revision with r
   );
   const target = await startCoverageTarget();
   try {
-    await page.goto("http://127.0.0.1:3000");
+    await page.goto(baseURL!);
     const name = `Six category audit ${randomUUID()}`;
     await page.getByLabel("Project name").fill(name);
     await page.getByLabel("Project target URL").fill(target.origin);
@@ -24,7 +25,7 @@ test("template UI saves, executes, exports and reruns the pinned revision with r
       page.getByLabel("Selected project").locator("option:checked"),
     ).toHaveText(name);
     const projectId = await page.getByLabel("Selected project").inputValue();
-    const path = `http://127.0.0.1:3000/api/projects/${projectId}`;
+    const path = `${baseURL}/api/projects/${projectId}`;
     const catalog = await request.get(`${path}/templates`);
     expect(catalog.ok()).toBe(true);
     const { templates } = await catalog.json();

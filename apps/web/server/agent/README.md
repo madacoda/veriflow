@@ -1,4 +1,4 @@
-# A1 generation and bounded tools
+# Workflow generation and bounded tools
 
 Owner: Dev 2. Reviewer: Dev 3. Dev 1 owns composition and merging.
 Original branch base: `3c432f1d9893749426f153c2ef7e503e74fbe4c5` (merged L0).
@@ -8,6 +8,7 @@ Updated against main `eb02beb608d7e52422f17561d491800a9be3bbac` after P3 landed.
 
 - `createDraftGenerator({ provider, timeoutMs? })` implements the shared `DraftGenerator`. The injected `DraftProvider.generate` receives a snapshot of the project, validated request, source documents and resolved versioned template definitions. It returns an unknown workflow object or JSON string, **not** a draft envelope. A1 validates it with `workflowSchema`, rejects credential URLs and navigation outside the project's configured origins, and adds trusted provider provenance, requested source IDs and fixed review warnings. Returned workflows are editable independent copies. There is no persistence dependency.
 - `createFixtureProvider()` is explicit opt-in deterministic output. Its draft says `provider: fixture` and warns that no model was called. Missing provider configuration throws `AgentError("adapter_unavailable")`. A1 does not load credentials, select a model, perform network calls or silently install a fallback. Production composition must inject a real provider adapter; real-provider verification is **not performed** by this credential-free suite.
+- A2 supplies optional `createOpenAIDraftProvider` and `createOpenAIAgentTurn` implementations for the existing injection seams. Their server configuration, bounds and separately opt-in live checks are documented in [OPENAI.md](OPENAI.md). Deterministic fixture tests still make no network requests.
 - `assembleContext({ projectId, attachmentIds }, reader, signal, timeoutMs?)` uses the shared read-only `AttachmentReader`. It checks returned project/attachment identity and delegates to `contextExtractor`, the shared `ContextExtractor` implementation. No metadata or storage is written. Source IDs must match the generation request exactly after deduplication.
 - `runAgentLoop({ next, tools, maxCalls?, timeoutMs? }, signal)` uses the coordinator's injected `AgentToolPort`. `next(history, signal)` returns unknown `{ kind: "tool", call }` or `{ kind: "done" }`. Every call is parsed through `browserToolCallSchema`; execute steps then pass through `translateWorkflow`. A response with an outcome or extra fields is rejected. Duplicate executed step IDs are rejected. Provider history is a copy, so a subsequent turn cannot mutate earlier observations.
 - An initial observation may use the exact URL `about:blank`, as a newly opened browser session does before navigation. Other observation URLs must be credential-free HTTP(S). Navigation tools still require HTTP(S); the observation exception does not authorize navigation to other schemes.
@@ -31,7 +32,7 @@ Limits must be positive integers. The final provider decision may stop exactly a
 
 TXT, MD, CSV and JSON use strict UTF-8 decoding; JSON must parse. Empty/oversized text, binary control data, inconsistent byte counts and failed extraction metadata return safe errors. PDF and DOCX extraction are explicitly unsupported. PNG/JPEG extraction checks the signature and produces only an image reference, never OCR text or a claim to decode the image. A1 generation rejects images until a real image-capable adapter is designed through the shared contract process.
 
-The catalog starts with `functional-exact-total@1.0.0` from the shared fixture. Prerequisites, JSON parameter schema and required capabilities (including screenshot) are preserved. The fixture tool port performs no real browser actions or captures; it cannot satisfy screenshot capability. Missing catalog entries fail explicitly. Capability/prerequisite checks remain the coordinator and executor's responsibility and must produce blocked results.
+The [versioned template catalog](../templates/README.md) covers all six shared categories, preserving `functional-exact-total@1.0.0`. Generation supports functional and supplied-requirement drafts. Requirement-based drafts need nonblank text context, at least one browser assertion and a trusted coverage warning. Responsive, security, accessibility and saved-revision regression selections reject before provider dispatch; the current generation/workflow contracts cannot express their prerequisites. Mixed selections reject as a whole. The fixture tool port performs no real browser actions or captures; it cannot satisfy screenshot capability. Execution capability/prerequisite checks remain the coordinator and executor's responsibility and must produce blocked results.
 
 ## Safe error mapping for Dev 1
 
@@ -46,7 +47,7 @@ Only `AgentError.code` and its fixed `message` should cross an HTTP boundary. Do
 | `invalid_provider_output`, `provider_failed`, `invalid_tool_call`, `call_limit_exceeded`, `tool_failed`, `timeout` | `internal_error` with fixed public wording                        |
 | `cancelled`                                                                                                        | Coordinator cancellation lifecycle; HTTP mapping belongs to Dev 1 |
 
-No shared error union was changed. Transport adapters and provider configuration belong to the integration owner.
+No shared error union was changed. Dev 1 owns HTTP adapters and runtime provider configuration. The A2 provider transport is delegated to Dev 2; its reviewed-workflow input and configuration are documented in OPENAI.md.
 
 ## Verification and known contract corrections
 

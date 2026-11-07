@@ -13,7 +13,7 @@ bun run dev
 
 Run `bun run test:dev` while the dev server is running to check that browser reloads remain stable and unsaved input survives an API refresh.
 
-Open http://localhost:3000. Health is at /health and workflow validation at /api/workflows/validate. Copy apps/web/.env.example to apps/web/.env.local when configuring server integrations. Startup requires no AI key or browser download.
+Open http://localhost:1111. Health is at /health and workflow validation at /api/workflows/validate. Copy apps/web/.env.example to apps/web/.env.local when configuring server integrations. Startup requires no AI key or browser download.
 
 Workspace packages export TypeScript source. Next.js transpiles core directly and tests use tsx, so a fresh checkout needs no preliminary package build or background compiler.
 
@@ -29,7 +29,7 @@ bun run browsers:install
 bun run test:smoke
 ```
 
-Browser tests start the production app on port 3000, which must be free. Run the build first. CI installs Chromium and its Linux dependencies. Run `bun run start` after building to serve the production monolith.
+Browser tests start the production app on port 1111, which must be free. Run the build first. CI installs Chromium and its Linux dependencies. Run `bun run start` after building to serve the production monolith.
 
 ## Developer handoff
 
@@ -47,7 +47,7 @@ The P1 platform adds persistent projects/workflow revisions, run create/status/c
 
 ## Deployment
 
-Build and start one long-running Next.js service with Node.js 24 and one writer process. Configure STORAGE_DIR to a persistent volume for projects, revisions, runs and evidence. Unfinished runs recover as interrupted infrastructure errors after a process restart. A future supervised worker will need durable job coordination before separating execution from the service. The validation endpoint performs no execution or storage writes. Deployment hosting and CD remain unconfigured.
+Build and start one long-running Next.js service with Node.js 24 on port 1111. CI tests a Docker image and publishes it to GHCR after successful main checks. Optional automatic VPS deployment uses `VPS_*` secrets, persistent storage and health-gated rollback. See [deployment setup](docs/deployment.md) for server provisioning, secrets and activation. Unfinished runs recover as interrupted infrastructure errors after a process restart; keep one writer process and schedule releases between active runs.
 
 ## Dependency review
 

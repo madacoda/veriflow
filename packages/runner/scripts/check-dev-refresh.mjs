@@ -18,7 +18,10 @@ try {
       if (String(payload).includes('"type":"reloadPage"')) reloads++;
     });
   });
-  await page.goto(process.env.VERIFLOW_DEV_URL ?? "http://localhost:3000");
+  await page.goto(
+    process.env.VERIFLOW_DEV_URL ??
+      `http://localhost:${process.env.PORT || "1111"}`,
+  );
   await page.getByLabel("Project name", { exact: true }).waitFor();
   // Allow first-route compilation and the initial HMR connection to settle.
   await page.waitForTimeout(2000);

@@ -58,6 +58,7 @@ export async function artifactLocation(
     throw new BrowserPolicyError("Artifact directory must belong to the run");
   }
   await mkdir(resolve(storageRoot), { recursive: true, mode: 0o700 });
+  // Evidence belongs to the runtime volume, never the Next.js build output.
   const root = await realpath(/* turbopackIgnore: true */ resolve(storageRoot));
   let path = root;
   for (const part of ["runs", options.runId]) {

@@ -15,11 +15,11 @@ const timestamp = "2026-11-07T03:00:00.000Z";
 export const demoProject: ProjectRecord = {
   id: "project-demo",
   title: "Checkout acceptance",
-  url: "http://127.0.0.1:3000/demo?bug=1",
+  url: "http://127.0.0.1:1111/demo?bug=1",
   description:
     "A deterministic checkout target with a switchable discount bug.",
   goals: ["A 10% discount changes a 100000 total to 90000"],
-  allowedOrigins: ["http://127.0.0.1:3000"],
+  allowedOrigins: ["http://127.0.0.1:1111"],
   createdAt: timestamp,
   updatedAt: timestamp,
 };
