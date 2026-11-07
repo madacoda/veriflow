@@ -2,6 +2,7 @@ import type {
   ApiError,
   AttachmentMetadata,
   ProjectRecord,
+  ReportFormat,
   RunRecord,
   Workflow,
   WorkflowRevision,
@@ -20,15 +21,21 @@ export class RequestError extends Error {
   }
 }
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
+async function fetchResponse(path: string, options?: RequestInit) {
   const response = await fetch(path, { cache: "no-store", ...options });
-  const body = await response.json().catch(() => null);
   if (!response.ok) {
+    const body = await response.json().catch(() => null);
     if (body?.error?.code && typeof body.error.message === "string") {
       throw new RequestError(body.error);
     }
     throw new Error(`Request failed (HTTP ${response.status}).`);
   }
+  return response;
+}
+
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const response = await fetchResponse(path, options);
+  const body = await response.json().catch(() => null);
   if (!body || typeof body !== "object")
     throw new Error("The server returned an invalid response.");
   return body as T;
@@ -51,6 +58,12 @@ const workflowsPath = (id: string) => `${projectPath(id)}/workflows`;
 const runsPath = (id: string) => `${projectPath(id)}/runs`;
 const runPath = (id: string, runId: string) =>
   `${runsPath(id)}/${encodeURIComponent(runId)}`;
+
+const reportMediaTypes: Record<ReportFormat, string> = {
+  csv: "text/csv",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  pdf: "application/pdf",
+};
 
 export const api = {
   projects: (signal: AbortSignal) =>
@@ -103,4 +116,25 @@ export const api = {
     request<{ run: RunRecord }>(`${runPath(projectId, runId)}/cancel`, post()),
   evidence: (projectId: string, runId: string, evidenceId: string) =>
     `${runPath(projectId, runId)}/evidence/${encodeURIComponent(evidenceId)}`,
+  downloadReport: async (
+    projectId: string,
+    runId: string,
+    format: ReportFormat,
+    signal: AbortSignal,
+  ) => {
+    const response = await fetchResponse(
+      `${runPath(projectId, runId)}/report?format=${format}`,
+      { signal },
+    );
+    const mediaType = response.headers
+      .get("content-type")
+      ?.split(";")[0]
+      .trim()
+      .toLowerCase();
+    if (mediaType !== reportMediaTypes[format])
+      throw new Error("The server returned an unexpected report format.");
+    const report = await response.blob();
+    if (!report.size) throw new Error("The server returned an empty report.");
+    return report;
+  },
 };

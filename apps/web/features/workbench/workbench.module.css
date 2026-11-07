@@ -309,6 +309,43 @@
   overflow-wrap: anywhere;
 }
 
+.generation {
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1rem;
+}
+
+.generation summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.generation section,
+.reportDownloads {
+  margin-top: 1rem;
+}
+
+.form .sources {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.sources legend {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.sources label {
+  overflow-wrap: anywhere;
+}
+
+.reportDownloads {
+  display: grid;
+  gap: 0.5rem;
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+}
+
 .code {
   max-height: 14rem;
   overflow: auto;
