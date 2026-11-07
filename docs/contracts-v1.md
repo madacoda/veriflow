@@ -22,7 +22,18 @@ All endpoints are same-origin, Node runtime, JSON unless specified. IDs are opaq
 | POST `/api/projects/:projectId/runs/:runId/cancel`              | no body                                               | `{ run: RunRecord }`                                   |
 | GET `/api/projects/:projectId/runs/:runId/report`               | terminal run only                                     | `{ snapshot: ReportSnapshot }`                         |
 
-P1 implements the table above and evidence `GET .../runs/:runId/evidence/:evidenceId` on `codex/p1-platform`, pending its own review/merge. Further thin adapters, owned by Dev 1: multipart `POST .../attachments` with field `file`, `GET .../attachments`, generation `POST .../workflows/generate` with `generationRequestSchema`, template `GET /api/templates`, and binary report export `GET .../runs/:runId/report?format=csv|xlsx|pdf`. Dev 2 supplies extraction/generation/catalog functions. Dev 4 supplies a pure `ReportRenderer`, never HTTP or storage.
+P1/P2 implement the table above, evidence `GET .../runs/:runId/evidence/:evidenceId`, multipart `POST .../attachments` with field `file`, `GET .../attachments`, and binary report export `GET .../runs/:runId/report?format=csv|xlsx|pdf`. Dev 2 supplies extraction/generation/catalog functions. Dev 4 supplies a pure `ReportRenderer`, never HTTP or storage.
+
+I1-C adds the existing planned generation/catalog routes without changing core DTOs:
+
+| Method and path                                    | Input                     | Success envelope                          |
+| -------------------------------------------------- | ------------------------- | ----------------------------------------- |
+| POST `/api/projects/:projectId/workflows/generate` | `generationRequestSchema` | 200 `{ draft: WorkflowDraft }`            |
+| GET `/api/templates`                               | none                      | 200 `{ templates: TemplateDefinition[] }` |
+
+Generation reads the project's registered attachments and returns an editable draft without saving revisions, creating runs or modifying extraction metadata. One server-owned 30-second deadline includes body reading, context assembly and generation; trusted composition may set 1–120000 milliseconds. The request abort signal cancels these phases. Missing provider configuration returns 503; explicit run fixture mode does not configure a generation provider, and clients cannot select providers in the request body. A2 will supply a reviewed provider injected by server composition. Current text extraction supports TXT/MD/CSV/JSON; PDF/DOCX/image generation rejects explicitly. The catalog currently contains only `functional-exact-total@1.0.0` with its declared prerequisites/capabilities. Unsupported capabilities never imply a passing run.
+
+The generation action also preserves GET `/api/projects/:projectId/workflows/generate?revision=1` for an existing workflow with ID `generate`; that identifier is not newly reserved.
 
 Errors use `ApiError`: `{ error: { code, message, issues?: [{ path, message }] } }`. HTTP mapping: malformed JSON 400 `invalid_json`; input 422 `validation_error`; unknown project or cross-project resource 404 `not_found`; stale writes 409 `revision_conflict`; active report 409 `run_not_finished`; upload overflow 413 `payload_too_large`; unsupported media 415 `unsupported_format`; missing configured adapter 503 `adapter_unavailable`; unexpected failure 500 `internal_error`. Do not return provider messages, stacks, credentials or local absolute paths. The existing standalone workflow validation endpoint retains its original response for compatibility.
 

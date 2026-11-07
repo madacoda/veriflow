@@ -93,6 +93,50 @@ async function post(origin: string, path: string, body: unknown) {
     body: JSON.stringify(body),
   });
 }
+
+test("production catalog and generation routes expose safe envelopes without a provider fallback", async () => {
+  const root = await mkdtemp(join(tmpdir(), "veriflow-generation-http-"));
+  const platform = await startPlatform(root, "fake");
+  try {
+    const catalog = await get(platform.origin, "/api/templates");
+    expect(catalog.templates[0].id).toBe("functional-exact-total");
+    expect(catalog.templates[0].version).toBe("1.0.0");
+    const { project } = await (
+      await post(platform.origin, "/api/projects", {
+        title: "Generation route fixture",
+        url: "http://127.0.0.1:3000/demo",
+      })
+    ).json();
+    const path = `/api/projects/${project.id}/workflows`;
+    const unavailable = await post(platform.origin, `${path}/generate`, {
+      objective: "Check SAVE10",
+    });
+    expect(unavailable.status).toBe(503);
+    expect((await unavailable.json()).error.code).toBe("adapter_unavailable");
+    expect((await get(platform.origin, path)).workflows).toEqual([]);
+    expect(
+      (
+        await post(platform.origin, path, {
+          workflow: { ...demoWorkflow, id: "generate" },
+          expectedRevision: null,
+        })
+      ).status,
+    ).toBe(201);
+    expect(
+      (await get(platform.origin, `${path}/generate?revision=1`)).workflow
+        .workflow.id,
+    ).toBe("generate");
+    const override = await post(platform.origin, `${path}/generate`, {
+      objective: "Check SAVE10",
+      provider: "fixture",
+    });
+    expect(override.status).toBe(422);
+    expect((await override.json()).error.code).toBe("validation_error");
+  } finally {
+    await platform.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
 async function get(origin: string, path: string) {
   const response = await fetch(origin + path);
   expect(response.status).toBe(200);
