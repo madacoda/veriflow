@@ -1,5 +1,7 @@
+import { buildTemplate, templateOptions } from "./coverage.ts";
 import {
   demoContext,
+  demoProject,
   demoRevision,
   demoWorkflow,
 } from "@veriflow/core/fixtures";
@@ -46,6 +48,16 @@ export function templateDefinitionFixtures() {
       reviewedWorkflow: demoRevision,
     },
   };
+  for (const option of templateOptions(demoProject.url)) {
+    inputs[option.id] = {
+      parameters: option.defaults,
+      workflow: buildTemplate(
+        option.id,
+        option.defaults,
+        `fixture-${option.id}`,
+      ),
+    };
+  }
   return listTemplates().map((template) => ({
     provider: "fixture" as const,
     warning:

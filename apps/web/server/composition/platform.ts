@@ -9,6 +9,7 @@ import {
 import { createFakeSessionFactory } from "../runs/fake-session.ts";
 import { PlatformHttp, errorResponse } from "./http.ts";
 import { AttachmentStore } from "../attachments/store.ts";
+import { renderCsv } from "../reports/csv.ts";
 import { ReportDownloads } from "../runs/report-downloads.ts";
 
 export async function createPlatform(
@@ -60,8 +61,22 @@ export function createRuntimePlatform(env: NodeJS.ProcessEnv = process.env) {
       ? createFakeSessionFactory(
           env.VERIFLOW_FAKE_OUTCOME === "failed" ? "failed" : "passed",
         )
-      : new PlaywrightSessionFactory({ storageRoot });
+      : new PlaywrightSessionFactory({
+          storageRoot,
+          resolveSecret: (name) => env[`VERIFLOW_SECRET_${name}`],
+        });
   return createPlatform(storageRoot, factory, adapter, {
+    reportRenderer: {
+      async render(snapshot, format) {
+        if (format !== "csv")
+          throw new PlatformError(
+            "unsupported_format",
+            422,
+            "Only CSV rendering is configured",
+          );
+        return renderCsv(snapshot);
+      },
+    },
     runOptions: {
       maxConcurrentRuns: Number(env.VERIFLOW_MAX_CONCURRENT_RUNS ?? "2"),
     },

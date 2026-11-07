@@ -11,6 +11,8 @@ bun install --frozen-lockfile
 bun run dev
 ```
 
+Run `bun run test:dev` while the dev server is running to check that browser reloads remain stable and unsaved input survives an API refresh.
+
 Open http://localhost:1111. Health is at /health and workflow validation at /api/workflows/validate. Copy apps/web/.env.example to apps/web/.env.local when configuring server integrations. Startup requires no AI key or browser download.
 
 Workspace packages export TypeScript source. Next.js transpiles core directly and tests use tsx, so a fresh checkout needs no preliminary package build or background compiler.

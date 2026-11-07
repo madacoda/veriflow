@@ -53,6 +53,7 @@ export function RunTimeline({
         </p>
         <p>
           Revision {run.revision} · {run.id}
+          {run.viewport && ` · ${run.viewport.width} × ${run.viewport.height}`}
         </p>
         {isActive(run) && run.cancelRequestedAt && (
           <p>Waiting for cancellation cleanup.</p>
@@ -95,6 +96,24 @@ export function RunTimeline({
                   </span>
                 </div>
                 {"reason" in step && <p>{step.reason}</p>}
+                {step.requirement && (
+                  <p>
+                    <strong>{step.requirement.id}</strong> ·{" "}
+                    {step.requirement.text}
+                    {step.requirement.source &&
+                      ` · Source: ${step.requirement.source}`}
+                  </p>
+                )}
+                {!!step.findings?.length && (
+                  <ul>
+                    {step.findings.map((finding) => (
+                      <li key={finding.id}>
+                        {finding.ruleId} · {finding.severity} ·{" "}
+                        {finding.message}
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 {(step.expected !== undefined || step.actual !== undefined) && (
                   <dl className={styles.values}>
                     <dt>Expected</dt>
@@ -117,6 +136,15 @@ export function RunTimeline({
         </>
       )}
 
+      {showLinks && !isActive(run) && (
+        <p>
+          <a
+            href={`/api/projects/${encodeURIComponent(run.projectId)}/runs/${encodeURIComponent(run.id)}/report?format=csv`}
+          >
+            Download CSV report
+          </a>
+        </p>
+      )}
       <h3>Evidence</h3>
       <p>
         Capture {run.evidence.capture}

@@ -19,7 +19,8 @@
     "test:smoke": "bun run --cwd packages/runner test:smoke",
     "browsers:install": "bun run --cwd packages/runner browsers:install",
     "test:unit": "bun run --filter \"@veriflow/*\" --if-present test",
-    "start": "bun run --cwd apps/web start"
+    "start": "bun run --cwd apps/web start",
+    "test:dev": "bun run --cwd packages/runner test:dev"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

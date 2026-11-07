@@ -53,7 +53,7 @@ export function prepareReviewedWorkflow(input: ReviewedWorkflowInput) {
     saved.revision < 1 ||
     parsed.data.steps.some(
       (step) =>
-        step.code === "redirect" &&
+        (step.code === "redirect" || step.code === "assertHttp") &&
         !project.allowedOrigins.includes(new URL(step.url).origin),
     )
   )

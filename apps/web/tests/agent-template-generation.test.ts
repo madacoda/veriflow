@@ -34,6 +34,13 @@ for (const id of [
   "security-passive-baseline",
   "accessibility-page-audit",
   "regression-saved-revision",
+  "functional-auth",
+  "functional-crud",
+  "responsive-viewports",
+  "security-access",
+  "compliance-checklist",
+  "accessibility-wcag",
+  "regression-replay",
 ]) {
   test(`${id} cannot silently become a functional draft, even in a mixed selection`, async () => {
     let calls = 0;

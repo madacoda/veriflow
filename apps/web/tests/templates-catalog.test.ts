@@ -11,6 +11,7 @@ import {
   listTemplates,
   resolveTemplates,
 } from "../server/templates/catalog.ts";
+import { coverageTemplates } from "../server/templates/coverage.ts";
 import { AgentError } from "../server/agent/errors.ts";
 import { templateDefinitionFixtures } from "../server/templates/fixtures.ts";
 
@@ -39,19 +40,30 @@ test("catalog begins with shared versioned functional fixture and explicit prere
 
 test("catalog covers all six v1 categories with unique versioned definitions and prerequisites", () => {
   const templates = listTemplates();
-  assert.equal(templates.length, 6);
-  assert.equal(new Set(templates.map((template) => template.id)).size, 6);
-  assert.deepEqual(templates.map((template) => template.category).sort(), [
-    "accessibility",
-    "compliance",
-    "functional",
-    "regression",
-    "responsive",
-    "security",
-  ]);
+  assert.equal(templates.length, 15);
+  assert.equal(
+    new Set(templates.map((template) => template.id)).size,
+    templates.length,
+  );
+  assert.deepEqual(
+    [...new Set(templates.map((template) => template.category))].sort(),
+    [
+      "accessibility",
+      "compliance",
+      "functional",
+      "regression",
+      "responsive",
+      "security",
+    ],
+  );
   for (const template of templates) {
     templateDefinitionSchema.parse(template);
-    assert.equal(template.version, "1.0.0");
+    assert.equal(
+      template.version,
+      coverageTemplates.some((t) => t.definition.id === template.id)
+        ? "1.1.0"
+        : "1.0.0",
+    );
     assert.ok(template.prerequisites.length > 0);
     assert.ok(template.requiredCapabilities.length > 0);
     assert.equal(template.parameterSchema.type, "object");
@@ -107,7 +119,10 @@ test("definition fixtures are labeled, independently editable and never fabricat
       fixture.warning,
       /no model, browser or check adapter was executed/,
     );
-    if (["functional", "compliance"].includes(fixture.template.category)) {
+    if (
+      ["functional", "compliance"].includes(fixture.template.category) ||
+      coverageTemplates.some((t) => t.definition.id === fixture.template.id)
+    ) {
       workflowSchema.parse(fixture.workflow);
     } else {
       assert.equal(fixture.workflow, undefined);
