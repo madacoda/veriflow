@@ -6,7 +6,30 @@ import {
 } from "@veriflow/core";
 import { demoProject, demoWorkflow } from "@veriflow/core/fixtures";
 import type { DraftProvider } from "./generate.ts";
+import type { SummaryProvider } from "./summary.ts";
 import { checkCancellation } from "./errors.ts";
+
+/** Deterministic hypothesis fixture, not a real model or observed root cause. */
+export function createFixtureSummaryProvider(
+  output: unknown = {
+    analyses: [
+      {
+        stepIds: ["total"],
+        evidenceIds: [],
+        hypothesis: "The coupon discount may not have been applied.",
+        nextCheck: "Inspect the calculation triggered by the coupon action.",
+      },
+    ],
+  },
+): SummaryProvider {
+  return {
+    kind: "fixture",
+    async summarize(_input, signal) {
+      checkCancellation(signal);
+      return structuredClone(output);
+    },
+  };
+}
 
 /** Explicit opt-in fixture; production composition must inject a model provider. */
 export function createFixtureProvider(
