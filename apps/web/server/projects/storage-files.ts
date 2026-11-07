@@ -68,8 +68,16 @@ export async function readStorageFile(
 ) {
   try {
     const parent = await directory(root, parts.slice(0, -1), false);
+    const filename = join(parent, segment(parts.at(-1)!));
+    const entry = await lstat(filename);
+    if (
+      !entry.isFile() ||
+      entry.isSymbolicLink() ||
+      (await realpath(filename)) !== filename
+    )
+      throw new Error("Invalid stored object path");
     const file = await open(
-      join(parent, segment(parts.at(-1)!)),
+      filename,
       constants.O_RDONLY | constants.O_NOFOLLOW,
     );
     try {

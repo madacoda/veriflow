@@ -28,7 +28,7 @@ jobs:
           bash scripts/tests/transport.test.sh
 
   container:
-    needs: check
+    needs: [check, windows-unit]
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -121,3 +121,17 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERIFLOW_IMAGE: ${{ needs.container.outputs.image }}
         run: bash scripts/deploy-vps.sh
+
+  windows-unit:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run test:unit
