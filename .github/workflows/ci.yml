@@ -21,3 +21,20 @@ jobs:
       - run: bun run build
       - run: bun run browsers:install --with-deps
       - run: bun run test:smoke
+        env:
+          STORAGE_DIR: ${{ runner.temp }}/veriflow-smoke
+          VERIFLOW_U1_TEST_HTTP: "1"
+          VERIFLOW_RUN_ADAPTER: browser
+  windows-unit:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run test:unit

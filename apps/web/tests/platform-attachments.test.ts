@@ -5,6 +5,7 @@ import {
   mkdir,
   readFile,
   readdir,
+  rename,
   rm,
   symlink,
   unlink,
@@ -305,17 +306,41 @@ test("symlink aliases and mismatched stored sizes cannot expose other content", 
   );
   const secret = join(outside, "private.txt");
   await writeFile(secret, "must not be disclosed");
-  await unlink(blob);
-  await symlink(secret, blob);
-  const response = await http.attachmentContentGET(project.id, attachment.id);
-  assert.equal(response.status, 500);
+  if (process.platform !== "win32") {
+    await unlink(blob);
+    await symlink(secret, blob);
+    const response = await http.attachmentContentGET(project.id, attachment.id);
+    assert.equal(response.status, 500);
+    assert.equal(
+      (await response.text()).includes("must not be disclosed"),
+      false,
+    );
+  }
+  // Always test a directory alias. Windows junctions do not need symlink privilege.
+  await writeFile(
+    join(outside, `${attachment.id}.bin`),
+    new Uint8Array([9, 9]),
+  );
+  await rename(
+    join(root, "attachments", project.id),
+    join(root, "original-attachment-fixture"),
+  );
+  await symlink(
+    outside,
+    join(root, "attachments", project.id),
+    process.platform === "win32" ? "junction" : "dir",
+  );
   assert.equal(
-    (await response.text()).includes("must not be disclosed"),
-    false,
+    (await http.attachmentContentGET(project.id, attachment.id)).status,
+    500,
   );
   await mkdir(join(outside, "uploads"));
   await rm(join(root, "attachments"), { recursive: true });
-  await symlink(join(outside, "uploads"), join(root, "attachments"));
+  await symlink(
+    join(outside, "uploads"),
+    join(root, "attachments"),
+    process.platform === "win32" ? "junction" : "dir",
+  );
   assert.equal(
     (
       await http.attachmentsPOST(

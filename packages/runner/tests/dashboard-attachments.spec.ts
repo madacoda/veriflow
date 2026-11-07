@@ -3,8 +3,6 @@ import { expect, test } from "@playwright/test";
 import { demoAttachment, demoProject } from "@veriflow/core/fixtures";
 import { MAX_ATTACHMENT_BYTES } from "@veriflow/core";
 
-const origin = "http://127.0.0.1:3000";
-
 function latch() {
   let release!: () => void;
   const promise = new Promise<void>((resolve) => {
@@ -15,7 +13,9 @@ function latch() {
 
 test("keeps attachment results scoped when the selected project changes during a request", async ({
   page,
+  baseURL,
 }) => {
+  const origin = baseURL ?? new URL(demoProject.url).origin;
   const other = { ...demoProject, id: "project-other", title: "Other project" };
   const firstStarted = latch();
   const releaseFirst = latch();
@@ -82,7 +82,9 @@ test("keeps attachment results scoped when the selected project changes during a
 
 test("rejects invalid files and retains the file after an upload error", async ({
   page,
+  baseURL,
 }) => {
+  const origin = baseURL ?? new URL(demoProject.url).origin;
   let uploadRequests = 0;
   await page.route("**/api/projects", (route) =>
     route.fulfill({ json: { projects: [demoProject] } }),
@@ -146,7 +148,9 @@ test("rejects invalid files and retains the file after an upload error", async (
 
 test("uploads a Markdown attachment and reloads its pending status from P2", async ({
   page,
+  baseURL,
 }, testInfo) => {
+  const origin = baseURL ?? new URL(demoProject.url).origin;
   test.skip(
     process.env.VERIFLOW_U1_TEST_HTTP !== "1",
     "Enable with an isolated STORAGE_DIR.",

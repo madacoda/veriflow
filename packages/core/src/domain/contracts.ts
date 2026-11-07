@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { workflowSchema } from "./workflow.ts";
+import { httpUrlSchema } from "./http-url.ts";
+export { httpUrlSchema } from "./http-url.ts";
 import type { Project, StoredWorkflow } from "./project.ts";
 import type { Evidence, Finding } from "./results.ts";
 import type { StepResult, ExecutionSession } from "../application/ports.ts";
@@ -11,12 +13,6 @@ export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 export const entityIdSchema = z
   .string()
   .regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/);
-export const httpUrlSchema = z.url().refine((value) => {
-  const url = new URL(value);
-  return (
-    ["http:", "https:"].includes(url.protocol) && !url.username && !url.password
-  );
-}, "Use an HTTP(S) URL without embedded credentials");
 
 export const createProjectSchema = z.strictObject({
   title: z.string().trim().min(1).max(256),

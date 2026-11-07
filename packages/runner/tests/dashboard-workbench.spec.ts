@@ -8,11 +8,11 @@ import {
 } from "@veriflow/core/fixtures";
 import type { ProjectRecord, RunRecord } from "@veriflow/core";
 
-const origin = "http://127.0.0.1:3000";
-
 test("recovers from a poll error and displays a partial capture warning", async ({
   page,
+  baseURL,
 }) => {
+  const origin = baseURL ?? new URL(demoProject.url).origin;
   const { id, projectId } = demoFailedRun;
   const path = `**/api/projects/${projectId}`;
   const active: RunRecord = {
@@ -79,7 +79,9 @@ test("recovers from a poll error and displays a partial capture warning", async 
 
 test("polls a labeled fake run until cancellation completes", async ({
   page,
+  baseURL,
 }) => {
+  const origin = baseURL ?? new URL(demoProject.url).origin;
   const { id, projectId, createdAt } = demoFailedRun;
   const projectPath = `**/api/projects/${projectId}`;
   const run: RunRecord = {
@@ -158,7 +160,9 @@ test("polls a labeled fake run until cancellation completes", async ({
 
 test("renders every fixture state and keeps sample evidence non-downloadable", async ({
   page,
+  baseURL,
 }, testInfo) => {
+  const origin = baseURL ?? new URL(demoProject.url).origin;
   await page.goto(origin);
   const preview = page.getByRole("region", { name: "Run previews" });
   const state = preview.getByLabel("Fixture state");
@@ -204,7 +208,9 @@ test("renders every fixture state and keeps sample evidence non-downloadable", a
 
 test("the coupon target preserves the frozen locators and exact totals", async ({
   page,
+  baseURL,
 }, testInfo) => {
+  const origin = baseURL ?? new URL(demoProject.url).origin;
   await page.goto(`${origin}/demo?bug=1`);
   await expect(page.getByTestId("order-total")).toHaveText("100000");
   await page.getByTestId("coupon-input").fill("SAVE10");
@@ -224,7 +230,9 @@ test("the coupon target preserves the frozen locators and exact totals", async (
 
 test("preserves project fields when the API rejects creation", async ({
   page,
+  baseURL,
 }) => {
+  const origin = baseURL ?? new URL(demoProject.url).origin;
   await page.route("**/api/projects", async (route) => {
     if (route.request().method() === "GET")
       return route.fulfill({ json: { projects: [] } });
@@ -256,17 +264,72 @@ test("preserves project fields when the API rejects creation", async ({
   );
 });
 
-test("persists revisions, recovers from a stale save and surfaces the default run 503", async ({
+test("preserves run selections when the adapter is unavailable", async ({
+  page,
+  baseURL,
+}) => {
+  await page.route("**/api/projects", (route) =>
+    route.fulfill({ json: { projects: [demoProject] } }),
+  );
+  await page.route(`**/api/projects/${demoProject.id}/workflows`, (route) =>
+    route.fulfill({ json: { workflows: [demoRevision] } }),
+  );
+  await page.route(`**/api/projects/${demoProject.id}/runs`, (route) =>
+    route.fulfill(
+      route.request().method() === "GET"
+        ? { json: { runs: [] } }
+        : {
+            status: 503,
+            json: {
+              error: {
+                code: "adapter_unavailable",
+                message: "Browser adapter is not configured",
+              },
+            },
+          },
+    ),
+  );
+  await page.goto(baseURL ?? new URL(demoProject.url).origin);
+  await page.getByLabel("Selected project").selectOption(demoProject.id);
+  const runs = page.getByRole("region", { name: "Saved revisions and runs" });
+  await runs.getByLabel("Saved workflow").selectOption(demoWorkflow.id);
+  await runs.getByRole("button", { name: "Start run" }).click();
+  await expect(runs.getByRole("alert")).toContainText(
+    "Browser adapter is not configured",
+  );
+  await expect(runs.getByLabel("Saved workflow")).toHaveValue(demoWorkflow.id);
+  await expect(runs.getByLabel("Revision to run")).toHaveValue("1");
+  await expect(runs.getByRole("button", { name: "Start run" })).toBeEnabled();
+  await expect(runs.getByLabel("Run history").locator("option")).toHaveCount(1);
+  await expect(runs.getByRole("link", { name: /Open screenshot/ })).toHaveCount(
+    0,
+  );
+});
+
+test("persists reviewed revisions and displays real fail/pass browser evidence", async ({
   page,
   request,
+  baseURL,
 }, testInfo) => {
+  test.setTimeout(90000);
   test.skip(
     process.env.VERIFLOW_U1_TEST_HTTP !== "1",
-    "Enable with an isolated STORAGE_DIR and no run adapter.",
+    "Enable with an isolated STORAGE_DIR and the real browser adapter.",
   );
-  await page.goto(origin);
+  await page.goto(baseURL ?? new URL(demoProject.url).origin);
+  const origin = new URL(page.url()).origin;
+  const targetUrl = new URL("/demo?bug=1", origin).href;
+  const fixtureWorkflow = {
+    ...demoWorkflow,
+    steps: demoWorkflow.steps.map((step) => ({
+      ...step,
+      timeoutMs: 4000,
+      ...(step.code === "redirect" ? { url: targetUrl } : {}),
+    })),
+  };
   const projectName = `U1 checkout ${randomUUID()}`;
   await page.getByLabel("Project name").fill(projectName);
+  await page.getByLabel("Project target URL").fill(targetUrl);
   await page.getByRole("button", { name: "Create project" }).click();
   const projectSelector = page.getByLabel("Selected project");
   await expect(projectSelector.locator("option:checked")).toHaveText(
@@ -282,12 +345,15 @@ test("persists revisions, recovers from a stale save and surfaces the default ru
   ).toBeVisible();
   const name = editor.getByLabel("Workflow name");
   await name.fill("Reviewed checkout draft");
+  await editor
+    .getByLabel("Workflow steps (JSON)")
+    .fill(JSON.stringify(fixtureWorkflow.steps));
   await editor.getByRole("button", { name: "Save workflow" }).click();
   await expect(editor.getByRole("status")).toHaveText("Saved revision 1.");
 
   const concurrent = await request.post(`${projectPath}/workflows`, {
     data: {
-      workflow: { ...demoWorkflow, name: "Concurrent edit" },
+      workflow: { ...fixtureWorkflow, name: "Concurrent edit" },
       expectedRevision: 1,
     },
   });
@@ -332,14 +398,127 @@ test("persists revisions, recovers from a stale save and surfaces the default ru
     workflowId: demoWorkflow.id,
     revision: 1,
   });
-  expect(response.status()).toBe(503);
-  await expect(runs.getByRole("alert")).toContainText(
-    "Browser adapter is not configured",
-  );
+  expect(response.status()).toBe(202);
+  const { run: failedQueued } = await response.json();
+  async function completed(runId: string): Promise<RunRecord> {
+    let result: RunRecord | undefined;
+    await expect
+      .poll(
+        async () => {
+          const resultResponse = await request.get(
+            `${projectPath}/runs/${runId}`,
+          );
+          expect(resultResponse.status()).toBe(200);
+          result = (await resultResponse.json()).run;
+          return result?.lifecycle;
+        },
+        { timeout: 30000 },
+      )
+      .toBe("completed");
+    return result!;
+  }
+  async function verifyEvidence(run: RunRecord) {
+    expect(run.evidence.artifacts).toHaveLength(4);
+    for (const artifact of run.evidence.artifacts) {
+      expect(artifact.runId).toBe(run.id);
+      const png = await request.get(
+        `${projectPath}/runs/${run.id}/evidence/${artifact.id}`,
+      );
+      expect(png.status()).toBe(200);
+      expect(png.headers()["content-type"]).toBe("image/png");
+      expect([...(await png.body()).subarray(0, 8)]).toEqual([
+        137, 80, 78, 71, 13, 10, 26, 10,
+      ]);
+    }
+    const total = run.evidence.artifacts.find(
+      (artifact) => artifact.stepId === "total",
+    )!;
+    await expect(
+      runs.getByRole("link", { name: "Open screenshot for total" }),
+    ).toHaveAttribute(
+      "href",
+      `/api/projects/${projectId}/runs/${run.id}/evidence/${total.id}`,
+    );
+  }
+  const failed = await completed(failedQueued.id);
+  expect(failed).toMatchObject({
+    adapter: "browser",
+    revision: 1,
+    outcome: "failed",
+  });
+  expect(failed.steps.at(-1)).toMatchObject({
+    expected: "90000",
+    actual: "100000",
+    failureKind: "assertion",
+  });
+  await expect(runs.getByRole("status")).toContainText("failed");
+  await verifyEvidence(failed);
   await expect(runs.getByLabel("Revision to run")).toHaveValue("1");
-  await expect(runs.getByLabel("Run history").locator("option")).toHaveCount(1);
   await page.screenshot({
-    path: testInfo.outputPath("adapter-unavailable.png"),
+    path: testInfo.outputPath("real-browser-failed.png"),
+    fullPage: true,
+  });
+
+  await runs.getByLabel("Revision to run").fill("3");
+  await editor
+    .getByRole("button", { name: "Review selected revision" })
+    .click();
+  await expect(name).toHaveValue("Keep my checkout edits");
+  await steps.fill(
+    JSON.stringify(
+      fixtureWorkflow.steps.map((step) => ({
+        ...step,
+        ...(step.code === "redirect"
+          ? { url: new URL("/demo?bug=0", origin).href }
+          : {}),
+      })),
+    ),
+  );
+  await editor.getByRole("button", { name: "Save workflow" }).click();
+  await expect(editor.getByRole("status")).toHaveText("Saved revision 4.");
+  const [passedResponse] = await Promise.all([
+    page.waitForResponse(
+      (candidate) =>
+        candidate.url() === `${projectPath}/runs` &&
+        candidate.request().method() === "POST",
+    ),
+    runs.getByRole("button", { name: "Start run" }).click(),
+  ]);
+  expect(passedResponse.status()).toBe(202);
+  expect(passedResponse.request().postDataJSON()).toEqual({
+    workflowId: demoWorkflow.id,
+    revision: 4,
+  });
+  const { run: passedQueued } = await passedResponse.json();
+  const passed = await completed(passedQueued.id);
+  expect(passed).toMatchObject({
+    adapter: "browser",
+    revision: 4,
+    outcome: "passed",
+  });
+  expect(passed.steps.at(-1)).toMatchObject({
+    expected: "90000",
+    actual: "90000",
+  });
+  expect(passed.id).not.toBe(failed.id);
+  expect(
+    passed.evidence.artifacts.every(
+      (artifact) =>
+        !failed.evidence.artifacts.some(
+          (previous) => previous.id === artifact.id,
+        ),
+    ),
+  ).toBe(true);
+  await expect(runs.getByRole("status")).toContainText("passed");
+  await verifyEvidence(passed);
+  const report = await request.get(`${projectPath}/runs/${failed.id}/report`);
+  expect(report.status()).toBe(200);
+  const { snapshot } = await report.json();
+  expect(snapshot.workflow.revision).toBe(1);
+  expect(snapshot.run.outcome).toBe("failed");
+  expect(snapshot.run.steps.at(-1).actual).toBe("100000");
+  await page.screenshot({
+    path: testInfo.outputPath("real-browser-passed.png"),
     fullPage: true,
   });
 
