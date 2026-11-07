@@ -8,10 +8,13 @@ import {
   generationRequestSchema,
   MAX_ATTACHMENT_BYTES,
   saveWorkflowSchema,
+  stepSchema,
   startRunSchema,
   templateDefinitionSchema,
   translateWorkflow,
   workflowSchema,
+  type AttachmentReader,
+  type ContextExtractor,
 } from "../src/index.ts";
 import {
   demoAttachment,
@@ -126,5 +129,72 @@ test("attachments and image context explicitly distinguish unsupported inputs", 
     generationRequestSchema.safeParse({ objective: "Test", overwrite: true })
       .success,
     false,
+  );
+});
+
+test("navigation rejects credentials and malformed URLs at every shared boundary", () => {
+  for (const url of [
+    "https://user:password@example.com",
+    "https://user@example.com",
+    "https://:password@example.com",
+    "https://us%65r:p%40ss@example.com",
+    "not a URL",
+    "http://[invalid",
+    "file:///etc/passwd",
+  ]) {
+    const step = { id: "open", code: "redirect", url };
+    const workflow = { ...demoWorkflow, steps: [step] };
+    assert.equal(
+      createProjectSchema.safeParse({ title: "Example", url }).success,
+      false,
+    );
+    assert.equal(stepSchema.safeParse(step).success, false);
+    assert.equal(workflowSchema.safeParse(workflow).success, false);
+    assert.equal(
+      saveWorkflowSchema.safeParse({ workflow, expectedRevision: null })
+        .success,
+      false,
+    );
+    assert.equal(
+      browserToolCallSchema.safeParse({ tool: "execute", step }).success,
+      false,
+    );
+  }
+  for (const url of [
+    "http://127.0.0.1:3000/demo?bug=1",
+    "https://example.com/path?value=user%40example.com",
+  ]) {
+    const step = { id: "open", code: "redirect", url };
+    stepSchema.parse(step);
+    browserToolCallSchema.parse({ tool: "execute", step });
+    translateWorkflow({ ...demoWorkflow, steps: [step] });
+  }
+});
+
+test("shared attachment fixture survives an integrity-checking reader/extractor round trip", async () => {
+  assert.equal(demoContext.kind, "text");
+  if (demoContext.kind !== "text") throw new Error("Expected text fixture");
+  const text = demoContext.text;
+  const reader: AttachmentReader = {
+    read: async () => ({
+      metadata: structuredClone(demoAttachment),
+      bytes: new TextEncoder().encode(text),
+    }),
+  };
+  const extractor: ContextExtractor = {
+    extract: async ({ metadata, bytes }) => {
+      assert.equal(bytes.byteLength, metadata.sizeBytes);
+      return contextDocumentSchema.parse({
+        kind: "text",
+        attachmentId: metadata.id,
+        text: new TextDecoder().decode(bytes),
+      });
+    },
+  };
+  assert.equal(demoAttachment.sizeBytes, 73);
+  const source = await reader.read(demoProject.id, demoAttachment.id);
+  assert.deepEqual(
+    await extractor.extract(source, new AbortController().signal),
+    demoContext,
   );
 });

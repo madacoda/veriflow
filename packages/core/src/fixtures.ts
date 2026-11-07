@@ -54,19 +54,21 @@ export const demoRevision: WorkflowRevision = {
   workflow: demoWorkflow,
   savedAt: timestamp,
 };
+const demoSourceText =
+  "SAVE10 discounts the order total by 10%. A total of 100000 becomes 90000.";
 export const demoAttachment: AttachmentMetadata = {
   id: "attachment-prd",
   projectId: demoProject.id,
   filename: "checkout.md",
   mediaType: "text/markdown",
-  sizeBytes: 75,
+  sizeBytes: new TextEncoder().encode(demoSourceText).byteLength,
   createdAt: timestamp,
   extraction: { status: "ready" },
 };
 export const demoContext: ContextDocument = {
   kind: "text",
   attachmentId: demoAttachment.id,
-  text: "SAVE10 discounts the order total by 10%. A total of 100000 becomes 90000.",
+  text: demoSourceText,
 };
 export const demoTemplate: TemplateDefinition = {
   id: "functional-exact-total",
