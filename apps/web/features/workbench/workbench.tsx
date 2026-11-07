@@ -13,6 +13,7 @@ import Link from "next/link";
 import { type FormEvent, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, Input } from "../ui/primitives";
 import { api, RequestError } from "./api";
+import { ProjectAttachments } from "./attachments";
 import { FixturePreview, isActive, RunTimeline } from "./timeline";
 import styles from "./workbench.module.css";
 
@@ -651,7 +652,15 @@ export function Workbench() {
             </CardContent>
           </Card>
         </section>
-        {project && <ProjectWorkbench key={project.id} project={project} />}
+        {project && (
+          <>
+            <ProjectWorkbench key={project.id} project={project} />
+            <ProjectAttachments
+              key={`attachments-${project.id}`}
+              projectId={project.id}
+            />
+          </>
+        )}
         <FixturePreview />
       </div>
     </main>
