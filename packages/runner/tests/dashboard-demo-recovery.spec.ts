@@ -95,6 +95,16 @@ for (const { mode, loader, outcome } of [
     ]);
     expect(response.status()).toBe(202);
     const { run } = await response.json();
+    // A running timeline already says "0 steps passed". Wait for terminal
+    // persisted state before checking the outcome wording or downloading evidence.
+    await expect
+      .poll(
+        async () =>
+          (await (await request.get(`${projectPath}/runs/${run.id}`)).json())
+            .run.lifecycle,
+        { timeout: 45000 },
+      )
+      .toBe("completed");
     await expect(runs.getByRole("status")).toContainText(outcome, {
       timeout: 45000,
     });
