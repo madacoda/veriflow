@@ -83,7 +83,7 @@ bun run browsers:install
 bun run test:smoke
 ```
 
-Browser integration checks require port 3000 free. CI uses Chromium with Linux dependencies. Tests must exercise changed behavior and failure cases. Model-dependent checks also need deterministic fixtures so CI works without API credentials.
+Browser integration checks require port 1111 free. CI uses Chromium with Linux dependencies. Tests must exercise changed behavior and failure cases. Model-dependent checks also need deterministic fixtures so CI works without API credentials.
 
 Verify run status, assertion outcome and artifact ownership across layers. A tool error or missing prerequisite must never become a successful test report. Review cancellation, time limits, cleanup and target-origin policy whenever browser execution changes.
 
