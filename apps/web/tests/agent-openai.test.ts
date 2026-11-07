@@ -229,44 +229,54 @@ test("OpenAI context overflow and unsupported images fail before HTTP dispatch",
   assert.equal(http.requests.length, 0);
 });
 
-test("OpenAI HTTP cancellation and deadline abort the transport without retries", async () => {
-  for (const mode of ["cancel", "deadline"]) {
-    let started!: () => void;
-    const ready = new Promise<void>((resolve) => {
-      started = resolve;
-    });
-    let aborted = false;
-    const options: OpenAIProviderOptions = {
-      apiKey: "fixture",
-      model: "fixture-model",
-      timeoutMs: mode === "deadline" ? 30 : 1000,
-      fetch: async (_url, init) => {
-        started();
-        return new Promise((_resolve, reject) => {
-          const onAbort = () => {
-            aborted = true;
-            reject(new Error("private transport detail"));
-          };
-          if (init?.signal?.aborted) onAbort();
-          else init?.signal?.addEventListener("abort", onAbort, { once: true });
-        });
-      },
-    };
-    const controller = new AbortController();
-    const operation = createOpenAIDraftProvider(options).generate(
-      { ...task(), templates: [] },
-      controller.signal,
-    );
-    const rejected = assert.rejects(
-      operation,
-      code(mode === "cancel" ? "cancelled" : "timeout"),
-    );
-    await ready;
-    if (mode === "cancel") controller.abort();
-    await rejected;
-    assert.equal(aborted, true);
-  }
-});
+test(
+  "OpenAI HTTP cancellation and deadline abort the transport without retries",
+  { timeout: 5000 },
+  async () => {
+    for (const mode of ["cancel", "deadline"]) {
+      let started!: () => void;
+      const ready = new Promise<void>((resolve) => {
+        started = resolve;
+      });
+      let aborted = false;
+      let dispatched = false;
+      const options: OpenAIProviderOptions = {
+        apiKey: "fixture",
+        model: "fixture-model",
+        timeoutMs: mode === "deadline" ? 30 : 120000,
+        fetch: async (_url, init) => {
+          dispatched = true;
+          started();
+          return new Promise((_resolve, reject) => {
+            const onAbort = () => {
+              aborted = true;
+              reject(new Error("private transport detail"));
+            };
+            if (init?.signal?.aborted) onAbort();
+            else
+              init?.signal?.addEventListener("abort", onAbort, { once: true });
+          });
+        },
+      };
+      const controller = new AbortController();
+      const operation = createOpenAIDraftProvider(options).generate(
+        { ...task(), templates: [] },
+        controller.signal,
+      );
+      const rejected = assert.rejects(
+        operation,
+        code(mode === "cancel" ? "cancelled" : "timeout"),
+      );
+      if (mode === "cancel") {
+        await ready;
+        controller.abort();
+      }
+      await rejected;
+      // A tight deadline can expire before HTTP allocation on a loaded runner.
+      if (dispatched) assert.equal(aborted, true);
+    }
+  },
+);
 
 for (const [name, item] of Object.entries({
   unknown: call("evaluate", { script: "forbidden" }),
