@@ -90,6 +90,7 @@ export const generationRequestSchema = z.strictObject({
   templateIds: z.array(entityIdSchema).max(20).default([]),
   /** Explicit additions to project.url; composition enforces five distinct same-origin URLs total. */
   pageUrls: z.array(httpUrlSchema).max(5).optional(),
+  accessMode: z.enum(["functionality", "guard"]).optional(),
   /** Untrusted, read-only input; returned drafts never save over this source. */
   baseWorkflow: workflowSchema
     .refine(
@@ -184,6 +185,7 @@ export interface BrowserObservation {
   links?: readonly { url: string; label: string }[];
   navigationStatus?: number;
   capturedAt?: string;
+  passwordFieldVisible?: boolean;
 }
 
 export const browserObservationSchema = z.strictObject({
@@ -199,6 +201,7 @@ export const browserObservationSchema = z.strictObject({
     .optional(),
   navigationStatus: z.number().int().min(100).max(599).optional(),
   capturedAt: z.iso.datetime().optional(),
+  passwordFieldVisible: z.boolean().optional(),
 });
 const accessSignalSchema = z.strictObject({
   kind: z.enum([

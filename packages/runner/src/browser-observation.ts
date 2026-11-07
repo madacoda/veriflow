@@ -31,20 +31,22 @@ export async function readBrowserObservation(
   }
   const raw = await page.evaluate(
     ({ limit, roles }) => {
-      const visible = (element: Element) => {
-        const style = getComputedStyle(element);
-        return (
-          style.visibility !== "hidden" &&
-          style.display !== "none" &&
-          element.getClientRects().length > 0
-        );
+      const visibility = {
+        visible(element: Element) {
+          const style = getComputedStyle(element);
+          return (
+            style.visibility !== "hidden" &&
+            style.display !== "none" &&
+            element.getClientRects().length > 0
+          );
+        },
       };
       const dialogs = [
         ...document.querySelectorAll('dialog[open], [role="dialog"]'),
-      ].filter(visible);
+      ].filter(visibility.visible);
       const mains = [
         ...document.querySelectorAll('main, [role="main"]'),
-      ].filter(visible);
+      ].filter(visibility.visible);
       const scope: "main" | "dialog" | "body" =
         dialogs.length === 1 ? "dialog" : mains.length === 1 ? "main" : "body";
       const root =
@@ -65,7 +67,7 @@ export async function readBrowserObservation(
         if (
           parent &&
           !parent.closest("script,style,input,textarea") &&
-          visible(parent)
+          visibility.visible(parent)
         ) {
           const text = node.textContent?.trim();
           if (text) {
@@ -76,27 +78,32 @@ export async function readBrowserObservation(
       }
       const text = chunks.join("\n");
       const candidates: Target[] = [];
-      const add = (target: Target) => {
-        if (
-          target.value.trim() &&
-          target.value.length <= 256 &&
-          candidates.length < 150
-        )
-          candidates.push(target);
+      const collector = {
+        add(target: Target) {
+          if (
+            target.value.trim() &&
+            target.value.length <= 256 &&
+            candidates.length < 150
+          )
+            candidates.push(target);
+        },
       };
       for (const element of root.querySelectorAll(
         "[data-testid],label,button,a[href],input,textarea,select,h1,h2,h3,h4,h5,h6,[role]",
       )) {
         if (candidates.length >= 150) break;
-        if (!visible(element)) continue;
+        if (!visibility.visible(element)) continue;
         const testId = element.getAttribute("data-testid");
-        if (testId) add({ by: "testId", value: testId });
+        if (testId) collector.add({ by: "testId", value: testId });
         if (element.tagName === "LABEL") {
           const clone = element.cloneNode(true) as Element;
           clone
             .querySelectorAll("input,textarea,select")
             .forEach((control) => control.remove());
-          add({ by: "label", value: clone.textContent?.trim() ?? "" });
+          collector.add({
+            by: "label",
+            value: clone.textContent?.trim() ?? "",
+          });
         }
         let role = element.getAttribute("role")?.split(/\s+/)[0];
         if (!role) {
@@ -151,10 +158,14 @@ export async function readBrowserObservation(
             : "") ||
           element.getAttribute("title") ||
           "";
-        add({ by: "role", role: role as (typeof roles)[number], value: name });
+        collector.add({
+          by: "role",
+          role: role as (typeof roles)[number],
+          value: name,
+        });
       }
       const links = [...root.querySelectorAll<HTMLAnchorElement>("a[href]")]
-        .filter(visible)
+        .filter(visibility.visible)
         .slice(0, 40)
         .map((a) => ({
           url: a.href,
@@ -166,6 +177,9 @@ export async function readBrowserObservation(
         candidates,
         links,
         scope,
+        passwordFieldVisible: [
+          ...root.querySelectorAll('input[type="password"]'),
+        ].some(visibility.visible),
         truncated:
           visited > 5000 ||
           characters > limit ||
@@ -193,6 +207,7 @@ export async function readBrowserObservation(
     title: raw.title,
     text: raw.text,
     scope: raw.scope,
+    passwordFieldVisible: raw.passwordFieldVisible,
     truncated: raw.truncated || !settled || targets.length === 50,
     targets,
     links: raw.links

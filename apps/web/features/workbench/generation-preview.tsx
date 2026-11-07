@@ -4,12 +4,14 @@ import { Checkbox } from "../ui/checkbox";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 import { NativeSelect } from "../ui/native-select";
+import { Label } from "../ui/label";
 
 import {
   generationRequestSchema,
   type AttachmentMetadata,
   type TemplateDefinition,
   type WorkflowDraft,
+  type Workflow,
 } from "@veriflow/core";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { api, RequestError } from "./api";
@@ -32,12 +34,14 @@ export function GenerationPreview({
   projectId,
   attachments,
   hasDraft,
+  currentWorkflow,
   pending,
   onOpen,
 }: {
   projectId: string;
   attachments: readonly AttachmentMetadata[];
   hasDraft: boolean;
+  currentWorkflow?: Workflow;
   pending: boolean;
   onOpen: (draft: WorkflowDraft) => void;
 }) {
@@ -79,10 +83,19 @@ export function GenerationPreview({
     event.preventDefault();
     if (generation.current || !catalog || catalog.error) return;
     const form = new FormData(event.currentTarget);
+    const pageUrls = String(form.get("pageUrls") ?? "")
+      .split(/\r?\n/)
+      .map((url) => url.trim())
+      .filter(Boolean);
     const request = generationRequestSchema.safeParse({
       objective: form.get("objective"),
       templateIds: form.getAll("template").filter(Boolean),
       attachmentIds: form.getAll("attachment"),
+      ...(pageUrls.length ? { pageUrls } : {}),
+      ...(form.get("accessMode") === "guard" ? { accessMode: "guard" } : {}),
+      ...(form.get("regenerate") && currentWorkflow
+        ? { baseWorkflow: currentWorkflow }
+        : {}),
     });
     if (!request.success) {
       setError(request.error.issues.map((issue) => issue.message).join(". "));
@@ -153,6 +166,14 @@ export function GenerationPreview({
         <h3 id="generation-preview-heading">Workflow generation</h3>
         <p>Generate a draft from the project objective and selected sources.</p>
         <p>
+          Supported steps include navigation, text fields, checkboxes, clicks,
+          visible/text assertions, viewport/layout checks, automated
+          accessibility checks, HTTP status checks and supplied-requirement
+          assertions. Dropdown selection, uploads, popups and iframe workflows
+          need additional executor support. A generated draft is not a claim
+          that every case is covered.
+        </p>
+        <p>
           Saved project descriptions and goals are included automatically.
           Select the text attachments to use. Review the result before replacing
           your current draft; generation does not save or run it.
@@ -177,6 +198,40 @@ export function GenerationPreview({
         )}
         <form className={styles.form} onSubmit={prepare}>
           <fieldset className={styles.form} disabled={generating}>
+            <Label htmlFor="generation-pages">
+              Additional pages to inspect (optional)
+            </Label>
+            <Textarea
+              id="generation-pages"
+              name="pageUrls"
+              rows={3}
+              placeholder="One full URL per line, on the same site"
+            />
+            <p>
+              The project URL is included. Inspect up to five pages total,
+              without signing in or interacting. Pages that cannot be inspected
+              will need attention before generation.
+            </p>
+            <Label htmlFor="generation-access">Test purpose</Label>
+            <NativeSelect
+              id="generation-access"
+              name="accessMode"
+              defaultValue="functionality"
+            >
+              <option value="functionality">Test page functionality</option>
+              <option value="guard">Check access restrictions</option>
+            </NativeSelect>
+            <p>
+              Checking a sign-in guard does not verify the protected feature. An
+              anonymous snapshot does not prove whether a user is authorized.
+            </p>
+            {currentWorkflow && (
+              <label className={styles.row}>
+                <Checkbox name="regenerate" value="yes" />
+                Regenerate from the current editor draft, preserving its
+                assertions
+              </label>
+            )}
             <label className={styles.field}>
               Objective
               <Textarea name="objective" rows={3} required maxLength={10000} />
@@ -226,7 +281,12 @@ export function GenerationPreview({
             </div>
           </fieldset>
         </form>
-        {generating && <p role="status">Generating workflow draft.</p>}
+        {generating && (
+          <p role="status">
+            Inspecting selected pages and generating a workflow draft. No test
+            is running.
+          </p>
+        )}
         {error && (
           <p className={styles.error} role="alert">
             {error}
@@ -241,6 +301,25 @@ export function GenerationPreview({
                 ` · ${preview.template.title} · v${preview.template.version}`}
             </p>
             <p>{preview.objective}</p>
+            {preview.draft.pageContext && (
+              <section aria-label="Inspected pages">
+                <h4>Page context</h4>
+                <ul className={styles.compactList}>
+                  {preview.draft.pageContext.map((page) => (
+                    <li key={page.sourceUrl}>
+                      {page.sourceUrl} ·{" "}
+                      {page.status === "unavailable"
+                        ? `Not inspected: ${page.reason}`
+                        : `Observed ${page.observation.scope ?? "page"} content${page.observation.truncated ? " (limited snapshot)" : ""}`}{" "}
+                      · {page.capturedAt}
+                      {page.status === "observed" &&
+                        page.accessSignals.length > 0 &&
+                        " · Access prerequisite observed; protected functionality is unverified"}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
             <p>Source references</p>
             {preview.sources.length === 0 ? (
               <p>No attachment references returned.</p>

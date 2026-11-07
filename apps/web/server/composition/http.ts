@@ -101,6 +101,9 @@ export function errorResponse(error: unknown) {
         error = new PlatformError("not_found", 404, safeMessage);
         break;
       case "validation_error":
+      case "authentication_required":
+      case "inspection_unavailable":
+      case "guard_not_observed":
       case "context_mismatch":
       case "template_unavailable":
       case "extraction_failed":

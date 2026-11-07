@@ -74,6 +74,7 @@ function boundedObservation(
     links: value.links,
     navigationStatus: value.navigationStatus,
     capturedAt: value.capturedAt,
+    passwordFieldVisible: value.passwordFieldVisible,
   });
   if (!observation.success) throw new AgentError("tool_failed");
   return observation.data;

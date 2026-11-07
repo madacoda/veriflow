@@ -41,3 +41,9 @@ Passwords, secret values, cookies, session storage and private artifact paths mu
 | regeneration                | Input remains immutable; assertions retained; output stays unsaved.        |
 
 Output format preferences, XLSX/PDF renderers and video capture are separate follow-ups.
+
+## Intent and password-field clarification
+
+`accessMode` is optional and defaults behaviorally to `functionality`. `guard` is an explicit user selection labelled “Check access restrictions”. It never decides an outcome: a guard observation cannot count as protected-feature success, and no observed guard cannot silently become a functionality pass. Functionality generation with an observed access prerequisite stops with actionable copy; unavailable inspection stops without inventing targets.
+
+Optional `passwordFieldVisible` describes visible password inputs only within the chosen scope. Values are never read. Absence means not inspected; false does not establish that authentication is unnecessary. Credentials and secret bindings are outside observation DTOs.

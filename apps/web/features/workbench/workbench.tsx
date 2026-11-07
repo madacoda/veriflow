@@ -209,6 +209,17 @@ function WorkflowEditor({
             projectId={projectId}
             attachments={attachments}
             hasDraft={draft !== null}
+            currentWorkflow={
+              draft
+                ? {
+                    schemaVersion: "1",
+                    id: draft.id,
+                    name: draft.name,
+                    steps: draft.steps,
+                    ...(draft.category ? { category: draft.category } : {}),
+                  }
+                : undefined
+            }
             pending={pending}
             onOpen={(preview) =>
               openDraft(
