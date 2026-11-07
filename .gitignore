@@ -1,0 +1,13 @@
+node_modules/
+.next/
+dist/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+data/*
+!data/.gitkeep
+playwright-report/
+test-results/
+.DS_Store
+

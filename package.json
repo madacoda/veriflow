@@ -1,0 +1,32 @@
+{
+  "name": "veriflow",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n web,api \"npm run dev -w @veriflow/web\" \"npm run dev -w @veriflow/api\"",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test:smoke": "npm run test:smoke -w @veriflow/runner",
+    "browsers:install": "npm exec -w @veriflow/runner -- playwright install chromium"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "concurrently": "^10.0.6",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.4.5",
+    "prettier": "^3.9.10",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.1"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "@veriflow/runner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test:smoke": "playwright test"
+  },
+  "dependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "^1.65.0",
+    "axe-core": "^4.14.0",
+    "exceljs": "^4.4.0"
+  }
+}
