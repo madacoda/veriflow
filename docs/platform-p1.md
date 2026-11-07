@@ -1,6 +1,6 @@
 # P1: durable project and run platform
 
-Owner: Dev 1. Reviewers: Dev 3 for session lifecycle/evidence, Dev 4 for HTTP consumption. Branch: `codex/p1-platform`, stacked on proposed L0 `36feb2d`. No merge into main is authorized by the review gate until affected consumers approve and current GitHub checks pass. Branches are pushed; GitHub issue/PR creation through the connector returned 403, and browser access timed out.
+Owner: Dev 1. Reviewers: Dev 3 for session lifecycle/evidence, Dev 4 for HTTP consumption. Branch: `codex/p1-platform`, updated against merged L0 main `3c432f1` in `0dd05f2`. L0's merge has no contract changes from `36feb2d`, and main CI passed. P1 still needs its own consumer review and current GitHub checks before merging. The user created and merged L0 PR #1; the connector returned 403 for issue/PR creation, and browser access timed out.
 
 ## Implemented
 
