@@ -2,6 +2,10 @@
 
 This is a source snapshot, not a substitute for live GitHub checks. The deeper audit was reconciled on 7 November 2026 against main [`43c3f3e`](https://github.com/madacoda/veriflow/commit/43c3f3e5083a1dd1734442fc4810a98d27a0fa19), whose runtime source matches `0e2d732`. See [the complete audit](project-audit.md) for evidence, confirmed defects, missing requirements, the unmerged-code inventory and conflict-resolution plan. The original seven-hour plan remains a demonstration milestone within the full MVP.
 
+## Production authentication update — 2026-11-07
+
+Application login is deployed and verified on revision `29f8131`; the user-supplied production environment is installed and the Nginx Basic Auth prompt is removed. Protected APIs and evidence still require a session. See [cutover evidence](auth.md#production-cutover--2026-11-07). CI now runs independent gates in parallel and deploys only after all succeed. The remaining baseline audit below is historical and is not a new full-product reassessment.
+
 ## Release evidence
 
 The browser-gate recovery is tracked separately in [CI/CD recovery](ci-recovery.md) and PR #19. It fixes test collection and the production axe bundling failure exposed afterward. The baseline evidence below is historical; use the PR and resulting main checks to establish the repaired release.
@@ -27,8 +31,8 @@ The browser-gate recovery is tracked separately in [CI/CD recovery](ci-recovery.
 | AI workflow generation                                                       | HTTP, UI and runtime provider integrated                  | OpenAI-compatible adapter and schema validation; `/workflows/generate` uses server OPENAI settings; missing/invalid configuration returns 503; API errors remain explicit; fixture preview is a separate mode |
 | Bounded AI execution loop                                                    | Module available; coordinator integration pending         | Validated tools and bounded calls; no model-controlled production run path or verified live end-to-end journey                                                                                                |
 | AI failure summaries                                                         | Module integrated from PR #18; report composition pending | Reports remain based on observed results                                                                                                                                                                      |
-| Deployment                                                                   | GHCR/VPS pipeline integrated                              | Publishes only after gates pass; Nginx HTTPS access gate; single container with persistent data and rollback                                                                                                  |
-| Application login                                                            | Locally implemented; release verification pending         | [AUTH-1 #16](https://github.com/madacoda/veriflow/issues/16) and [AUTH-UI #17](https://github.com/madacoda/veriflow/issues/17); retain the Nginx gate                                                         |
+| Deployment                                                                   | GHCR/VPS pipeline integrated                              | Container-tested candidate publication; deployment after all gates pass; Nginx TLS plus application login; persistent data and rollback                                                                       |
+| Application login                                                            | Deployed; production login verified                       | [AUTH-1 #16](https://github.com/madacoda/veriflow/issues/16) and [AUTH-UI #17](https://github.com/madacoda/veriflow/issues/17); application-login cutover verified; Basic gate removed                        |
 
 ## Next integration priorities
 
@@ -39,6 +43,6 @@ Dev 1 dispatches concrete tasks using [REVIEW.md](../REVIEW.md), with exact path
 3. Dev 3 completes product WebM/trace recording and verifies finalization, cancellation, ownership and secret handling. Playwright's own test artifacts do not satisfy this product requirement.
 4. Dev 4 implements XLSX/PDF rendering against the existing immutable snapshot while Dev 1 integrates downloads. Verify real file formats, result parity and explicit unavailable/error states. CSV is already connected.
 5. Extend extraction support and metadata feedback with Dev 2 and Dev 1. Generation now reads TXT/MD/CSV/JSON with source references and explicit unsupported-format errors, without persisting extraction status. Upload acceptance alone is not extraction acceptance.
-6. Release-verify the locally implemented [authentication backend and UI](auth.md). Username `madacoda` is configured in ignored local `.env`; provision production credentials separately. Keep the Nginx access gate until a separately verified cutover.
+6. Authentication release verification is complete; see [production cutover](auth.md#production-cutover--2026-11-07). Keep production credentials outside version control and verify application login after future environment changes.
 
 The full MVP remains incomplete until these product integrations and required exports are verified. SQLite and PPTX remain optional. The original 14:00 WIB feature cutoff and judging preparation plan are historical event targets, not evidence that a milestone was achieved.

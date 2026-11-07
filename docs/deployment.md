@@ -4,11 +4,11 @@ One Next.js monolith runs on Node 24. Bun 1.4.4 installs the locked workspace du
 
 ## Release flow
 
-The existing CI check runs first. PRs additionally build the Linux amd64 image and verify UI/health, real non-root Chromium and saved workflow execution through the production HTTP routes. The buggy coupon workflow must fail with expected 90000 and actual 100000; its corrected revision must pass with actual 90000. Both runs must expose owned PNGs, and their reports and evidence must survive a container restart. The smoke uses the same dropped capabilities and no-new-privileges setting as Compose.
+Linux checks, Windows unit checks, the Linux amd64 container build/smoke and the isolated Nginx fixture run in parallel. CI runs once per PR update and on main pushes, avoiding duplicate feature-branch push checks. Superseded PR runs are cancelled; main runs remain independent, with only production replacements serialized. The container verifies UI/health, real non-root Chromium and saved workflow execution through production HTTP routes. The buggy coupon workflow must fail with expected 90000 and actual 100000; its corrected revision must pass with actual 90000. Both runs must expose owned PNGs, and their reports and evidence must survive a container restart. The smoke uses the same dropped capabilities and no-new-privileges setting as Compose.
 
 Docker builds enable Next standalone output. The packaging script copies the lockfile-resolved Playwright installer and completes the packages at the standalone server's resolved dependency locations, including dynamically loaded browser metadata omitted by static tracing. A Linux build is authoritative; Windows builds leave standalone off to avoid symlink privilege requirements.
 
-Only a successful push to `main` publishes `ghcr.io/madacoda/veriflow:sha-<commit>`. Publication pushes the exact image exercised by the container smoke test. VPS deployment uses its immutable `@sha256:...` digest. PRs never publish or connect to the VPS. Feature-branch pushes run the normal check; the PR runs the container check.
+On main, the container job publishes its tested image as the candidate `ghcr.io/madacoda/veriflow:sha-<commit>`. Other parallel checks may still be running: registry publication alone is not release acceptance. VPS deployment requires all four jobs to succeed, rechecks that the commit is still current main, and uses the candidate's immutable `@sha256:...` digest. PRs never publish or connect to the VPS. No existing test suite was removed to shorten the pipeline.
 
 The deployment pipeline is merged. Dev 1 owns release review and verification; consult [current release evidence](project-status.md) before claiming a newer commit is deployed. Set the repository Actions variable `VPS_DEPLOY_ENABLED` to `true` after provisioning the server and secrets. Leave it unset to publish images without deploying. This variable must be repository-scoped because job conditions are evaluated before loading the production environment.
 
@@ -46,16 +46,21 @@ Populate `app.env` with server-only configuration, for example:
 OPENAI_API_KEY=your-key
 OPENAI_MODEL=your-model
 OPENAI_BASE_URL=https://api.openai.com/v1
+AUTH_USERNAME=your-team-username
+AUTH_PASSWORD=your-team-password
+AUTH_SESSION_SECRET=replace-with-at-least-32-random-characters
+AUTH_ORIGIN=https://veriflow.madacoda.dev
+AUTH_COOKIE_SECURE=true
 ```
 
-Provision that file only once; recreating it with the install command would truncate existing configuration. `NODE_ENV`, `STORAGE_DIR`, `PORT` and `HOSTNAME` are set by Compose. `app.env` uses raw parsing so dollar signs in secrets are preserved. Optional Compose settings belong in `/opt/veriflow/deploy.env`, not in `app.env`:
+Provision that file only once; recreating it with the install command would truncate existing configuration. `NODE_ENV`, `STORAGE_DIR=/data`, `PORT=1111` and `HOSTNAME` are set by Compose. Do not copy a local `STORAGE_DIR=../../data` into production. `app.env` uses raw parsing so dollar signs in secrets are preserved; remove dotenv wrapper quotes when importing a quoted value, or those quotes become part of the runtime value. Optional Compose settings belong in `/opt/veriflow/deploy.env`, not in `app.env`:
 
 ```dotenv
 VPS_BIND_ADDRESS=127.0.0.1
 VPS_APP_PORT=1111
 ```
 
-The default binds only localhost. Configure an HTTPS reverse proxy to `http://127.0.0.1:1111`, with access controls while the platform has no multi-user authentication. For a private demo without a proxy, use an SSH tunnel:
+The default binds only localhost. Configure an HTTPS reverse proxy to `http://127.0.0.1:1111` and provision application login before exposing the site. This is a shared trusted-team account, not multi-user authorization. For a private demo without a proxy, use an SSH tunnel:
 
 ```powershell
 ssh -i "$env:USERPROFILE\.ssh\server" -L 1111:127.0.0.1:1111 root@217.216.73.206
@@ -65,7 +70,7 @@ Then open `http://localhost:1111`. An intentional public bind requires `VPS_BIND
 
 ## Persistence, health and rollback
 
-The service runs as the image's non-root `node` user with an init process, 1 GiB shared memory, a 2 GiB memory limit, a two-CPU limit, a 512-process limit and a named `veriflow-data` volume at `/data`. Keep one replica and one writer. The repository's current filesystem store does not support horizontal scaling. On the shared VPS, set `VERIFLOW_MAX_CONCURRENT_RUNS=1` in `app.env`.
+The service runs as the image's non-root `node` user with an init process, 1 GiB shared memory, a 2 GiB memory limit, a two-CPU limit, a 512-process limit and a named `veriflow-data` volume at `/data`. Keep one replica and one writer. The repository's current filesystem store does not support horizontal scaling. Set `VERIFLOW_MAX_CONCURRENT_RUNS` in `app.env` to bound browser load; the supplied production configuration uses two concurrent runs.
 
 Each workflow attempt uploads a distinct release directory containing Compose and the deployment script. Re-running the same commit never overwrites the previous rollback bundle. A server-side lock serializes replacements, and the workflow skips superseded main commits. Images are pulled before replacing the application. Only a container passing the configured healthcheck advances `current-release`. The current `/health` route is liveness-only and does not initialize configuration or persistent storage; [audit finding D8](project-audit.md#d8--p1-deployment-health-does-not-establish-application-readiness) records the required readiness improvement. Do not treat this check alone as proof that product APIs are usable.
 
@@ -73,35 +78,34 @@ If the health gate fails, the script restores the previous release's Compose fil
 
 This is a single-container replacement with brief downtime, not a zero-downtime deployment. There is no run-draining interface yet: an active run can be interrupted and the existing coordinator marks it as an infrastructure error on recovery. Schedule releases between demo runs. The real browser adapter is integrated. AI HTTP integration and credentials are separate product work; a healthy container does not claim the complete MVP is wired.
 
-## HTTPS and access gate
+## HTTPS and application access
 
-The site is `https://veriflow.madacoda.dev`. Nginx terminates TLS and proxies only to `127.0.0.1:1111`. The dashboard, API, evidence and static assets retain HTTP Basic authentication until a separately verified product-authentication cutover. Access is for trusted operators: they can start browser jobs. Do not embed gate credentials into workflows, target URLs, reports or GitHub secrets.
+The site is `https://veriflow.madacoda.dev`. Nginx terminates TLS and proxies only to `127.0.0.1:1111`. Application login protects the dashboard, APIs and evidence. The dedicated vhost explicitly disables inherited HTTP Basic authentication so the login page and static assets can render. Access is for trusted operators: they can start browser jobs. Do not embed product credentials into workflows, target URLs or reports.
 
-Use [deploy/nginx/veriflow.conf](../deploy/nginx/veriflow.conf) for the dedicated virtual host. It includes TLS 1.2/1.3, security headers, private/no-store responses, a 12 MiB request limit, bounded proxy timeouts, rate limiting, cross-origin write rejection, and access logs without query strings or credentials. It removes the gate Authorization header before proxying to Next.js. Preserve the existing Cloudflare trusted-proxy IP configuration when calculating client addresses.
+Use [deploy/nginx/veriflow.conf](../deploy/nginx/veriflow.conf) for the dedicated virtual host only after configuring and verifying application authentication. It includes TLS 1.2/1.3, security headers, private/no-store responses, a 12 MiB request limit, bounded proxy timeouts, rate limiting, cross-origin write rejection, and access logs without query strings or credentials. It strips obsolete Basic Authorization headers while forwarding session cookies. Preserve the existing Cloudflare trusted-proxy IP configuration when calculating client addresses.
 
-Provision an HTTP-only bootstrap virtual host with `server_name veriflow.madacoda.dev` and the template's ACME location. Return 503 for all other HTTP requests until HTTPS is ready. Install Certbot and `apache2-utils`, then obtain the certificate:
+Provision an HTTP-only bootstrap virtual host with `server_name veriflow.madacoda.dev` and the template's ACME location. Return 503 for all other HTTP requests until HTTPS and application authentication are ready. Install Certbot, then obtain the certificate:
 
 ```sh
 certbot certonly --webroot -w /var/www/veriflow-acme \
   -d veriflow.madacoda.dev --email me@madacoda.dev --agree-tos --non-interactive
-htpasswd -cB /etc/nginx/veriflow.htpasswd madacoda
-chown root:www-data /etc/nginx/veriflow.htpasswd
-chmod 640 /etc/nginx/veriflow.htpasswd
 ```
 
-The htpasswd command prompts securely; use `-c` only for initial creation. Rotate an existing password with `htpasswd -B /etc/nginx/veriflow.htpasswd madacoda`. Keep plaintext credentials in a password manager or a local file restricted to its owner, outside the checkout.
+Keep credentials in a password manager or an owner-restricted file outside the checkout. Existing Basic Auth files may be retained for rollback but are no longer referenced by the active vhost.
 
 Install the TLS virtual host and [renewal hook](../deploy/nginx/renew-hook.sh) at `/etc/letsencrypt/renewal-hooks/deploy/veriflow-nginx` (mode 755). Always run `nginx -t` before reloading. Check `certbot.timer` and run `certbot renew --dry-run --run-deploy-hooks`. Retain the ACME location without authentication for renewals.
 
 For Cloudflare proxying, create a **Configuration Rule limited to hostname `veriflow.madacoda.dev` with SSL = Full (strict)**, or set this DNS record to DNS-only and point it to the VPS. The origin uses a public Let's Encrypt certificate. Do not change the entire zone to strict while other applications have HTTP-only origins. Browser-to-Cloudflare HTTPS alone does not encrypt the Cloudflare-to-origin connection. Keep the HTTP fallback at 503 until the HTTPS origin connection is verified, then enable the template's HTTP-to-HTTPS redirect. Flexible mode plus that redirect causes a loop.
 
-Validate unauthenticated requests to `/`, `/api/projects`, `/health` and `/_next/` return 401 over HTTPS, valid credentials reach the application, and a cross-origin POST returns 403. Verify port 1111 is bound only to loopback and other virtual hosts still respond. Nginx files and certificates are managed separately from application releases; CI does not overwrite other sites.
+Validate unauthenticated `/` redirects to `/login`, `/login` and its actual static assets return 200 without `WWW-Authenticate`, and protected APIs/evidence return 401. Verify valid application credentials issue a Secure, HttpOnly, SameSite=Lax cookie; session requests work; cross-origin writes return 403; and logout rejects replay of the old cookie. `/health` remains public liveness only. Verify port 1111 is bound only to loopback. Nginx files and certificates are managed separately from application releases; CI does not overwrite other sites.
 
-The included demo can be exercised by the server browser at `http://127.0.0.1:1111/demo?bug=1` (known fail) and `?bug=0` (known pass). These are server-side target URLs; do not put the public site's Basic Auth password in a workflow. Browser-origin allowlisting is not a network sandbox, so only trusted operators should receive access.
+The included demo can be exercised by the server browser at `http://127.0.0.1:1111/demo?bug=1` (known fail) and `?bug=0` (known pass). These public demo targets do not need product credentials. Browser-origin allowlisting is not a network sandbox, so only trusted operators should receive access.
 
 ## Application login
 
-Application login uses the shared-account [AUTH-1 / AUTH-UI contract](auth.md). Set server-only `AUTH_USERNAME`, `AUTH_PASSWORD` (literal password), and `AUTH_SESSION_SECRET` (at least 32 random characters). The local account is configured in ignored `apps/web/.env`; production secrets belong in `/opt/veriflow/app.env` with mode 600. Set `AUTH_ORIGIN=https://veriflow.madacoda.dev` behind Nginx. Production cookies default to Secure; never use the local HTTP test override `AUTH_COOKIE_SECURE=false` on the TLS deployment. Missing configuration fails closed. Logout revocations use the persistent data volume. Commit only placeholders and restart after changing credentials. Keep the current Nginx gate until a separately reviewed and verified cutover.
+Application login uses the shared-account [AUTH-1 / AUTH-UI contract](auth.md). Set server-only `AUTH_USERNAME`, `AUTH_PASSWORD` (literal password), and `AUTH_SESSION_SECRET` (at least 32 random characters). The local account is configured in ignored `apps/web/.env`; production secrets belong in `/opt/veriflow/app.env` with mode 600. Set `AUTH_ORIGIN=https://veriflow.madacoda.dev` and `AUTH_COOKIE_SECURE=true` behind Nginx. Never use the local HTTP test override on the TLS deployment. Missing configuration fails closed. Logout revocations use the persistent data volume. Commit only placeholders and recreate the container after changing its environment.
+
+For a configuration-only change, acquire `/opt/veriflow/.deploy.lock`, back up environment/proxy files with restricted permissions, and reuse the current release's Compose file and immutable image with `up -d --no-build --pull never --force-recreate --wait`. Preserve the named volume and release pointer. Verify direct application authentication before opening the proxy, then verify the public HTTPS flow. On failure restore the prior proxy first, then its environment/container. This does not require an image rebuild or a repeated full local test suite.
 
 ## First installation from a verified source commit
 
