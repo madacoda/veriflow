@@ -1,6 +1,6 @@
 # First journey: lead task board
 
-Dev 1 owns this board and the serial merge queue. The connected GitHub integration returned 403 for issue and PR creation; browser access was also unavailable. The user created and merged L0/P1/P2 PRs #1–3. Subsequent pushed branches and this board remain the handoff until their PRs are available. Review identities from actual comments are Dev 2 `monsieurafa` and Dev 3 `madacoda`; Dev 4's handle remains unconfirmed. No GitHub reviewer assignments have been invented. Devs 2–4 work separately, not as subagents in this checkout.
+Dev 1 owns this board and the serial merge queue. The GitHub connector returns 403 for writes; authenticated browser review and merge now work. The user merged L0/P1/P2/P3 as PRs #1–3 and #6. Dev 1 squash-merged B1 as PR #4 after lead and consumer approvals. Review identities are Dev 2 `monsieurafa`, Dev 3 `madacoda`, Dev 4 `Hyuto` (U1 PR #9) and lead `buckypinkman`. Devs 2–4 work separately, not as subagents in this checkout.
 
 The 10:00 WIB gate elapsed before L0 landed. Do not report it as achieved on time. L0 is now merged and consumers can bind to main `3c432f1`; keep the 14:00 known-fail/known-pass cutoff. The full MVP remains the scope in developer-handoff.md. These tasks cover the first journey only.
 
@@ -52,8 +52,8 @@ The 10:00 WIB gate elapsed before L0 landed. Do not report it as achieved on tim
 - Verification: complete merge gate and Linux/Windows CI on the latest head. See integration-guardrails.md for exact findings and tests.
 - Budget/checkpoint: first integration prerequisite; hold further merge admission while the inherited gate is red.
 - Out of scope: AI provider, browser implementation, UI and report rendering.
-- PR/current commit: [P3 comparison](https://github.com/madacoda/veriflow/compare/main...codex/p3-integration-guardrails?expand=1); branch HEAD is authoritative.
-- Status: review; full local gate passed with 59 unit tests and 2 browser checks. Linux/Windows CI on the pushed head and affected-consumer review are required before merge.
+- PR/current commit: [PR #6](https://github.com/madacoda/veriflow/pull/6), user merged as `eb02beb608d7e52422f17561d491800a9be3bbac`.
+- Status: verified; full local gate passed with 59 unit tests and 2 browser checks, affected-consumer findings were resolved, and [Linux/Windows main CI passed](https://github.com/madacoda/veriflow/actions/runs/42339119726).
 
 ## A1 — Dev 2; reviewer Dev 3
 
@@ -65,8 +65,8 @@ The 10:00 WIB gate elapsed before L0 landed. Do not report it as achieved on tim
 - Verification: deterministic provider/session fixtures for good draft, malformed output, invalid tool, max calls, cancellation and missing model configuration; include a separately labeled real-provider check when configured.
 - Budget/checkpoint: independent fake generation/tool test by the next checkpoint; target 45 minutes after L0. Real validated tool integration is the 12:30 WIB gate.
 - Out of scope: storage writes, Playwright imports, HTTP endpoints, observed pass/fail decisions, editing saved workflows.
-- PR/current commit: [PR #5](https://github.com/madacoda/veriflow/pull/5), head `5ad4563`, updated against main `84327a7`.
-- Status: review; owner reports 38 A1 tests and local full gate passing. Its push CI exposed the inherited platform timing test; P3 must land, then the owner updates and reruns the latest-head gate. A real provider adapter remains unverified/unwired.
+- PR/current commit: [PR #5](https://github.com/madacoda/veriflow/pull/5), reviewed head `62cea891fa06c106567b22366533a64dec0c917e` includes P3 `eb02beb`.
+- Status: review; Dev 1 approved after personally running the standard full gate (102 units and 2 browser tests). Latest-head Linux/Windows CI passed. Dev 3 peer review is requested. Update against B1 main `39bd03d` and rerun the combined gate before the next serial merge. Production provider transport remains unverified/unwired; fixtures are explicitly labeled.
 
 ## B1 — Dev 3; reviewer Dev 2; Dev 1 reviews cleanup/evidence
 
@@ -78,8 +78,8 @@ The 10:00 WIB gate elapsed before L0 landed. Do not report it as achieved on tim
 - Verification: own browser fixture for pass/fail/blocked, disallowed initial/redirect origin, cancellation, timeout, media ownership and no leaked browser/session resources; full gate before merge.
 - Budget/checkpoint: independent browser fixture within 45 minutes of L0; report precise unsupported capabilities rather than claim full template execution.
 - Out of scope: HTTP routes, AI generation, template definition ownership, report rendering, shared contract edits without agreement.
-- PR/current commit: [PR #4](https://github.com/madacoda/veriflow/pull/4), head `0e25307`, updated against main `84327a7`.
-- Status: review; independent real-browser fixtures and 17 browser tests reported passing. Owner reports inherited Windows platform-test failures, assigned to P3. Manifest exports/runtime wiring remain Dev 1 work after review.
+- PR/current commit: [PR #4](https://github.com/madacoda/veriflow/pull/4), reviewed head `afee170f6d452903bcba99f3cf88704efc26dc27`; squash-merged by Dev 1 as `39bd03ddc2ed5104738bf787b85588e1270033f7`.
+- Status: verified; Dev 1 and Dev 2 approved the same updated head after full gates (62 units, 18 browser tests). Exact test-ID round-trips and P3 credential-validation semantics are fixed. [Linux/Windows main CI passed](https://github.com/madacoda/veriflow/actions/runs/42340226085). Runtime wiring follows in I1-B.
 
 ## U1 — Dev 4; reviewer Dev 1
 
@@ -91,11 +91,24 @@ The 10:00 WIB gate elapsed before L0 landed. Do not report it as achieved on tim
 - Verification: screenshots of fixture states and target pass/fail; own dashboard browser tests; no broken controls. Later exports must use the same immutable snapshot.
 - Budget/checkpoint: confirm target IDs immediately; independent UI fixture by next checkpoint; target 45 minutes after L0.
 - Out of scope: platform persistence, HTTP/storage report adapters, AI prompts, browser execution, contract/manifests changes without Dev 1.
-- PR/current commit: Dev 4 supplies on review.
-- Status: planned; pure UI/demo work can begin immediately.
+- PR/current commit: [draft PR #9](https://github.com/madacoda/veriflow/pull/9), owner `Hyuto`; branch HEAD is authoritative.
+- Status: active; review the owner's completed acceptance evidence when ready. No U1 merge or full-journey verification is claimed here.
+
+## I1-B — Dev 1; reviewer Dev 3
+
+- Branch/base: `codex/i1-browser-composition`, B1 main `39bd03d`.
+- Outcome: production project/run routes use the reviewed real Chromium factory by default; explicit fixture mode stays labeled.
+- Allowed paths: manifests/lockfile, Next and TypeScript shared configuration, `apps/web/server/composition/**`, server environment example, `packages/runner/tests/platform-integration.spec.ts` and lead documents. Browser/AI/UI implementation remains with its owners.
+- Dependencies/version: merged P1/P2/P3/B1; shared contract version 1. AI provider, bounded-loop composition and U1 remain separate prerequisites for the complete I1 journey.
+- Acceptance: built Next routes save pinned revisions, execute real failed/passed assertions, retrieve registered run-owned PNGs, reject cross-project evidence and preserve the failed report after a later save and process restart. Fixture mode never fabricates evidence. Unknown adapter modes reject explicitly.
+- Verification: standard REVIEW.md gate; production-route tests launch isolated Next servers on OS-assigned ports with temporary storage. Browser assertions, not model output, determine outcomes. Test target is Dev 3's independent fixture.
+- Budget/checkpoint: finish browser composition while A1 peer review proceeds; reserve time for latest-main verification and owner review.
+- Out of scope: AI/provider implementation, UI/report rendering, additional browser capabilities, deployment release and full-MVP completion claims.
+- PR/current commit: branch HEAD is authoritative; PR follows verification.
+- Status: review; the standard full gate passes (62 units, 20 browser tests), including production-route pass/fail, PNG retrieval, isolation, restart and explicitly labeled fixture checks. Build emits a dynamic filesystem tracing warning in Dev 3's browser-policy.ts; the inspected route trace contains no runtime data or environment files. Latest-head CI and affected-owner review are required before merge.
 
 ## Merge queue and I1 release evidence
 
-L0/P1/P2 have landed. Current order: P3 review corrections → ready reviewed A1/B1/U1 serially → I1 composition. Independent demo/layout may merge earlier when it does not bind unreviewed contracts. Each owner fixes their own errors; shared-contract conflicts require affected owners. Main checks must complete on the resulting merge SHA before the next merge.
+L0/P1/P2/P3/B1 have landed and main CI is green at `39bd03d`. Current order: A1 updated-main gate and Dev 3 review → I1-B affected-owner review → ready U1 → remaining I1 composition. Independent demo/layout may merge earlier when it does not bind unreviewed contracts. Each owner fixes their own errors; shared-contract conflicts require affected owners. Main checks must complete on the resulting merge SHA before the next merge.
 
 I1 is not verified until a user reviews generated steps, saves a revision, executes against the buggy target with the real browser, sees an observed failure and registered screenshot, changes only the target bug mode, and reruns successfully with new run/evidence IDs. Record commits, exact commands, screenshots and any fake/unsupported capabilities. Green scaffold tests do not satisfy this gate.
