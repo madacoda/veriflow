@@ -4,6 +4,7 @@ import {
   entityIdSchema,
   generationRequestSchema,
   MAX_ATTACHMENT_BYTES,
+  textContextMediaTypes,
   type AttachmentReader,
   type ContextDocument,
   type ContextExtractor,
@@ -11,12 +12,7 @@ import {
 import { AgentError, checkCancellation } from "../agent/errors.ts";
 import { DEFAULT_TIMEOUT_MS, withBudget } from "../agent/budget.ts";
 
-const textTypes = new Set([
-  "text/plain",
-  "text/markdown",
-  "text/csv",
-  "application/json",
-]);
+const textTypes = new Set<string>(textContextMediaTypes);
 
 export const contextExtractor: ContextExtractor = {
   async extract(input, signal) {
