@@ -359,12 +359,11 @@ export function createFailureSummarizer(
             throw new AgentError("adapter_unavailable");
           const providerKind = provider.kind;
           const input = prepareFailureSummary(snapshot);
+          const providerInput = structuredClone(input);
+          checkActive();
           let output: unknown;
           try {
-            output = await provider.summarize(
-              structuredClone(input),
-              boundedSignal,
-            );
+            output = await provider.summarize(providerInput, boundedSignal);
           } catch {
             checkActive();
             throw new AgentError("provider_failed");

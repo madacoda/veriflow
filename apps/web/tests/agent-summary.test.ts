@@ -447,6 +447,37 @@ test("summary configuration and provider errors are explicit and safe with no fa
     );
 });
 
+for (const interruption of ["timeout", "cancelled"] as const) {
+  test(`summary input preparation cannot dispatch a provider after ${interruption}`, async (t) => {
+    const snapshot = report();
+    const controller = new AbortController();
+    let now = 0;
+    let calls = 0;
+    const clone = structuredClone;
+    t.mock.method(performance, "now", () => now);
+    t.mock.method(globalThis, "structuredClone", (value: unknown) => {
+      const result = clone(value);
+      if (interruption === "timeout") now = 100;
+      else controller.abort();
+      return result;
+    });
+    await assert.rejects(
+      createFailureSummarizer({
+        timeoutMs: 100,
+        provider: {
+          kind: "fixture",
+          async summarize() {
+            calls++;
+            return { analyses: [] };
+          },
+        },
+      }).summarize(snapshot, controller.signal),
+      code(interruption),
+    );
+    assert.equal(calls, 0);
+  });
+}
+
 test("cancellation and the total deadline bound noncooperative summary providers", async () => {
   let started!: () => void;
   let seenSignal: AbortSignal | undefined;
