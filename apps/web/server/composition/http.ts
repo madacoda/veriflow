@@ -88,6 +88,20 @@ function downloadResponse(file: {
   });
 }
 export function errorResponse(error: unknown) {
+  const inspectionIssues =
+    error instanceof AgentError && error.inspection
+      ? error.inspection.slice(0, 5).map((page, index) => {
+          const url = new URL(page.sourceUrl);
+          url.search = "";
+          url.hash = "";
+          url.username = "";
+          url.password = "";
+          return {
+            path: `pages.${index}`,
+            message: `${url.href}: ${page.status === "unavailable" ? `not inspected (${page.reason})` : page.accessSignals.length ? "access prerequisite observed; protected functionality untested" : "anonymous page snapshot; no test outcome"}`,
+          };
+        })
+      : undefined;
   if (error instanceof AgentError) {
     const safeMessage = new AgentError(error.code).message;
     switch (error.code) {
@@ -102,6 +116,7 @@ export function errorResponse(error: unknown) {
         break;
       case "validation_error":
       case "authentication_required":
+      case "authentication_form_unavailable":
       case "inspection_unavailable":
       case "guard_not_observed":
       case "context_mismatch":
@@ -121,6 +136,7 @@ export function errorResponse(error: unknown) {
     },
   };
   if (error instanceof ValidationError) body.error.issues = error.issues;
+  else if (inspectionIssues) body.error.issues = inspectionIssues;
   return Response.json(body, {
     status: known?.status ?? 500,
     headers: { "Cache-Control": "no-store" },

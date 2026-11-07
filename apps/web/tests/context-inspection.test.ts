@@ -7,12 +7,15 @@ import type {
   DraftGenerator,
   SessionFactory,
 } from "@veriflow/core";
+import { workflowSchema } from "@veriflow/core";
 import {
   PageInspector,
   inspectionUrls,
 } from "../server/context/inspect-pages.ts";
 import { BrowserAdmission } from "../server/runs/browser-admission.ts";
 import { createDraftGenerator } from "../server/agent/generate.ts";
+import { errorResponse } from "../server/composition/http.ts";
+import { AgentError } from "../server/agent/errors.ts";
 
 const observation = (): BrowserObservation => ({
   url: demoProject.url,
@@ -48,6 +51,24 @@ const request = {
   attachmentIds: [],
   templateIds: [],
 };
+
+test("inspection recovery messages identify uninspected pages without query values or invented outcomes", async () => {
+  const response = errorResponse(
+    new AgentError("inspection_unavailable", [
+      {
+        status: "unavailable",
+        sourceUrl: "https://example.test/shop?token=private",
+        capturedAt: new Date().toISOString(),
+        reason: "policy_rejected",
+      },
+    ]),
+  );
+  assert.equal(response.status, 422);
+  const text = await response.text();
+  assert.match(text, /https:\/\/example.test\/shop/);
+  assert.match(text, /not inspected \(policy_rejected\)/);
+  assert.doesNotMatch(text, /token|private/);
+});
 
 test("inspection validates all destinations before browser/model dispatch", () => {
   assert.deepEqual(inspectionUrls(demoProject, request), [demoProject.url]);
@@ -205,4 +226,80 @@ test("auth prerequisites, unavailable pages and absent guards stop provider disp
     /No access restriction/,
   );
   assert.equal(calls, 0);
+});
+
+test("explicit sign-in form intent is distinct from protected functionality and never embeds credential values", async () => {
+  const target = { by: "label" as const, value: "Password" };
+  const fake = fixture(async () => ({
+    ...observation(),
+    text: "Sign in",
+    scope: "dialog",
+    passwordFieldVisible: true,
+    targets: [target],
+  }));
+  const pageContext = await new PageInspector(
+    fake.factory,
+    new BrowserAdmission(),
+  ).inspect(demoProject, [demoProject.url], new AbortController().signal);
+  let output = workflowSchema.parse({
+    schemaVersion: "1",
+    id: "signin-form",
+    name: "Password form is visible",
+    steps: [
+      { id: "open", code: "redirect", url: demoProject.url },
+      {
+        id: "password",
+        code: "assert",
+        target,
+        expectation: { kind: "visible", value: true },
+      },
+    ],
+  });
+  const generator = createDraftGenerator({
+    provider: { kind: "fixture", generate: async () => output },
+  });
+  const input = { project: demoProject, request, documents: [], pageContext };
+  await assert.rejects(
+    generator.generate(input, new AbortController().signal),
+    /access prerequisite/,
+  );
+  const authInput = {
+    ...input,
+    request: { ...request, accessMode: "authentication" as const },
+  };
+  const draft = await generator.generate(
+    authInput,
+    new AbortController().signal,
+  );
+  assert.match(draft.warnings.join(" "), /sign-in form only/);
+  output.steps.splice(1, 0, {
+    id: "input",
+    code: "fill",
+    target,
+    value: "synthetic-forbidden-value",
+    timeoutMs: 1000,
+  });
+  await assert.rejects(
+    generator.generate(authInput, new AbortController().signal),
+    /invalid workflow draft/,
+  );
+  output = {
+    ...output,
+    steps: output.steps.filter((step) => step.code !== "fill"),
+  };
+  const noForm = pageContext.map((page) =>
+    page.status === "observed"
+      ? {
+          ...page,
+          observation: { ...page.observation, passwordFieldVisible: false },
+        }
+      : page,
+  );
+  await assert.rejects(
+    generator.generate(
+      { ...authInput, pageContext: noForm },
+      new AbortController().signal,
+    ),
+    /No visible password form/,
+  );
 });

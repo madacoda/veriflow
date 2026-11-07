@@ -44,15 +44,30 @@ export function createDraftGenerator(
           const { project, request, documents, templates, pageContext } =
             prepareGenerationInput(input);
           if (pageContext?.some((page) => page.status === "unavailable"))
-            throw new AgentError("inspection_unavailable");
+            throw new AgentError("inspection_unavailable", pageContext);
           const guarded = pageContext?.some(
             (page) =>
               page.status === "observed" && page.accessSignals.length > 0,
           );
-          if (guarded && request.accessMode !== "guard")
-            throw new AgentError("authentication_required");
+          if (
+            guarded &&
+            (!request.accessMode || request.accessMode === "functionality")
+          )
+            throw new AgentError("authentication_required", pageContext);
           if (pageContext && request.accessMode === "guard" && !guarded)
-            throw new AgentError("guard_not_observed");
+            throw new AgentError("guard_not_observed", pageContext);
+          if (
+            request.accessMode === "authentication" &&
+            !pageContext?.some(
+              (page) =>
+                page.status === "observed" &&
+                page.observation.passwordFieldVisible,
+            )
+          )
+            throw new AgentError(
+              "authentication_form_unavailable",
+              pageContext,
+            );
           const requirementsSelected = templates.some(
             (template) => template.category === "compliance",
           );
@@ -84,6 +99,20 @@ export function createDraftGenerator(
               throw new AgentError("invalid_provider_output");
             const decoded: unknown = JSON.parse(serialized);
             const workflow = workflowSchema.parse(decoded);
+            if (
+              request.accessMode === "authentication" &&
+              workflow.steps.some((step) => step.code === "fill")
+            )
+              throw new AgentError("invalid_provider_output");
+            if (
+              request.accessMode === "guard" &&
+              workflow.steps.some((step) =>
+                ["fill", "fillSecret", "click", "check", "uncheck"].includes(
+                  step.code,
+                ),
+              )
+            )
+              throw new AgentError("invalid_provider_output");
             const checks = new Set([
               "assert",
               "assertHttp",
@@ -130,6 +159,13 @@ export function createDraftGenerator(
                     !page.observation.targets.some((target) =>
                       isDeepStrictEqual(target, step.target),
                     ))
+                )
+                  throw new AgentError("invalid_provider_output");
+                if (
+                  request.accessMode === "authentication" &&
+                  "target" in step &&
+                  step.target &&
+                  !page?.observation.passwordFieldVisible
                 )
                   throw new AgentError("invalid_provider_output");
               }
@@ -182,6 +218,11 @@ export function createDraftGenerator(
                 ...(request.accessMode === "guard"
                   ? [
                       "This draft checks access restrictions only; it does not test the protected feature.",
+                    ]
+                  : []),
+                ...(request.accessMode === "authentication"
+                  ? [
+                      "This draft tests the observed sign-in form only. No authenticated session or protected feature was verified. Review and configure every fillSecret binding before running; credentials are never included in generation context.",
                     ]
                   : []),
                 ...(request.baseWorkflow

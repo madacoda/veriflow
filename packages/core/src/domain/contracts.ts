@@ -90,7 +90,7 @@ export const generationRequestSchema = z.strictObject({
   templateIds: z.array(entityIdSchema).max(20).default([]),
   /** Explicit additions to project.url; composition enforces five distinct same-origin URLs total. */
   pageUrls: z.array(httpUrlSchema).max(5).optional(),
-  accessMode: z.enum(["functionality", "guard"]).optional(),
+  accessMode: z.enum(["functionality", "guard", "authentication"]).optional(),
   /** Untrusted, read-only input; returned drafts never save over this source. */
   baseWorkflow: workflowSchema
     .refine(

@@ -1,4 +1,8 @@
+import type { PageInspection } from "@veriflow/core";
+
 const messages = {
+  authentication_form_unavailable:
+    "No visible password form was observed in the inspected page content. Open the sign-in page explicitly before generating sign-in form checks. No authenticated session was created.",
   authentication_required:
     "A selected page shows an access prerequisite in its main content or dialog. Functionality has not been tested. Configure a reviewed sign-in workflow using secret references, or choose Check access restrictions to test the guard itself.",
   inspection_unavailable:
@@ -28,7 +32,10 @@ const messages = {
 
 /** Only fixed messages cross the server boundary; never expose adapter errors. */
 export class AgentError extends Error {
-  constructor(public readonly code: keyof typeof messages) {
+  constructor(
+    public readonly code: keyof typeof messages,
+    public readonly inspection?: readonly PageInspection[],
+  ) {
     super(messages[code]);
     this.name = "AgentError";
   }

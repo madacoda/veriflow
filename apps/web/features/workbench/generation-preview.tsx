@@ -92,7 +92,9 @@ export function GenerationPreview({
       templateIds: form.getAll("template").filter(Boolean),
       attachmentIds: form.getAll("attachment"),
       ...(pageUrls.length ? { pageUrls } : {}),
-      ...(form.get("accessMode") === "guard" ? { accessMode: "guard" } : {}),
+      ...(form.get("accessMode") !== "functionality"
+        ? { accessMode: form.get("accessMode") }
+        : {}),
       ...(form.get("regenerate") && currentWorkflow
         ? { baseWorkflow: currentWorkflow }
         : {}),
@@ -220,10 +222,14 @@ export function GenerationPreview({
             >
               <option value="functionality">Test page functionality</option>
               <option value="guard">Check access restrictions</option>
+              <option value="authentication">Test the sign-in form</option>
             </NativeSelect>
             <p>
               Checking a sign-in guard does not verify the protected feature. An
               anonymous snapshot does not prove whether a user is authorized.
+              Sign-in form checks use saved secret references; configure them
+              before running. Do not paste credentials into the objective or
+              attachments.
             </p>
             {currentWorkflow && (
               <label className={styles.row}>

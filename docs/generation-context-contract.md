@@ -44,6 +44,18 @@ Output format preferences, XLSX/PDF renderers and video capture are separate fol
 
 ## Intent and password-field clarification
 
+The lead additionally approved `authentication`, labelled “Test the sign-in form”. It requires an observed password form and allows drafting form checks, not assuming an authenticated session. Input steps use reviewed `fillSecret` references rather than literal credentials; every binding must be configured before execution. An account-required notice without a form remains an unmet prerequisite for this mode.
+
 `accessMode` is optional and defaults behaviorally to `functionality`. `guard` is an explicit user selection labelled “Check access restrictions”. It never decides an outcome: a guard observation cannot count as protected-feature success, and no observed guard cannot silently become a functionality pass. Functionality generation with an observed access prerequisite stops with actionable copy; unavailable inspection stops without inventing targets.
 
 Optional `passwordFieldVisible` describes visible password inputs only within the chosen scope. Values are never read. Absence means not inspected; false does not establish that authentication is unnecessary. Credentials and secret bindings are outside observation DTOs.
+
+## Verification and current limits
+
+The opt-in `apps/web/tests/agent-grounded-live.test.ts` uses the configured real OpenAI provider and a synthetic local target. It inspects the target, generates and regenerates a draft, executes a known-pass run with PNG evidence, then proves a deliberately wrong expectation fails as an assertion. Run it with `VERIFLOW_VERIFY_OPENAI=1`; it is skipped in ordinary CI and never prints provider credentials. This is fixture evidence, not proof that an arbitrary external site works.
+
+Browser and UI fixtures verify exact role/name targets, duplicate-target rejection, main/dialog scoping, zero inspection artifacts, shared admission, cancellation, preservation of unsaved edits and explicit replacement. Regeneration allocates a new workflow identity and keeps existing assertion steps unchanged.
+
+A page snapshot cannot discover controls behind interactions, authenticate a session, cover all role permissions or establish security/compliance certification. Additional pages must be supplied explicitly. Existing origin and network restrictions remain enforced; a rejected dependency is not a failed functional assertion. On 7 November 2026, read-only inspection of the supplied Pixelogic Battle/Arena/Shop URLs was rejected by the existing browser policy. No game credentials or mutating actions were used. The UI must report these as uninspected and must not fabricate controls.
+
+The existing generator template picker still supports the exact-total and supplied-requirement definitions. Other supported step types can be requested in the objective and reviewed in the editor, but the broader executable template catalog has separate parameter bindings. Dropdown selection, file upload, popups and iframe workflows are not implemented by this change. Report formats and recording preferences remain independent from mandatory browser assertions.
