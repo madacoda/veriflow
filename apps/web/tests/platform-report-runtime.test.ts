@@ -50,7 +50,7 @@ test("runtime PDF export downloads the pinned report and preserves CSV and JSON"
   assert.equal(response.headers.get("x-content-type-options"), "nosniff");
   assert.equal(
     response.headers.get("content-disposition"),
-    `attachment; filename="veriflow-${run.id}.pdf"`,
+    `attachment; filename="veriflow-${run.id}.pdf"; filename*=UTF-8''veriflow-${run.id}.pdf`,
   );
   const bytes = new Uint8Array(await response.arrayBuffer());
   assert.match(new TextDecoder().decode(bytes.slice(0, 8)), /^%PDF-1\./);

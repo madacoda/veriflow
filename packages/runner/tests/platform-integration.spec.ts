@@ -289,7 +289,7 @@ test("production browser routes persist observed fail/pass and serve registered 
     expect(pdf.status).toBe(200);
     expect(pdf.headers.get("Content-Type")).toBe("application/pdf");
     expect(pdf.headers.get("Content-Disposition")).toBe(
-      `attachment; filename="veriflow-${runs[0]}.pdf"`,
+      `attachment; filename="veriflow-${runs[0]}.pdf"; filename*=UTF-8''veriflow-${runs[0]}.pdf`,
     );
     expect(pdf.headers.get("Cache-Control")).toBe("no-store");
     const pdfBytes = Buffer.from(await pdf.arrayBuffer());
