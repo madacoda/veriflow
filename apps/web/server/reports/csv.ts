@@ -2,6 +2,10 @@ import type { ReportRenderer, ReportSnapshot } from "@veriflow/core";
 
 const columns = [
   "record_type",
+  "requirement_id",
+  "requirement",
+  "requirement_source",
+  "viewport",
   "project_id",
   "project_title",
   "workflow_id",
@@ -48,6 +52,9 @@ export function renderCsv(
 ): Awaited<ReturnType<ReportRenderer["render"]>> {
   const { project, workflow, run } = snapshot;
   const common: Row = {
+    viewport: run.viewport
+      ? `${run.viewport.width}x${run.viewport.height}`
+      : "1280x720",
     project_id: project.id,
     project_title: project.title,
     workflow_id: workflow.workflow.id,
@@ -71,6 +78,9 @@ export function renderCsv(
   for (const step of run.steps) {
     rows.push({
       record_type: "step",
+      requirement_id: step.requirement?.id,
+      requirement: step.requirement?.text,
+      requirement_source: step.requirement?.source,
       step_id: step.stepId,
       status: step.status,
       failure_kind: step.failureKind,

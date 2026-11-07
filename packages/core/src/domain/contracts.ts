@@ -217,6 +217,7 @@ export interface RunRecord {
   projectId: string;
   workflowId: string;
   revision: number;
+  viewport?: { width: number; height: number };
   adapter: "browser" | "fake" | "unavailable";
   lifecycle: RunLifecycle;
   outcome: RunOutcome | null;

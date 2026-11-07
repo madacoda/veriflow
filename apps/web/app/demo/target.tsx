@@ -49,7 +49,9 @@ export function DemoTarget({ buggy }: { buggy: boolean }) {
                 <button data-testid="apply-coupon" type="submit">
                   Apply coupon
                 </button>
-                <p role="status">{message}</p>
+                <p role="status" data-testid="validation-error">
+                  {message}
+                </p>
               </div>
               <dl className={styles.total}>
                 <dt>Order total</dt>

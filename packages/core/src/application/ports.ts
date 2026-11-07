@@ -1,7 +1,14 @@
 import type { Command } from "./translate-workflow.ts";
-import type { Evidence, Evaluation, QaCategory } from "../domain/results.ts";
+import type {
+  Evidence,
+  Evaluation,
+  QaCategory,
+  Finding,
+} from "../domain/results.ts";
 
 export type StepResult = {
+  findings?: readonly Finding[];
+  requirement?: { id: string; text: string; source?: string };
   expected?: string;
   actual?: string;
   startedAt?: string;

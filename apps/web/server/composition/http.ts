@@ -1,3 +1,6 @@
+import { randomUUID } from "node:crypto";
+import { buildTemplate, templateOptions } from "../templates/coverage.ts";
+import { z } from "zod";
 import { readFile } from "node:fs/promises";
 import {
   createProjectSchema,
@@ -123,6 +126,49 @@ export class PlatformHttp {
     return this.respond(async () => ({
       project: await this.store.getProject(projectId),
     }));
+  }
+  templatesGET(projectId: string) {
+    return this.respond(async () => ({
+      templates: templateOptions((await this.store.getProject(projectId)).url),
+    }));
+  }
+  templatesPOST(request: Request, projectId: string) {
+    return this.respond(async () => {
+      const project = await this.store.getProject(projectId);
+      const body = validate(
+        z.strictObject({
+          templateId: z.string().min(1),
+          parameters: z.unknown(),
+        }),
+        await json(request),
+      );
+      let workflow;
+      try {
+        workflow = buildTemplate(
+          body.templateId,
+          body.parameters,
+          randomUUID(),
+        );
+      } catch {
+        throw new PlatformError(
+          "validation_error",
+          422,
+          "Template parameters are invalid. Use the template parameter schema.",
+        );
+      }
+      for (const step of workflow.steps) {
+        if (
+          (step.code === "redirect" || step.code === "assertHttp") &&
+          !project.allowedOrigins.includes(new URL(step.url).origin)
+        )
+          throw new PlatformError(
+            "validation_error",
+            422,
+            "Template navigation must stay within the project origins",
+          );
+      }
+      return { workflow };
+    });
   }
   workflowsGET(projectId: string) {
     return this.respond(async () => ({

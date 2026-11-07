@@ -11,7 +11,8 @@ import { AgentError } from "../server/agent/errors.ts";
 
 test("catalog begins with shared versioned functional fixture and explicit prerequisites/capabilities", () => {
   const templates = listTemplates();
-  assert.equal(templates.length, 1);
+  assert.equal(templates.length, 10);
+  assert.equal(new Set(templates.map((t) => t.category)).size, 6);
   assert.deepEqual(templateDefinitionSchema.parse(templates[0]), demoTemplate);
   assert.equal(templates[0].category, "functional");
   assert.equal(templates[0].version, "1.0.0");

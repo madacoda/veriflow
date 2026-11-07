@@ -1,3 +1,4 @@
+import { coverageTemplates } from "./coverage.ts";
 import {
   templateDefinitionSchema,
   workflowSchema,
@@ -8,7 +9,9 @@ import { AgentError } from "../agent/errors.ts";
 
 /** Snapshots prevent callers from mutating the shared fixture or catalog. */
 export function listTemplates(): TemplateDefinition[] {
-  return [templateDefinitionSchema.parse(structuredClone(demoTemplate))];
+  return [demoTemplate, ...coverageTemplates.map((t) => t.definition)].map(
+    (t) => templateDefinitionSchema.parse(structuredClone(t)),
+  );
 }
 
 export function resolveTemplates(ids: readonly string[]): TemplateDefinition[] {

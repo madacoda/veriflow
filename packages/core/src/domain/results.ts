@@ -1,4 +1,11 @@
-export type QaCategory = "functionality" | "security" | "accessibility";
+export type QaCategory =
+  | "functionality"
+  | "functional"
+  | "responsive"
+  | "security"
+  | "compliance"
+  | "accessibility"
+  | "regression";
 export interface Evidence {
   id: string;
   runId: string;

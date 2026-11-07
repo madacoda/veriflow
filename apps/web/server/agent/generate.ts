@@ -115,7 +115,7 @@ export function createDraftGenerator(
             if (
               workflow.steps.some(
                 (step) =>
-                  step.code === "redirect" &&
+                  (step.code === "redirect" || step.code === "assertHttp") &&
                   (!httpUrlSchema.safeParse(step.url).success ||
                     !project.allowedOrigins.includes(new URL(step.url).origin)),
               )

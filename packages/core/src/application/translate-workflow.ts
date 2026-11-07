@@ -16,6 +16,25 @@ export type Command = CommandMetadata &
         target: Target;
         expectation: Extract<WorkflowStep, { code: "assert" }>["expectation"];
       }
+    | {
+        [
+          C in
+            | "viewport"
+            | "assertLayout"
+            | "accessibility"
+            | "assertHttp"
+            | "fillSecret"
+            | "assertRequirement"
+        ]: Omit<Extract<WorkflowStep, { code: C }>, "id" | "code"> & {
+          action: C;
+        };
+      }[
+        | "viewport"
+        | "assertLayout"
+        | "accessibility"
+        | "assertHttp"
+        | "fillSecret"
+        | "assertRequirement"]
   );
 export interface ExecutionPlan {
   workflowId: string;
@@ -61,6 +80,15 @@ export function translateWorkflow(input: unknown): ExecutionPlan {
         };
       case "click":
         return { ...metadata, action: "click", target: step.target };
+      case "viewport":
+      case "assertLayout":
+      case "accessibility":
+      case "assertHttp":
+      case "fillSecret":
+      case "assertRequirement": {
+        const { id, code, ...parameters } = step;
+        return { ...parameters, stepId: id, action: code } as Command;
+      }
       default: {
         const unsupported: never = step;
         throw new Error("Unsupported workflow step: " + String(unsupported));

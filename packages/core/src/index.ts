@@ -1,4 +1,11 @@
-export { workflowSchema, stepSchema } from "./domain/workflow.ts";
+export {
+  workflowSchema,
+  stepSchema,
+  targetSchema,
+  expectationSchema,
+  testingCategories,
+  viewportSchema,
+} from "./domain/workflow.ts";
 export type { Workflow, WorkflowStep, Target } from "./domain/workflow.ts";
 export { translateWorkflow } from "./application/translate-workflow.ts";
 export type {
