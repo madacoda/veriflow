@@ -1,6 +1,8 @@
 # First journey: lead task board
 
-Dev 1 owns this board and the serial merge queue. The GitHub connector returns 403 for writes; authenticated browser review and merge now work. The user merged L0/P1/P2/P3 as PRs #1–3 and #6. Dev 1 squash-merged B1 as PR #4 after lead and consumer approvals. Review identities are Dev 2 `monsieurafa`, Dev 3 `madacoda`, Dev 4 `Hyuto` (U1 PR #9) and lead `buckypinkman`. Devs 2–4 work separately, not as subagents in this checkout.
+Dev 1 owns this board and the serial merge queue. The user explicitly reassigned this session to Dev 1 on 2026-11-07; the active GitHub/commit identity is `madacoda` / `me@madacoda.dev`. Earlier records retain their historical authors. Dev 2 is `monsieurafa`, Dev 4 is `Hyuto`, and Dev 3 owns browser/evidence implementation. Implementation sessions use separate checkouts; independent review agents may inspect the lead checkout without editing it. GitHub REST review/merge access works with the authenticated lead account.
+
+Verified lead queue: #5 → #10 → #9 → #11 → #12 → #8 were reviewed, updated and squash-merged serially, with successful main CI between merges. Main `8df3fef016382717feaac85b1d983b6bdf072c25` passed [Linux/Windows/container CI and GHCR publication](https://github.com/madacoda/veriflow/actions/runs/42343422152). Duplicate deployment PR #7 is closed without merging or deleting its branch. Follow-ups #14 (draft/report UI) and #13 (HTTPS/runtime limits) retain their own latest-head gates; their GitHub PRs are the live status records.
 
 The 10:00 WIB gate elapsed before L0 landed. Do not report it as achieved on time. L0 is now merged and consumers can bind to main `3c432f1`; keep the 14:00 known-fail/known-pass cutoff. The full MVP remains the scope in developer-handoff.md. These tasks cover the first journey only.
 
@@ -28,7 +30,7 @@ The 10:00 WIB gate elapsed before L0 landed. Do not report it as achieved on tim
 - Budget/checkpoint: first reviewable platform slice within 60 minutes after contracts; send an exact blocker if real adapter composition cannot begin. Reserve 40% for integration/review.
 - Out of scope: AI loop, Playwright implementation, UI/report rendering, authentication or distributed workers.
 - PR/current commit: [PR #2](https://github.com/madacoda/veriflow/pull/2), merged by the user as `aec5515`.
-- Status: merged; subsequent Dev 2/3 reviews identified the capacity, cancellation and timing/portability corrections assigned to P3. No real adapter is integrated yet.
+- Status: merged; P3 resolved the subsequent lifecycle/portability findings. The real browser adapter is now integrated through I1-B (#10).
 
 ## P2 — Dev 1; reviewer Dev 4; affected review Dev 2
 
@@ -65,8 +67,8 @@ The 10:00 WIB gate elapsed before L0 landed. Do not report it as achieved on tim
 - Verification: deterministic provider/session fixtures for good draft, malformed output, invalid tool, max calls, cancellation and missing model configuration; include a separately labeled real-provider check when configured.
 - Budget/checkpoint: independent fake generation/tool test by the next checkpoint; target 45 minutes after L0. Real validated tool integration is the 12:30 WIB gate.
 - Out of scope: storage writes, Playwright imports, HTTP endpoints, observed pass/fail decisions, editing saved workflows.
-- PR/current commit: [PR #5](https://github.com/madacoda/veriflow/pull/5), reviewed head `62cea891fa06c106567b22366533a64dec0c917e` includes P3 `eb02beb`.
-- Status: review; Dev 1 approved after personally running the standard full gate (102 units and 2 browser tests). Latest-head Linux/Windows CI passed. Dev 3 peer review is requested. Update against B1 main `39bd03d` and rerun the combined gate before the next serial merge. Production provider transport remains unverified/unwired; fixtures are explicitly labeled.
+- PR/current commit: [PR #5](https://github.com/madacoda/veriflow/pull/5), reviewed head `5728daddfb71c520790bb9c491c55881eb4b4394`, merged as `8d11c70786dd6b5c69f63a8618e918597a9464c2`.
+- Status: verified; full local gate, independent AI review, latest-head and main CI passed. Follow-up provider PR #12 merged as `3ac293bf8b75edc3cdff2360527bc06eef001599`. Its revised Chat Completions transport has deterministic HTTP fixture coverage; historical Responses live checks do not verify that transport. AI HTTP/agent composition remains separate integration work.
 
 ## B1 — Dev 3; reviewer Dev 2; Dev 1 reviews cleanup/evidence
 
@@ -91,8 +93,8 @@ The 10:00 WIB gate elapsed before L0 landed. Do not report it as achieved on tim
 - Verification: screenshots of fixture states and target pass/fail; own dashboard browser tests; no broken controls. Later exports must use the same immutable snapshot.
 - Budget/checkpoint: confirm target IDs immediately; independent UI fixture by next checkpoint; target 45 minutes after L0.
 - Out of scope: platform persistence, HTTP/storage report adapters, AI prompts, browser execution, contract/manifests changes without Dev 1.
-- PR/current commit: [draft PR #9](https://github.com/madacoda/veriflow/pull/9), owner `Hyuto`; branch HEAD is authoritative.
-- Status: active; review the owner's completed acceptance evidence when ready. No U1 merge or full-journey verification is claimed here.
+- PR/current commit: [PR #9](https://github.com/madacoda/veriflow/pull/9), owner `Hyuto`, merged as `a5047f6197a8a16c22a7608323382eda3354a004`.
+- Status: verified; the actual UI saves revisions, executes the known-fail/known-pass target, retrieves owned PNGs and preserves the earlier failed report. Main CI passed. Attachment UI and the pure CSV renderer followed in #11 (`d8701bc76f6ac6a44e87117f3211d81a176fb889`); extraction and renderer composition remain separate tasks.
 
 ## I1-B — Dev 1; reviewer Dev 3
 
@@ -104,11 +106,38 @@ The 10:00 WIB gate elapsed before L0 landed. Do not report it as achieved on tim
 - Verification: standard REVIEW.md gate; production-route tests launch isolated Next servers on OS-assigned ports with temporary storage. Browser assertions, not model output, determine outcomes. Test target is Dev 3's independent fixture.
 - Budget/checkpoint: finish browser composition while A1 peer review proceeds; reserve time for latest-main verification and owner review.
 - Out of scope: AI/provider implementation, UI/report rendering, additional browser capabilities, deployment release and full-MVP completion claims.
-- PR/current commit: branch HEAD is authoritative; PR follows verification.
-- Status: review; the standard full gate passes (62 units, 20 browser tests), including production-route pass/fail, PNG retrieval, isolation, restart and explicitly labeled fixture checks. Build emits a dynamic filesystem tracing warning in Dev 3's browser-policy.ts; the inspected route trace contains no runtime data or environment files. Latest-head CI and affected-owner review are required before merge.
+- PR/current commit: [PR #10](https://github.com/madacoda/veriflow/pull/10), reviewed head `796ac3d239931c5636851403fe0a9bfa3b9b83d5`, merged as `53d4b34eaafaf7cc8148f3679649c0e56ace8608`.
+- Status: verified; full gate, affected review and main CI passed. Production HTTP pass/fail, PNG ownership, isolation, restart and labeled fixtures are covered. #8 additionally verifies the packaged standalone application through those HTTP boundaries before publication.
 
 ## Merge queue and I1 release evidence
 
-L0/P1/P2/P3/B1 have landed and main CI is green at `39bd03d`. Current order: A1 updated-main gate and Dev 3 review → I1-B affected-owner review → ready U1 → remaining I1 composition. Independent demo/layout may merge earlier when it does not bind unreviewed contracts. Each owner fixes their own errors; shared-contract conflicts require affected owners. Main checks must complete on the resulting merge SHA before the next merge.
+L0/P1/P2/P3/A1/B1/U1/I1-B and the follow-ups above have landed. The current main/release evidence is at the top of this board. Each owner fixes their own errors; shared-contract conflicts require affected owners. Main checks must complete on the resulting merge SHA before the next merge.
 
 I1 is not verified until a user reviews generated steps, saves a revision, executes against the buggy target with the real browser, sees an observed failure and registered screenshot, changes only the target bug mode, and reruns successfully with new run/evidence IDs. Record commits, exact commands, screenshots and any fake/unsupported capabilities. Green scaffold tests do not satisfy this gate.
+
+## AUTH-1 — Dev 1; reviewers Dev 3 and Dev 4
+
+- User request: application password login, explicitly delegated in the deployment chat on 2026-11-07. The current Nginx Basic Auth gate remains active until a separately verified cutover.
+- Branch/base: planned `feat/application-auth`, planning baseline main `8df3fef016382717feaac85b1d983b6bdf072c25`; record the exact updated main SHA when implementation starts. Use an isolated checkout.
+- Outcome: application login and session enforcement for the trusted team. Freeze the session/API contract with Dev 4 before UI implementation starts.
+- Allowed paths: `apps/web/server/auth/**`, auth API routes, shared route guards/composition, server-only configuration, auth/transport tests and lead-owned contract documentation. Dev 1 coordinates any shared schema or test-harness changes with affected owners.
+- Dependencies/version: current platform v1; authentication is an additional boundary, not a workflow version change. Define login/session/logout DTOs, error envelopes, safe return paths and session expiry semantics before dispatching AUTH-UI.
+- Acceptance: server-only password hash; no credentials in bundles, logs, workflows or evidence; Secure/HttpOnly/SameSite production session cookies with expiry and logout invalidation; bounded login attempts and generic errors; same-origin/CSRF protection; unauthenticated project/run/AI/attachment/evidence/report requests reject directly; missing configuration fails closed; return URLs stay local.
+- Verification: credential-free deterministic auth tests plus authenticated real browser fail/pass and evidence retrieval. Adapt CI and container smoke with explicit fixture authentication, preserving production guards. Review secret handling, session expiry/invalidation, origin checks and every protected route on the exact PR head.
+- Budget/checkpoint: contract review first, then a reviewable backend slice; reserve lead merge/release capacity. Report exact blockers at the contract and end-to-end checkpoints.
+- Out of scope: self-registration, OAuth, multi-tenant roles and removal of the Nginx gate.
+- PR/current commit: not yet opened; no application-auth implementation is claimed by this review task.
+- Status: planned and assigned to Dev 1; contract freeze is the next action.
+
+## AUTH-UI — Dev 4; reviewer Dev 1
+
+- Branch/base: planned `feat/application-login-ui`; base the exact reviewed AUTH-1 contract commit recorded at dispatch, in Dev 4's isolated checkout.
+- Outcome: accessible application login/logout screens using the frozen contract.
+- Allowed paths: `apps/web/app/login/**`, `apps/web/features/auth/**` and dedicated auth UI tests. Request an explicit integration slot for existing layout/workbench mounts; those remain with their current owner until coordinated.
+- Dependencies/version: AUTH-1 contract freeze. Do not invent or duplicate server session/security policy while waiting.
+- Acceptance: keyboard-accessible form, loading/invalid-password/rate-limit/unavailable states, safe local return navigation, logout confirmation and no secret persistence in localStorage, URLs, analytics or logs. Existing draft/run state must not leak between authenticated and unauthenticated views.
+- Verification: fixture UI tests against the frozen envelopes, followed by actual session-cookie login/logout and protected API/evidence checks after AUTH-1 integration. Include screenshots and exact commands in the PR.
+- Budget/checkpoint: UI work begins immediately after contract review; deliver a small independently reviewable PR before cutover testing.
+- Out of scope: password verification, cookie signing/session storage, auth route guards, deployment credentials and Nginx configuration.
+- PR/current commit: not yet opened; dispatch waits for the reviewed contract commit.
+- Status: planned for Dev 4; not yet authorized to edit shared integration paths.
