@@ -47,7 +47,7 @@ Only `AgentError.code` and its fixed `message` should cross an HTTP boundary. Do
 | `invalid_provider_output`, `provider_failed`, `invalid_tool_call`, `call_limit_exceeded`, `tool_failed`, `timeout` | `internal_error` with fixed public wording                        |
 | `cancelled`                                                                                                        | Coordinator cancellation lifecycle; HTTP mapping belongs to Dev 1 |
 
-No shared error union was changed. Transport adapters and provider configuration belong to the integration owner.
+No shared error union was changed. Dev 1 owns HTTP adapters and runtime provider configuration. The A2 provider transport is delegated to Dev 2; its reviewed-workflow input and configuration are documented in OPENAI.md.
 
 ## Verification and known contract corrections
 

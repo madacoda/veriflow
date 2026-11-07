@@ -1,61 +1,66 @@
 # A2: OpenAI provider for I1
 
-Owner: Dev 2. Reviewer: Dev 3. Dev 1 owns composition and serial merging.
-Branch: `codex/a2-openai-provider`. Original stacked base: A1 `5728daddfb71c520790bb9c491c55881eb4b4394`, including B1 main `39bd03ddc2ed5104738bf787b85588e1270033f7`.
+Owner: Dev 2. Reviewer: Dev 3. Dev 1 owns runtime composition, revision/session ownership and serial merging.
+Branch: `codex/a2-openai-provider`. Original stacked base: A1 `5728daddfb71c520790bb9c491c55881eb4b4394`. A1 merged as main `8d11c70786dd6b5c69f63a8618e918597a9464c2`; the final current-main base and head are recorded on PR #12.
 
-Outcome: real model generation and tool decisions use the existing A1 injection seams and shared v1 validation. Allowed paths remain agent/context/templates and their owned test files. No route, storage, browser, core, manifest or lockfile edits. The existing OpenAI SDK dependency is reused. This adapter does not make the full product journey available until Dev 1 wires it into the application.
+Outcome: real model generation and reviewed-workflow decisions use the existing A1 injection seams and shared v1 validation. This follows the [lead's A2 assignment](https://github.com/madacoda/veriflow/pull/5#issuecomment-6702566990). Changes stay in agent-owned paths and tests. The installed OpenAI SDK is reused; no route, storage, browser, core, manifest or lockfile edits are included.
 
 ## Composition
 
-Use trusted server configuration, never a request body or model output:
+Dev 1 loads trusted server configuration and supplies the saved revision. Neither request bodies nor model/page text may configure the provider or replace the reviewed workflow:
 
 ```ts
 const config = {
   apiKey: process.env.OPENAI_API_KEY,
+  baseURL: process.env.OPENAI_BASE_URL,
   model: process.env.OPENAI_MODEL,
 };
 const generator = createDraftGenerator({
   provider: createOpenAIDraftProvider(config),
 });
-const next = createOpenAIAgentTurn(config, generationInput);
+// project and savedRevision are loaded and pinned by the coordinator.
+// savedRevision uses the existing core StoredWorkflow shape.
+const next = createOpenAIAgentTurn(config, {
+  project,
+  reviewedWorkflow: savedRevision,
+});
 const result = await runAgentLoop({ next, tools: coordinatorSession }, signal);
 ```
 
-Both constructors require an explicit key and model. Missing configuration throws the fixed `adapter_unavailable` error. No environment variables or env files are read by the adapter itself. Keep keys server-side; do not put them in workflows, logs, GitHub test fixtures, or browser configuration. `fetch` is a trusted transport injection seam used by deterministic HTTP tests.
+Key and model are required; missing configuration throws fixed `adapter_unavailable`. No environment variable or env file is read by the adapter. An absent `baseURL` uses `https://api.openai.com/v1`, not the SDK's ambient environment setting. Explicit endpoints support HTTPS and loopback HTTP; credentials in URLs, query strings, fragments and remote cleartext endpoints reject. The endpoint must implement Chat Completions JSON mode, function calling and the documented request fields; incompatible endpoints fail safely without automatic transport/model fallback. A trusted `fetch` injection seam supports transport fixtures and must preserve signal/redirect behavior.
 
-The endpoint is fixed to `https://api.openai.com/v1`; ambient `OPENAI_BASE_URL` cannot redirect credentials. HTTP redirects and SDK logs are disabled. SDK retries are disabled so one provider turn makes at most one HTTP attempt. `store: false` disables stored responses; no cross-run conversation IDs or hidden conversation state are retained.
+The SDK has redirects, logging and retries disabled. Each turn makes at most one HTTP attempt; `store: false` is requested. No conversation IDs, hidden model state or browser sessions are retained. Keep credentials server-side, outside workflows, evidence and logs.
 
-## Validation and limits
+## Generation and reviewed execution
 
-Generation uses Responses structured outputs. Function decisions use `observe`, `execute` and an empty-argument `finish`, with parallel calls disabled. More than one returned function call is rejected. `finish` only stops the loop; it cannot supply a test outcome. The coordinator must not infer success from an empty step list or an absent assertion.
+Draft generation uses Chat Completions JSON mode with a workflow schema derived from the shared Zod definition in the fixed system instructions. JSON mode does not guarantee schema adherence: A1 still validates the complete output with `workflowSchema`, checks allowed origins and assigns trusted model provenance/source IDs. Generation returns an editable draft and never saves it. Refused, incomplete, empty, multiple-choice or malformed output rejects.
 
-Schemas are derived from the shared Zod schemas using the SDK helpers. The API projection removes schema annotations/defaults and the unsupported URI format; the original runtime schemas still enforce URL policy, step IDs, workflow validity and exact arguments. No separate workflow language or core contract is introduced. The provider is not trusted to follow prompts: A1 and browser validation remain authoritative.
+`createOpenAIAgentTurn` accepts `{ project, reviewedWorkflow: StoredWorkflow }`. It validates project ownership, positive revision, the full workflow and every navigation origin, then copies the snapshot. It receives no new objective or attachment input that could redefine saved steps. The coordinator must independently load/pin the correct reviewed revision and enforce its session policy; this adapter does not establish that a user approved a revision.
 
-The request contains the validated project, objective, source documents, resolved templates and (for tools) the observed history. These are user-message data; fixed instructions identify documents and browser content as untrusted. A request above 200,000 serialized input characters fails explicitly instead of silently dropping context. Image context remains unsupported.
+Tool decisions use `observe`, `execute` and empty-argument `finish` through Chat Completions function calling, with parallel calls disabled. All unknown arguments pass the shared `browserToolCallSchema`. An execute call must equal the next saved step after schema normalization, including ID, action, target, value, timeout, URL and expectation. Changed, skipped, repeated or extra steps reject before dispatch. Prior executed history must be a matching passed prefix. Input and history snapshots prevent later caller mutations from changing a pending request. Untrusted page text cannot authorize altered actions or assertions.
 
-Provider request timeout defaults to 30 seconds and is configurable within 1..120,000 milliseconds. The whole A1 loop retains its independent total deadline and call bound. Output is capped at 4,096 tokens by default, configurable within 256..8,192. Returned draft text/function arguments are capped at 200,000 characters. Caller cancellation reaches the HTTP transport. A noncooperative transport cannot allow later tool dispatch after the A1 deadline.
+`finish` is accepted only after all reviewed steps have passed browser results in the supplied history. It returns only a stop decision, never an outcome. A1 stops immediately on a failed or blocked result. The coordinator remains responsible for assertion sufficiency, per-step events, final status, evidence, cancellation and cleanup. A model finish or empty result must never imply success.
 
-HTTP/authentication/rate-limit/SDK failures expose only `provider_failed`; no raw error body, headers, stack from the SDK or cause is attached. Refused, incomplete, empty or malformed responses reject safely. Direct adapter calls may report `invalid_provider_output` or `invalid_tool_call`; A1's enclosing generator/loop maps thrown provider errors to the existing fixed `provider_failed` error. Missing prerequisites, PDF/DOCX/image handling and observed browser outcomes retain their existing ownership and behavior.
+Tool API schemas also derive from shared schemas. Unsupported URI-format/default annotations are removed only from API projections; strict local validation remains authoritative. Function strict mode is disabled for endpoint compatibility, so prompt/schema adherence is never assumed. All dispatch still goes through A1's shared translation path and injected AgentToolPort; this provider never imports Playwright.
+
+## Bounds and safe failures
+
+The serialized task plus copied history is limited to 200,000 characters; overflow fails rather than dropping context. History is additionally capped at A1's maximum of 100 calls. The fixed workflow schema/instructions are separate from this user-data limit. Image context, PDF and DOCX remain explicitly unsupported under A1.
+
+Each provider request defaults to 30 seconds, configurable within 1..120,000 ms. Output uses `max_completion_tokens`, default 4,096 and configurable within 256..8,192. Returned text/function arguments are capped at 200,000 characters. The enclosing A1 loop independently bounds total time and tool calls. Caller cancellation reaches HTTP; a late or noncooperative transport cannot dispatch a subsequent tool after the deadline.
+
+HTTP/authentication/rate-limit/SDK failures expose only fixed `provider_failed`; raw bodies, headers, SDK stacks and causes do not cross the adapter boundary. Invalid direct adapter output may use `invalid_provider_output` or `invalid_tool_call`; the enclosing A1 generator/loop maps thrown provider errors to fixed `provider_failed`. Browser observations retain outcome authority.
 
 ## Verification
 
-Default CI stays credential-free. `agent-openai.test.ts` uses explicit HTTP fixtures and covers valid drafts, source provenance, strict schemas, malformed/refused/incomplete output, invalid tools, origin policy, parallel-call rejection, call limits, failed assertion authority, cancellation, timeout, context limits, missing configuration and safe non-retried HTTP failures.
+Default CI is credential-free. `agent-openai.test.ts` uses injected HTTP fixtures for JSON generation/provenance, safe configuration and HTTP failures, malformed/refused/truncated output, unsupported inputs, cancellation/deadlines, tool validation, exact ordered saved-step enforcement, hostile observation text, call/input bounds and observed assertion authority.
 
-An opt-in live test verifies a real draft and a schema-valid first model tool decision. It does not execute a browser. Run it only with an authorized local key:
+The separately opt-in live test verifies real generation and a first valid decision against a reviewed workflow fixture; it does not save a revision or execute a browser:
 
 ```sh
 VERIFLOW_VERIFY_OPENAI=1 node --env-file=/absolute/path/to/ignored.env --import tsx --test apps/web/tests/agent-openai-live.test.ts
 ```
 
-This test uses `OPENAI_MODEL`, falling back to `gpt-4.1-mini` only within the opt-in test. Production has no model fallback. The full REVIEW.md gate is required before review. Live verification evidence and the actual PR head are recorded on the PR.
+It uses the official endpoint and `OPENAI_MODEL`, with `gpt-4.1-mini` only as the test's fallback. Production has no default model. The full REVIEW.md gate is required on the updated branch. Current commit, CI and separately labeled real-provider/browser evidence are recorded on [PR #12](https://github.com/madacoda/veriflow/pull/12). Prior Responses-based evidence is historical and does not verify this revised transport.
 
-Live checks on 7 November 2026 also used a separate external session-owning harness and Dev 3's real Chromium adapter/independent coupon target. One real generated four-step draft was executed against both bug modes, changing only the navigation query. Two additional runs used real model function decisions through `runAgentLoop` and the injected browser session:
-
-| Verification         | Buggy target                 | Fixed target                 | Evidence                       |
-| -------------------- | ---------------------------- | ---------------------------- | ------------------------------ |
-| Real generated draft | failed, actual `100000`      | passed, actual `90000`       | 4 valid run-owned PNGs per run |
-| Real model tool loop | failed after 6 browser calls | passed after 5 browser calls | 4 valid run-owned PNGs per run |
-
-The expected total remained `90000`; browser observations determined every result. The harness finalized and closed all sessions. It did not write to application storage or use the product UI. This is live adapter verification, not a claim that the HTTP/UI journey is integrated. Credentials and generated artifacts are not committed.
-
-Sources: [Structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=responses), [function calling](https://developers.openai.com/api/docs/guides/function-calling), [GPT-4.1 mini capabilities](https://developers.openai.com/api/docs/models/gpt-4.1-mini).
+Sources: [Chat Completions](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create), [JSON mode and Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=chat).

@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { browserToolCallSchema, workflowSchema } from "@veriflow/core";
-import { demoContext, demoProject } from "@veriflow/core/fixtures";
+import {
+  demoContext,
+  demoProject,
+  demoWorkflow,
+} from "@veriflow/core/fixtures";
 import {
   createDraftGenerator,
   createOpenAIDraftProvider,
@@ -45,7 +49,14 @@ test(
           step.expectation.value === "90000",
       ),
     );
-    const turn = (await createOpenAIAgentTurn(options, input)([], signal)) as {
+    const turn = (await createOpenAIAgentTurn(options, {
+      project: demoProject,
+      reviewedWorkflow: {
+        projectId: demoProject.id,
+        revision: 1,
+        workflow: demoWorkflow,
+      },
+    })([], signal)) as {
       kind: string;
       call: unknown;
     };
