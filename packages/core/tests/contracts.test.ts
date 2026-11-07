@@ -161,7 +161,7 @@ test("navigation rejects credentials and malformed URLs at every shared boundary
     );
   }
   for (const url of [
-    "http://127.0.0.1:3000/demo?bug=1",
+    "http://127.0.0.1:1111/demo?bug=1",
     "https://example.com/path?value=user%40example.com",
   ]) {
     const step = { id: "open", code: "redirect", url };
