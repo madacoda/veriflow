@@ -7,6 +7,8 @@ import {
   type RunCoordinatorOptions,
 } from "../runs/coordinator.ts";
 import { createFakeSessionFactory } from "../runs/fake-session.ts";
+import { BrowserAdmission } from "../runs/browser-admission.ts";
+import { PageInspector } from "../context/inspect-pages.ts";
 import { PlatformHttp, errorResponse } from "./http.ts";
 import { AttachmentStore } from "../attachments/store.ts";
 import { renderCsv } from "../reports/csv.ts";
@@ -30,13 +32,13 @@ export async function createPlatform(
 ) {
   const store = new PlatformStore(storageRoot);
   await store.recoverInterruptedRuns();
-  const coordinator = new RunCoordinator(
-    store,
-    factory,
-    adapter,
-    120000,
-    integrations.runOptions,
-  );
+  const admission =
+    integrations.runOptions?.admission ??
+    new BrowserAdmission(integrations.runOptions?.maxConcurrentRuns ?? 2);
+  const coordinator = new RunCoordinator(store, factory, adapter, 120000, {
+    ...integrations.runOptions,
+    admission,
+  });
   const attachments = new AttachmentStore(store);
   const reports = new ReportDownloads(store, integrations.reportRenderer);
   const generation = new DraftGeneration(
@@ -44,6 +46,9 @@ export async function createPlatform(
     attachments,
     integrations.draftProvider,
     integrations.generationTimeoutMs,
+    adapter === "browser" && factory
+      ? new PageInspector(factory, admission)
+      : undefined,
   );
   return {
     store,
