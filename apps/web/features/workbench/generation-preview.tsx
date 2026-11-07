@@ -13,7 +13,11 @@ import {
 } from "@veriflow/core";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { api, RequestError } from "./api";
-import { extractionLabels } from "./attachments";
+import {
+  extractionLabels,
+  canReadForGeneration,
+  generationSourceHelp,
+} from "./attachments";
 import styles from "./workbench.module.css";
 import { WorkflowSteps } from "./workflow-steps";
 
@@ -108,7 +112,7 @@ export function GenerationPreview({
           return {
             id,
             label: attachment
-              ? `${attachment.filename} · ${extractionLabels[attachment.extraction.status]}`
+              ? `${attachment.filename} · ${draft.provider === "model" ? "Text supplied to model" : "Fixture source reference"}`
               : id,
           };
         }),
@@ -148,6 +152,11 @@ export function GenerationPreview({
       >
         <h3 id="generation-preview-heading">Workflow generation</h3>
         <p>Generate a draft from the project objective and selected sources.</p>
+        <p>
+          Saved project descriptions and goals are included automatically.
+          Select the text attachments to use. Review the result before replacing
+          your current draft; generation does not save or run it.
+        </p>
         {!catalog && <p role="status">Loading templates.</p>}
         {catalog?.error && (
           <div className={styles.actions}>
@@ -192,10 +201,21 @@ export function GenerationPreview({
                 <p>Upload attachments to include source references.</p>
               ) : (
                 attachments.map((item) => (
-                  <label className={styles.row} key={item.id}>
-                    <Checkbox name="attachment" value={item.id} />
-                    {item.filename} · {extractionLabels[item.extraction.status]}
-                  </label>
+                  <div key={item.id}>
+                    <label className={styles.row}>
+                      <Checkbox
+                        name="attachment"
+                        value={item.id}
+                        disabled={!canReadForGeneration(item)}
+                        aria-describedby={`source-help-${item.id}`}
+                      />
+                      {item.filename} ·{" "}
+                      {extractionLabels[item.extraction.status]}
+                    </label>
+                    <p id={`source-help-${item.id}`}>
+                      {generationSourceHelp(item)}
+                    </p>
+                  </div>
                 ))
               )}
             </fieldset>

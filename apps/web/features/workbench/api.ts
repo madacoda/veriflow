@@ -82,8 +82,16 @@ const reportMediaTypes: Record<ReportFormat, string> = {
 export const api = {
   projects: (signal: AbortSignal) =>
     request<{ projects: ProjectRecord[] }>(projectsPath, { signal }),
-  createProject: (title: string, url: string) =>
-    request<{ project: ProjectRecord }>(projectsPath, post({ title, url })),
+  createProject: (
+    title: string,
+    url: string,
+    description = "",
+    goals: string[] = [],
+  ) =>
+    request<{ project: ProjectRecord }>(
+      projectsPath,
+      post({ title, url, description, goals }),
+    ),
   attachments: (projectId: string, signal: AbortSignal) =>
     request<{ attachments: AttachmentMetadata[] }>(attachmentsPath(projectId), {
       signal,

@@ -3,6 +3,7 @@
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 import { NativeSelect } from "../ui/native-select";
+import { Label } from "../ui/label";
 
 import {
   workflowSchema,
@@ -772,6 +773,8 @@ export function Workbench() {
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [projectId, setProjectId] = useState("");
   const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [goals, setGoals] = useState("");
   const [url, setUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadVersion, setLoadVersion] = useState(0);
@@ -807,10 +810,20 @@ export function Workbench() {
     setError("");
     setPending(true);
     try {
-      const { project } = await api.createProject(title, url);
+      const { project } = await api.createProject(
+        title,
+        url,
+        description,
+        goals
+          .split(/\r?\n/)
+          .map((goal) => goal.trim())
+          .filter(Boolean),
+      );
       setProjects((current) => [project, ...current]);
       setProjectId(project.id);
       setTitle("");
+      setDescription("");
+      setGoals("");
     } catch (error) {
       setError(message(error));
     } finally {
@@ -893,6 +906,41 @@ export function Workbench() {
                       </NativeSelect>
                     </label>
                   </div>
+                  <div className={styles.fields}>
+                    <div className={styles.field}>
+                      <Label htmlFor="project-description">
+                        Project description
+                      </Label>
+                      <Textarea
+                        id="project-description"
+                        rows={3}
+                        maxLength={20000}
+                        value={description}
+                        onChange={(event) =>
+                          setDescription(event.currentTarget.value)
+                        }
+                        placeholder="What the application does, who uses it, and important business rules."
+                      />
+                    </div>
+                    <div className={styles.field}>
+                      <Label htmlFor="project-goals">
+                        Project goals (one per line)
+                      </Label>
+                      <Textarea
+                        id="project-goals"
+                        rows={3}
+                        value={goals}
+                        onChange={(event) =>
+                          setGoals(event.currentTarget.value)
+                        }
+                        placeholder="Each goal should describe an observable expected result."
+                      />
+                    </div>
+                  </div>
+                  <p>
+                    Optional project context is included in every AI draft. Do
+                    not enter passwords or other secrets.
+                  </p>
                   <div className={styles.actions}>
                     <Button type="submit">Create project</Button>
                     <Button
@@ -909,6 +957,27 @@ export function Workbench() {
                   </div>
                 </fieldset>
               </form>
+              {project && (
+                <section
+                  className={styles.observation}
+                  aria-label="Saved project context"
+                >
+                  <h3>Context included in AI drafts</h3>
+                  <p>
+                    {project.description ||
+                      "No project description saved. Include business rules in the generation objective."}
+                  </p>
+                  {project.goals.length ? (
+                    <ul className={styles.compactList}>
+                      {project.goals.map((goal, index) => (
+                        <li key={index}>{goal}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p>No project goals saved.</p>
+                  )}
+                </section>
+              )}
               {loading && <p role="status">Loading projects.</p>}
               {error && (
                 <p className={styles.error} role="alert">

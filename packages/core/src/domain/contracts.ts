@@ -45,6 +45,13 @@ export const attachmentMediaTypes = [
   "image/png",
   "image/jpeg",
 ] as const;
+/** Formats whose bytes the draft context extractor can actually read. */
+export const textContextMediaTypes = [
+  "text/plain",
+  "text/markdown",
+  "text/csv",
+  "application/json",
+] as const;
 export const attachmentMetadataSchema = z.strictObject({
   id: entityIdSchema,
   projectId: entityIdSchema,
