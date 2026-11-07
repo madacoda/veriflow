@@ -4,7 +4,9 @@ One Next.js monolith runs on Node 24. Bun 1.4.4 installs the locked workspace du
 
 ## Release flow
 
-The existing CI check runs first. PRs additionally build the Linux amd64 image and verify UI/health, real non-root Chromium, a real PNG and project persistence across a container restart. Docker builds enable Next standalone output and include the exact lockfile-resolved Playwright browser distribution. A Linux build is authoritative; Windows builds leave standalone off to avoid symlink privilege requirements.
+The existing CI check runs first. PRs additionally build the Linux amd64 image and verify UI/health, real non-root Chromium and saved workflow execution through the production HTTP routes. The buggy coupon workflow must fail with expected 90000 and actual 100000; its corrected revision must pass with actual 90000. Both runs must expose owned PNGs, and their reports and evidence must survive a container restart. The smoke uses the same dropped capabilities and no-new-privileges setting as Compose.
+
+Docker builds enable Next standalone output. The packaging script copies the lockfile-resolved Playwright installer and completes the packages at the standalone server's resolved dependency locations, including dynamically loaded browser metadata omitted by static tracing. A Linux build is authoritative; Windows builds leave standalone off to avoid symlink privilege requirements.
 
 Only a successful push to `main` publishes `ghcr.io/madacoda/veriflow:sha-<commit>`. Publication pushes the exact image exercised by the container smoke test. VPS deployment uses its immutable `@sha256:...` digest. PRs never publish or connect to the VPS. Feature-branch pushes run the normal check; the PR runs the container check.
 
@@ -69,7 +71,7 @@ Each workflow attempt uploads a distinct release directory containing Compose an
 
 If the health gate fails, the script restores the previous release's Compose file and locally retained image digest, then reports a failed deployment. A failed first deployment removes its service without deleting the data volume. Registry credentials are cleaned up in both cases. Do not prune the previous image or remove the volume. Rollback restores code/configuration, not data; future incompatible schema migrations require a separate migration/backup policy.
 
-This is a single-container replacement with brief downtime, not a zero-downtime deployment. There is no run-draining interface yet: an active run can be interrupted and the existing coordinator marks it as an infrastructure error on recovery. Schedule releases between demo runs. Browser adapter composition and AI credentials must be integrated separately; a healthy container does not claim the complete MVP is wired.
+This is a single-container replacement with brief downtime, not a zero-downtime deployment. There is no run-draining interface yet: an active run can be interrupted and the existing coordinator marks it as an infrastructure error on recovery. Schedule releases between demo runs. The real browser adapter is composed by default. AI runtime integration and credentials remain separate work; a healthy container does not claim the complete MVP is wired.
 
 ## Validation
 
