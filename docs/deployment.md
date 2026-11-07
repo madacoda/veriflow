@@ -99,9 +99,9 @@ Validate unauthenticated requests to `/`, `/api/projects`, `/health` and `/_next
 
 The included demo can be exercised by the server browser at `http://127.0.0.1:1111/demo?bug=1` (known fail) and `?bug=0` (known pass). These are server-side target URLs; do not put the public site's Basic Auth password in a workflow. Browser-origin allowlisting is not a network sandbox, so only trusted operators should receive access.
 
-## Initial deployment before the lead merges
+## First installation from a verified source commit
 
-A one-time bootstrap may build the exact verified PR commit on the VPS while the lead reviews the deployment PR. Run `scripts/container-smoke.sh` against that image before starting production. Store its immutable local `sha256:...` image ID in the release's `image.ref`, alongside `compose.yaml`, and record the healthy release in `/opt/veriflow/current-release`. The first GHCR deployment can roll back to this local ID with `--pull never`; all new automated releases still require a GHCR registry digest. Do not prune the bootstrap image until a later healthy release is retained.
+A one-time bootstrap may build the exact verified source commit on the VPS while a release is being reviewed or published. Run `scripts/container-smoke.sh` against that image before starting production. Tag it under `ghcr.io/madacoda/veriflow`, inspect its locally available `RepoDigests`, and store the immutable `ghcr.io/madacoda/veriflow@sha256:...` reference in the release's `image.ref`, alongside `compose.yaml`. Verify that `docker image inspect` resolves this exact digest locally before recording the healthy release in `/opt/veriflow/current-release`. Tagging locally does not publish an image to GHCR. The first automated deployment can roll back to the retained local digest with `--pull never`. Do not prune the bootstrap image until a later healthy release is retained.
 
 Automatic publishing/deployment starts only after Dev 1 merges the PR into main. Runtime secrets and password hashes are server configuration and are never committed. Back up `veriflow-data` and `/opt/veriflow/app.env` before destructive maintenance; image rollback does not restore data. Off-host backups and product-level identity remain production follow-up work.
 
