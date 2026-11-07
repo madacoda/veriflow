@@ -66,6 +66,12 @@ jobs:
         env:
           IMAGE_TAG: ${{ steps.image.outputs.tag }}
         run: bash scripts/container-smoke.sh "$IMAGE_TAG"
+      - name: Verify Nginx access gate with isolated credentials
+        run: bash scripts/tests/nginx.test.sh
+      - name: Verify Compose accepts the retained local image ID
+        env:
+          IMAGE_TAG: ${{ steps.image.outputs.tag }}
+        run: bash scripts/tests/compose-image-id.test.sh "$IMAGE_TAG"
       - name: Check Compose configuration
         env:
           VERIFLOW_IMAGE: ${{ steps.image.outputs.tag }}
