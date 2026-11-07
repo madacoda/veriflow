@@ -1,6 +1,6 @@
 # L0: integration contracts v1
 
-Status: proposed for affected-consumer review. This freezes names and fixtures for independent work; it does not claim the APIs or adapters below are implemented. Reviewers: Dev 4 for API/result/report consumption, Dev 2 for context/tools/templates, Dev 3 for session/evidence behavior. Do not merge consumer PRs before L0 is reviewed and merged.
+Status: merged in [PR #1](https://github.com/madacoda/veriflow/pull/1), main commit `3c432f1`. The merged contracts are unchanged from reviewed head `36feb2d`. Names and fixtures are the v1 baseline for independent work; implementation status remains separate. Reviewers: Dev 4 for API/result/report consumption, Dev 2 for context/tools/templates, Dev 3 for session/evidence behavior. Subsequent contract changes require affected-consumer review.
 
 Import runtime schemas and DTOs from `@veriflow/core`; import clearly labeled, non-network fixtures from `@veriflow/core/fixtures`. `CONTRACT_VERSION` is `1`. Existing schemaVersion `1` workflows remain valid; `click` is additive. Label and test-ID targets remain exact. No CSS selectors, scripts, credentials, arbitrary filesystem paths or silently invented tools are accepted.
 
@@ -22,7 +22,7 @@ All endpoints are same-origin, Node runtime, JSON unless specified. IDs are opaq
 | POST `/api/projects/:projectId/runs/:runId/cancel`              | no body                                               | `{ run: RunRecord }`                                   |
 | GET `/api/projects/:projectId/runs/:runId/report`               | terminal run only                                     | `{ snapshot: ReportSnapshot }`                         |
 
-Deferred thin adapters, owned by Dev 1: multipart `POST .../attachments` with field `file`, `GET .../attachments`, generation `POST .../workflows/generate` with `generationRequestSchema`, template `GET /api/templates`, evidence `GET .../runs/:runId/evidence/:evidenceId`, and binary report export `GET .../runs/:runId/report?format=csv|xlsx|pdf`. Dev 2 supplies extraction/generation/catalog functions. Dev 4 supplies a pure `ReportRenderer`, never HTTP or storage.
+P1 implements the table above and evidence `GET .../runs/:runId/evidence/:evidenceId` on `codex/p1-platform`, pending its own review/merge. Further thin adapters, owned by Dev 1: multipart `POST .../attachments` with field `file`, `GET .../attachments`, generation `POST .../workflows/generate` with `generationRequestSchema`, template `GET /api/templates`, and binary report export `GET .../runs/:runId/report?format=csv|xlsx|pdf`. Dev 2 supplies extraction/generation/catalog functions. Dev 4 supplies a pure `ReportRenderer`, never HTTP or storage.
 
 Errors use `ApiError`: `{ error: { code, message, issues?: [{ path, message }] } }`. HTTP mapping: malformed JSON 400 `invalid_json`; input 422 `validation_error`; unknown project or cross-project resource 404 `not_found`; stale writes 409 `revision_conflict`; active report 409 `run_not_finished`; upload overflow 413 `payload_too_large`; unsupported media 415 `unsupported_format`; missing configured adapter 503 `adapter_unavailable`; unexpected failure 500 `internal_error`. Do not return provider messages, stacks, credentials or local absolute paths. The existing standalone workflow validation endpoint retains its original response for compatibility.
 

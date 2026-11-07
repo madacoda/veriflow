@@ -37,11 +37,15 @@ Read [architecture](docs/architecture.md), [team ownership and first tasks](docs
 - packages/core owns workflow schemas, translation, execution orchestration and shared ports.
 - packages/runner owns browser adapter development, deterministic testing fakes and integration tests.
 
-The scaffold supplies a working validation endpoint, typed assertions, sequential orchestration, module evaluation entry points, and fakes. Product UI, real browser execution adapters, authentication, AI generation, persistence and exports are assigned development work.
+The scaffold supplies a working validation endpoint, typed assertions, sequential orchestration, module evaluation entry points, and fakes.
+
+The P1 platform adds persistent projects/workflow revisions, run create/status/cancel APIs, ordered timelines, immutable report snapshots and registered evidence retrieval. See [platform verification and integration status](docs/platform-p1.md), [v1 HTTP contracts](docs/contracts-v1.md) and the [team task board](docs/task-board.md). Real AI/browser adapters, product UI, attachment storage and report rendering are still separate integration tasks. Without a configured browser adapter, run creation returns 503; explicitly enabled fake runs are labeled in their records.
+
+[P2 attachment and report delivery](docs/platform-p2.md) adds project-scoped multipart uploads, attachment metadata/content reads, a reader port for extraction, and binary report delivery through an injected renderer. Uploads remain pending until extraction is integrated. The default service still returns 503 for binary reports until the real renderer is connected.
 
 ## Deployment
 
-Build and start one long-running Next.js service with Node.js 24. Use persistent storage for later project/evidence adapters. Workflow execution should eventually use a supervised worker with job tracking, sharing the repository and release. The validation endpoint performs no execution or storage writes. Deployment hosting and CD remain unconfigured.
+Build and start one long-running Next.js service with Node.js 24 and one writer process. Configure STORAGE_DIR to a persistent volume for projects, revisions, runs and evidence. Unfinished runs recover as interrupted infrastructure errors after a process restart. A future supervised worker will need durable job coordination before separating execution from the service. The validation endpoint performs no execution or storage writes. Deployment hosting and CD remain unconfigured.
 
 ## Dependency review
 
