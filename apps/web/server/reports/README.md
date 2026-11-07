@@ -1,7 +1,9 @@
-# CSV report renderer
+# Report renderers
 
 `renderCsv(snapshot)` consumes the same `ReportSnapshot` used by the report adapter. It returns UTF-8 CSV bytes, a media type, and a filename without performing I/O. A `record_type` column distinguishes run, step, event, evidence, capture warning, finding, and AI summary rows. Every row includes the pinned workflow revision, run lifecycle, outcome, adapter, and evidence capture status. Evidence rows contain registered IDs and media types. Formula-like text is escaped for spreadsheet applications.
 
-Runtime composition dispatches `csv` requests to `renderCsv` through the shared `ReportRenderer`. XLSX and PDF remain separate renderer work and currently reject with 422. Use the `reports-csv` unit test to verify reconciliation against the shared report fixture.
+`renderPdf(snapshot)` returns a real paginated PDF using the same immutable snapshot. It includes run identity, pinned workflow revision, lifecycle and outcome, observed step results, requirements, findings, registered evidence references, capture warnings, timeline and optional AI interpretation. Fake runs are visibly labeled. It does not load media, expose storage paths or serialize workflow values and secret references. The bundled OFL Noto Sans font supports accented Latin, Greek and Cyrillic text; unsupported characters are represented explicitly as `[U+XXXX]` code points with a note in the document. Long observations and identifiers wrap across pages, with repeated headers and page numbers. The initial viewport is explicitly labeled as initial, rather than attributed to later responsive steps.
+
+Runtime composition dispatches `csv` and `pdf` requests through the shared `ReportRenderer`. XLSX remains separate renderer work and rejects with 422. `reports-csv` verifies CSV reconciliation. `reports-pdf` parses PDF bytes independently with PDF.js to check content, outcomes, pagination, margins, Unicode fallback and omission of workflow secrets and artifact paths.
 
 Known correctness gap: `viewport` repeats the initial run viewport on all rows, even when responsive workflow commands change it. [Audit finding D5](../../../../docs/project-audit.md#d5--p2-responsive-csv-rows-report-the-wrong-viewport-context) defines the required distinction between initial and observed per-step viewport. Existing tests do not cover that transition.

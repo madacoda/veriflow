@@ -93,13 +93,17 @@ export function createRuntimePlatform(env: NodeJS.ProcessEnv = process.env) {
       }),
     reportRenderer: {
       async render(snapshot, format) {
-        if (format !== "csv")
-          throw new PlatformError(
-            "unsupported_format",
-            422,
-            "Only CSV rendering is configured",
-          );
-        return renderCsv(snapshot);
+        if (format === "csv") return renderCsv(snapshot);
+        if (format === "pdf") {
+          // Load the PDF library and embedded font only for a PDF download.
+          const { renderPdf } = await import("../reports/pdf.ts");
+          return renderPdf(snapshot);
+        }
+        throw new PlatformError(
+          "unsupported_format",
+          422,
+          "XLSX export is not available yet. Choose CSV or PDF.",
+        );
       },
     },
     runOptions: {

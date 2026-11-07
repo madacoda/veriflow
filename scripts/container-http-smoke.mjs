@@ -1,5 +1,6 @@
 // Runs through public HTTP routes only, without app source or model credentials.
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { createServer } from "node:http";
 import { setTimeout as delay } from "node:timers/promises";
 
@@ -93,6 +94,21 @@ function outcome(run, revision, expectedOutcome, actual) {
   if (expectedOutcome === "failed")
     assert.equal(run.steps[3].failureKind, "assertion");
 }
+async function pdfReport(projectPath, runId) {
+  // Exercise the lazy renderer and bundled font in the actual standalone image.
+  const response = await request(
+    `${projectPath}/runs/${runId}/report?format=pdf`,
+  );
+  assert.equal(response.headers.get("content-type"), "application/pdf");
+  assert.match(
+    response.headers.get("content-disposition") ?? "",
+    /^attachment;.*\.pdf/i,
+  );
+  const bytes = Buffer.from(await response.arrayBuffer());
+  assert.equal(bytes.subarray(0, 5).toString("ascii"), "%PDF-");
+  assert.match(bytes.subarray(-64).toString("ascii"), /%%EOF\s*$/);
+  return createHash("sha256").update(bytes).digest("hex");
+}
 async function verify(state) {
   const projectPath = `/api/projects/${state.projectId}`;
   const { project } = await json(projectPath);
@@ -104,6 +120,11 @@ async function verify(state) {
   assert.equal(snapshot.workflow.workflow.steps[0].url, `${origin}/demo?bug=1`);
   outcome(snapshot.run, 1, "failed", "100000");
   await evidence(projectPath, snapshot.run);
+  assert.equal(
+    await pdfReport(projectPath, state.failedRunId),
+    state.failedPdfSha256,
+    "The pinned report must render consistently after container restart",
+  );
   const { run: passed } = await json(
     `${projectPath}/runs/${state.passedRunId}`,
   );
@@ -255,6 +276,7 @@ async function run() {
     projectId: project.id,
     failedRunId: failed.id,
     passedRunId: passed.id,
+    failedPdfSha256: await pdfReport(projectPath, failed.id),
     accessibility: await accessibility(),
   };
 }
