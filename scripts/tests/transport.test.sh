@@ -42,7 +42,7 @@ grep -q "$GITHUB_SHA-123-1" "$TRANSPORT_LOG"
 export GITHUB_RUN_ATTEMPT=2
 bash scripts/deploy-vps.sh
 grep -q "$GITHUB_SHA-123-2" "$TRANSPORT_LOG"
-! grep -q 'fixture-private-key\|fixture-registry-token' "$TRANSPORT_LOG"
+if grep -q 'fixture-private-key\|fixture-registry-token' "$TRANSPORT_LOG"; then exit 1; fi
 [[ ! -e $(cat "$KEY_PATH_LOG") ]]
 
 : > "$TRANSPORT_LOG"

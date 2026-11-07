@@ -45,7 +45,7 @@ export FAIL_PULL=true
 if printf 'fixture-token\n' | bash "$new/vps-release.sh" "$root" "$new_image" fixture-user; then
   echo 'Expected failed pull to fail deployment.' >&2; exit 1
 fi
-! grep -q ' up ' "$DOCKER_TEST_LOG"
+if grep -q ' up ' "$DOCKER_TEST_LOG"; then exit 1; fi
 [[ $(cat "$root/current-release") == "$old" ]]
 unset FAIL_PULL
 
@@ -55,7 +55,7 @@ if printf 'fixture-token\n' | bash "$new/vps-release.sh" "$root" "$new_image" fi
   echo 'Expected failed first deployment to fail.' >&2; exit 1
 fi
 grep -q ' down$' "$DOCKER_TEST_LOG"
-! grep -q -- '--volumes' "$DOCKER_TEST_LOG"
+if grep -q -- '--volumes' "$DOCKER_TEST_LOG"; then exit 1; fi
 [[ ! -e "$root/current-release" && -e "$root/app.env" ]]
 [[ ! -e $(cat "$DOCKER_TEST_CONFIG") ]]
 echo 'Release tests passed: healthy deployment, rollback, failed pull and first failure.'
