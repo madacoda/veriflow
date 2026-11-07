@@ -13,6 +13,11 @@ const messages = {
   context_mismatch: "Attachment context does not match the requested sources",
   attachment_unavailable: "The requested attachment is unavailable",
   template_unavailable: "The requested template is unavailable",
+  summary_unavailable:
+    "A failure summary requires a finalized failed, blocked, errored or cancelled run",
+  invalid_summary_input:
+    "The report snapshot is invalid or exceeds summary limits",
+  invalid_summary_output: "The provider returned an invalid failure summary",
 } as const;
 
 /** Only fixed messages cross the server boundary; never expose adapter errors. */
