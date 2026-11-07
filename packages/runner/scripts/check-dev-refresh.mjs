@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { chromium } from "@playwright/test";
+import { readFile } from "node:fs/promises";
+import { parseEnv } from "node:util";
 
 // Production smoke tests cannot detect development HMR reload loops.
 // Run against `bun run dev`; no project or workflow is created.
@@ -9,6 +11,45 @@ const baseURL =
 const browser = await chromium.launch();
 try {
   const context = await browser.newContext();
+  // Authenticate through HTTP so passwords never enter screenshots or traces.
+  // Match Next's development file precedence; explicit shell values win.
+  const local = {};
+  for (const filename of [
+    ".env",
+    ".env.development",
+    ".env.local",
+    ".env.development.local",
+  ]) {
+    try {
+      Object.assign(
+        local,
+        parseEnv(
+          await readFile(
+            new URL(`../../../apps/web/${filename}`, import.meta.url),
+            "utf8",
+          ),
+        ),
+      );
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+  }
+  const credentials = { ...local, ...process.env };
+  assert.ok(
+    credentials.AUTH_USERNAME && credentials.AUTH_PASSWORD,
+    "Configure AUTH_USERNAME and AUTH_PASSWORD before the dev refresh check",
+  );
+  const signedIn = await context.request.post(
+    new URL("/api/auth/login", baseURL).href,
+    {
+      headers: { Origin: new URL(baseURL).origin },
+      data: {
+        username: credentials.AUTH_USERNAME,
+        password: credentials.AUTH_PASSWORD,
+      },
+    },
+  );
+  assert.equal(signedIn.status(), 200, "Dev refresh check could not sign in");
   const pages = [];
   for (let index = 0; index < 2; index++) {
     const page = await context.newPage();

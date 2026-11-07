@@ -59,7 +59,7 @@ test("recovers from a poll error and displays a partial capture warning", async 
 
   await page.goto(origin);
   await page.getByLabel("Selected project").selectOption(projectId);
-  const runs = page.getByRole("region", { name: "Saved revisions and runs" });
+  const runs = page.getByRole("region", { name: "Timeline", exact: true });
   await runs.getByLabel("Run history").selectOption(id);
   await expect(runs.getByRole("status")).toContainText("running");
   await expect(runs.getByRole("alert")).toContainText(
@@ -147,7 +147,7 @@ test("polls a labeled fake run until cancellation completes", async ({
 
   await page.goto(origin);
   await page.getByLabel("Selected project").selectOption(projectId);
-  const runs = page.getByRole("region", { name: "Saved revisions and runs" });
+  const runs = page.getByRole("region", { name: "Timeline", exact: true });
   await runs.getByLabel("Saved workflow").selectOption(demoWorkflow.id);
   await runs.getByRole("button", { name: "Start run" }).click();
   await expect(runs.getByRole("status")).toContainText("Fake adapter run");
@@ -164,6 +164,7 @@ test("renders every fixture state and keeps sample evidence non-downloadable", a
 }, testInfo) => {
   const origin = baseURL ?? new URL(demoProject.url).origin;
   await page.goto(origin);
+  await page.getByText("Sample run previews", { exact: true }).click();
   const preview = page.getByRole("region", { name: "Run previews" });
   const state = preview.getByLabel("Fixture state");
 
@@ -173,8 +174,8 @@ test("renders every fixture state and keeps sample evidence non-downloadable", a
   await expect(preview.getByRole("link", { name: /screenshot/i })).toHaveCount(
     0,
   );
-  await expect(preview.getByText('"90000"', { exact: true })).toBeVisible();
-  await expect(preview.getByText('"100000"', { exact: true })).toBeVisible();
+  await expect(preview.getByText("90000", { exact: true })).toBeVisible();
+  await expect(preview.getByText("100000", { exact: true })).toBeVisible();
   for (const selection of [
     "Queued",
     "Running",
@@ -291,7 +292,7 @@ test("preserves run selections when the adapter is unavailable", async ({
   );
   await page.goto(baseURL ?? new URL(demoProject.url).origin);
   await page.getByLabel("Selected project").selectOption(demoProject.id);
-  const runs = page.getByRole("region", { name: "Saved revisions and runs" });
+  const runs = page.getByRole("region", { name: "Timeline", exact: true });
   await runs.getByLabel("Saved workflow").selectOption(demoWorkflow.id);
   await runs.getByRole("button", { name: "Start run" }).click();
   await expect(runs.getByRole("alert")).toContainText(
@@ -345,9 +346,20 @@ test("persists reviewed revisions and displays real fail/pass browser evidence",
   ).toBeVisible();
   const name = editor.getByLabel("Workflow name");
   await name.fill("Reviewed checkout draft");
-  await editor
-    .getByLabel("Workflow steps (JSON)")
-    .fill(JSON.stringify(fixtureWorkflow.steps));
+  const stepItems = editor
+    .getByRole("list", { name: "Workflow steps", exact: true })
+    .getByRole("listitem");
+  for (let i = 0; i < 4; i++) {
+    await stepItems
+      .nth(i)
+      .getByText(`Edit step ${i + 1}`, { exact: true })
+      .click();
+    await stepItems
+      .nth(i)
+      .getByLabel("Time limit in milliseconds")
+      .fill("4000");
+  }
+  await stepItems.nth(0).getByLabel("Page URL").fill(targetUrl);
   await editor.getByRole("button", { name: "Save workflow" }).click();
   await expect(editor.getByRole("status")).toHaveText("Saved revision 1.");
 
@@ -359,15 +371,14 @@ test("persists reviewed revisions and displays real fail/pass browser evidence",
   });
   expect(concurrent.status()).toBe(201);
   await name.fill("Keep my checkout edits");
-  const steps = editor.getByLabel("Workflow steps (JSON)");
-  const retainedSteps = (await steps.inputValue()).replace("90000", "91000");
-  await steps.fill(retainedSteps);
+  const expectedText = stepItems.nth(3).getByLabel("Expected text");
+  await expectedText.fill("91000");
   await editor.getByRole("button", { name: "Save workflow" }).click();
   await expect(editor.getByRole("alert")).toContainText(
     "Your edits are still here.",
   );
   await expect(name).toHaveValue("Keep my checkout edits");
-  await expect(steps).toHaveValue(retainedSteps);
+  await expect(expectedText).toHaveValue("91000");
 
   await editor
     .getByRole("button", { name: "Review latest saved version" })
@@ -376,13 +387,13 @@ test("persists reviewed revisions and displays real fail/pass browser evidence",
     editor.getByText("Latest saved revision 2 · Concurrent edit"),
   ).toBeVisible();
   await editor.getByRole("button", { name: "Use latest as save base" }).click();
-  await expect(steps).toHaveValue(retainedSteps);
+  await expect(expectedText).toHaveValue("91000");
   await editor.getByRole("button", { name: "Save workflow" }).click();
   await expect(editor.getByRole("status")).toHaveText("Saved revision 3.");
 
   await page.reload();
   await projectSelector.selectOption(projectId);
-  const runs = page.getByRole("region", { name: "Saved revisions and runs" });
+  const runs = page.getByRole("region", { name: "Timeline", exact: true });
   await runs.getByLabel("Saved workflow").selectOption(demoWorkflow.id);
   await expect(runs.getByLabel("Revision to run")).toHaveValue("3");
   await runs.getByLabel("Revision to run").fill("1");
@@ -464,16 +475,13 @@ test("persists reviewed revisions and displays real fail/pass browser evidence",
     .getByRole("button", { name: "Review selected revision" })
     .click();
   await expect(name).toHaveValue("Keep my checkout edits");
-  await steps.fill(
-    JSON.stringify(
-      fixtureWorkflow.steps.map((step) => ({
-        ...step,
-        ...(step.code === "redirect"
-          ? { url: new URL("/demo?bug=0", origin).href }
-          : {}),
-      })),
-    ),
-  );
+  await stepItems.nth(0).getByText("Edit step 1", { exact: true }).click();
+  await stepItems
+    .nth(0)
+    .getByLabel("Page URL")
+    .fill(new URL("/demo?bug=0", origin).href);
+  await stepItems.nth(3).getByText("Edit step 4", { exact: true }).click();
+  await expectedText.fill("90000");
   await editor.getByRole("button", { name: "Save workflow" }).click();
   await expect(editor.getByRole("status")).toHaveText("Saved revision 4.");
   const [passedResponse] = await Promise.all([

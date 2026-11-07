@@ -30,6 +30,13 @@ export class RequestError extends Error {
 
 async function fetchResponse(path: string, options?: RequestInit) {
   const response = await fetch(path, { cache: "no-store", ...options });
+  if (response.status === 401 && typeof window !== "undefined") {
+    window.location.replace(
+      "/login?next=" +
+        encodeURIComponent(window.location.pathname + window.location.search),
+    );
+    throw new Error("Your session has expired. Sign in to continue.");
+  }
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     if (body?.error?.code && typeof body.error.message === "string") {
@@ -148,9 +155,15 @@ export const api = {
       throw new Error("The server returned an invalid workflow draft.");
     return { ...draft, workflow: workflow.data };
   },
-  workflow: (projectId: string, workflowId: string, revision?: number) =>
+  workflow: (
+    projectId: string,
+    workflowId: string,
+    revision?: number,
+    signal?: AbortSignal,
+  ) =>
     request<{ workflow: WorkflowRevision }>(
       `${workflowsPath(projectId)}/${encodeURIComponent(workflowId)}${revision === undefined ? "" : `?revision=${revision}`}`,
+      { signal },
     ),
   saveWorkflow: (
     projectId: string,

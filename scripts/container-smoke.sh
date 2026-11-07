@@ -11,6 +11,9 @@ trap cleanup EXIT
 docker run -d --name "$name" --init --shm-size=1g \
   --cap-drop ALL --security-opt no-new-privileges:true \
   --memory 2g --cpus 2 --pids-limit 512 \
+  -e AUTH_USERNAME=container-fixture -e AUTH_PASSWORD=container-fixture-only \
+  -e AUTH_SESSION_SECRET=explicit-container-fixture-session-secret \
+  -e AUTH_COOKIE_SECURE=false \
   -p 127.0.0.1:1111:1111 -v "$volume:/data" "$image"
 wait_healthy() {
   for ((attempt=0; attempt<60; attempt++)); do
@@ -21,7 +24,7 @@ wait_healthy() {
   return 1
 }
 wait_healthy
-body=$(curl --fail --silent http://127.0.0.1:1111/)
+body=$(curl --fail --silent http://127.0.0.1:1111/login)
 grep -q Veriflow <<< "$body"
 docker exec "$name" node -e '
   const assert = require("node:assert/strict");

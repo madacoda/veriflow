@@ -1,9 +1,17 @@
 import { expect } from "@playwright/test";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { authFixtureEnv } from "./auth-fixture.ts";
 
 /** Exercise built Next routes without importing its CommonJS source into the ESM runner. */
-export async function startBuiltPlatform(storageRoot: string) {
+export async function startBuiltPlatform(
+  storageRoot: string,
+  providerEnv: {
+    OPENAI_API_KEY: string;
+    OPENAI_MODEL: string;
+    OPENAI_BASE_URL: string;
+  } = { OPENAI_API_KEY: "", OPENAI_MODEL: "", OPENAI_BASE_URL: "" },
+) {
   const child = spawn(
     process.execPath,
     [
@@ -18,6 +26,9 @@ export async function startBuiltPlatform(storageRoot: string) {
       cwd: fileURLToPath(new URL("../../../apps/web/", import.meta.url)),
       env: {
         ...process.env,
+        ...authFixtureEnv,
+        // Only an explicitly supplied local provider fixture may enable generation.
+        ...providerEnv,
         STORAGE_DIR: storageRoot,
         VERIFLOW_RUN_ADAPTER: "browser",
         FORCE_COLOR: "0",

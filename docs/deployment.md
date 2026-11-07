@@ -75,7 +75,7 @@ This is a single-container replacement with brief downtime, not a zero-downtime 
 
 ## HTTPS and access gate
 
-The site is `https://veriflow.madacoda.dev`. Nginx terminates TLS and proxies only to `127.0.0.1:1111`. The dashboard, API, evidence and static assets all require HTTP Basic authentication until product authentication is implemented. Access is for trusted operators: they can start browser jobs. Do not embed gate credentials into workflows, target URLs, reports or GitHub secrets.
+The site is `https://veriflow.madacoda.dev`. Nginx terminates TLS and proxies only to `127.0.0.1:1111`. The dashboard, API, evidence and static assets retain HTTP Basic authentication until a separately verified product-authentication cutover. Access is for trusted operators: they can start browser jobs. Do not embed gate credentials into workflows, target URLs, reports or GitHub secrets.
 
 Use [deploy/nginx/veriflow.conf](../deploy/nginx/veriflow.conf) for the dedicated virtual host. It includes TLS 1.2/1.3, security headers, private/no-store responses, a 12 MiB request limit, bounded proxy timeouts, rate limiting, cross-origin write rejection, and access logs without query strings or credentials. It removes the gate Authorization header before proxying to Next.js. Preserve the existing Cloudflare trusted-proxy IP configuration when calculating client addresses.
 
@@ -99,9 +99,9 @@ Validate unauthenticated requests to `/`, `/api/projects`, `/health` and `/_next
 
 The included demo can be exercised by the server browser at `http://127.0.0.1:1111/demo?bug=1` (known fail) and `?bug=0` (known pass). These are server-side target URLs; do not put the public site's Basic Auth password in a workflow. Browser-origin allowlisting is not a network sandbox, so only trusted operators should receive access.
 
-## Planned application login
+## Application login
 
-Application username/password sessions are assigned through [AUTH-1 #16](https://github.com/madacoda/veriflow/issues/16) and [AUTH-UI #17](https://github.com/madacoda/veriflow/issues/17), but are not implemented. The intended initial username is `madacoda`; provision password material privately. Proposed `AUTH_USERNAME`, `AUTH_PASSWORD_HASH` and `AUTH_SESSION_SECRET` settings are planning names, not active runtime configuration. Local secrets belong in ignored `apps/web/.env.local`; production secrets belong in `/opt/veriflow/app.env` with mode 600. Commit only placeholders. Keep the current Nginx gate until a separately reviewed and verified cutover.
+Application login uses the shared-account [AUTH-1 / AUTH-UI contract](auth.md). Set server-only `AUTH_USERNAME`, `AUTH_PASSWORD` (literal password), and `AUTH_SESSION_SECRET` (at least 32 random characters). The local account is configured in ignored `apps/web/.env`; production secrets belong in `/opt/veriflow/app.env` with mode 600. Set `AUTH_ORIGIN=https://veriflow.madacoda.dev` behind Nginx. Production cookies default to Secure; never use the local HTTP test override `AUTH_COOKIE_SECURE=false` on the TLS deployment. Missing configuration fails closed. Logout revocations use the persistent data volume. Commit only placeholders and restart after changing credentials. Keep the current Nginx gate until a separately reviewed and verified cutover.
 
 ## First installation from a verified source commit
 

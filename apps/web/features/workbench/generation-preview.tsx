@@ -1,17 +1,16 @@
 "use client";
 
 import {
-  CONTRACT_VERSION,
   generationRequestSchema,
   type AttachmentMetadata,
   type TemplateDefinition,
   type WorkflowDraft,
 } from "@veriflow/core";
-import { demoTemplate, demoWorkflow } from "@veriflow/core/fixtures";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { api, RequestError } from "./api";
 import { extractionLabels } from "./attachments";
 import styles from "./workbench.module.css";
+import { WorkflowSteps } from "./workflow-steps";
 
 type Preview = {
   draft: WorkflowDraft;
@@ -34,7 +33,6 @@ export function GenerationPreview({
   onOpen: (draft: WorkflowDraft) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<"api" | "fixture">("api");
   const [catalog, setCatalog] = useState<{
     templates: TemplateDefinition[];
     error?: string;
@@ -44,11 +42,10 @@ export function GenerationPreview({
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
   const generation = useRef<AbortController | null>(null);
-  const fixture = mode === "fixture";
-  const templates = fixture ? [demoTemplate] : (catalog?.templates ?? []);
+  const templates = catalog?.templates ?? [];
 
   useEffect(() => {
-    if (!open || fixture) return;
+    if (!open) return;
     const controller = new AbortController();
     api
       .generationTemplates(controller.signal)
@@ -65,13 +62,13 @@ export function GenerationPreview({
         }
       });
     return () => controller.abort();
-  }, [open, fixture, catalogAttempt]);
+  }, [open, catalogAttempt]);
 
   useEffect(() => () => generation.current?.abort(), []);
 
   async function prepare(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (generation.current || (!fixture && (!catalog || catalog.error))) return;
+    if (generation.current || !catalog || catalog.error) return;
     const form = new FormData(event.currentTarget);
     const request = generationRequestSchema.safeParse({
       objective: form.get("objective"),
@@ -88,22 +85,14 @@ export function GenerationPreview({
     );
     const controller = new AbortController();
     setError("");
-    if (!fixture) {
-      generation.current = controller;
-      setGenerating(true);
-    }
+    generation.current = controller;
+    setGenerating(true);
     try {
-      const draft: WorkflowDraft = fixture
-        ? {
-            contractVersion: CONTRACT_VERSION,
-            provider: "fixture",
-            workflow: demoWorkflow,
-            sourceAttachmentIds: request.data.attachmentIds,
-            warnings: [
-              "This fixture uses seeded workflow steps and attachment metadata.",
-            ],
-          }
-        : await api.generateDraft(projectId, request.data, controller.signal);
+      const draft = await api.generateDraft(
+        projectId,
+        request.data,
+        controller.signal,
+      );
       if (controller.signal.aborted) return;
       setPreview({
         draft,
@@ -134,10 +123,8 @@ export function GenerationPreview({
         );
       }
     } finally {
-      if (!fixture) {
-        generation.current = null;
-        if (!controller.signal.aborted) setGenerating(false);
-      }
+      generation.current = null;
+      if (!controller.signal.aborted) setGenerating(false);
     }
   }
 
@@ -155,29 +142,9 @@ export function GenerationPreview({
         aria-labelledby="generation-preview-heading"
       >
         <h3 id="generation-preview-heading">Workflow generation</h3>
-        <label className={styles.field}>
-          Generation mode
-          <select
-            value={mode}
-            disabled={generating}
-            onChange={(event) => {
-              setMode(
-                event.currentTarget.value === "fixture" ? "fixture" : "api",
-              );
-              setError("");
-            }}
-          >
-            <option value="api">API generation</option>
-            <option value="fixture">Fixture preview</option>
-          </select>
-        </label>
-        <p>
-          {fixture
-            ? "Use a seeded workflow to explore draft review."
-            : "Generate a draft from the project objective and selected sources."}
-        </p>
-        {!fixture && !catalog && <p role="status">Loading templates.</p>}
-        {!fixture && catalog?.error && (
+        <p>Generate a draft from the project objective and selected sources.</p>
+        {!catalog && <p role="status">Loading templates.</p>}
+        {catalog?.error && (
           <div className={styles.actions}>
             <p className={styles.error} role="alert">
               {catalog.error}
@@ -201,15 +168,8 @@ export function GenerationPreview({
             </label>
             <label className={styles.field}>
               Template
-              <select
-                key={mode}
-                name="template"
-                required={fixture}
-                defaultValue=""
-              >
-                <option value="">
-                  {fixture ? "Choose a template" : "No template"}
-                </option>
+              <select name="template" defaultValue="">
+                <option value="">No template</option>
                 {templates.map((template) => (
                   <option
                     key={`${template.id}@${template.version}`}
@@ -234,11 +194,8 @@ export function GenerationPreview({
               )}
             </fieldset>
             <div className={styles.actions}>
-              <button
-                type="submit"
-                disabled={!fixture && (!catalog || !!catalog.error)}
-              >
-                {fixture ? "Prepare fixture draft" : "Generate draft"}
+              <button type="submit" disabled={!catalog || !!catalog.error}>
+                Generate draft
               </button>
             </div>
           </fieldset>
@@ -277,9 +234,7 @@ export function GenerationPreview({
             )}
             <details>
               <summary>Review workflow steps</summary>
-              <pre className={styles.code}>
-                {JSON.stringify(preview.draft.workflow.steps, null, 2)}
-              </pre>
+              <WorkflowSteps steps={preview.draft.workflow.steps} />
             </details>
             <div className={styles.actions}>
               <button

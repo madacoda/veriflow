@@ -15,6 +15,7 @@ import {
 import { PlaywrightSessionFactory } from "../src/browser-session.ts";
 import { startCoverageTarget } from "../unit/coverage-target.ts";
 import { startBuiltPlatform } from "../unit/built-platform.ts";
+import { fixtureHeaders } from "../unit/auth-fixture.ts";
 
 let target: Awaited<ReturnType<typeof startCoverageTarget>>;
 let root: string;
@@ -51,11 +52,15 @@ test.afterAll(async () => {
 const signal = () => new AbortController().signal;
 async function request<T>(path: string, body?: unknown): Promise<T> {
   const response = await fetch(platform.origin + path, {
+    headers: fixtureHeaders(platform.origin),
     ...(body === undefined
       ? {}
       : {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...fixtureHeaders(platform.origin),
+          },
           body: JSON.stringify(body),
         }),
     signal: AbortSignal.timeout(10000),

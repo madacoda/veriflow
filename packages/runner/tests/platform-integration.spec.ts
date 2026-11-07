@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { demoWorkflow } from "@veriflow/core/fixtures";
 import { startBrowserTarget } from "../unit/browser-target.ts";
+import { authFixtureEnv, fixtureHeaders } from "../unit/auth-fixture.ts";
 
 /** Built HTTP routes, isolated storage, OS-assigned port; no source-module loader. */
 async function startPlatform(root: string, adapter: "browser" | "fake") {
@@ -24,6 +25,10 @@ async function startPlatform(root: string, adapter: "browser" | "fake") {
       cwd: fileURLToPath(new URL("../../../apps/web/", import.meta.url)),
       env: {
         ...process.env,
+        ...authFixtureEnv,
+        OPENAI_API_KEY: "",
+        OPENAI_MODEL: "",
+        OPENAI_BASE_URL: "",
         STORAGE_DIR: root,
         VERIFLOW_RUN_ADAPTER: adapter,
         VERIFLOW_FAKE_OUTCOME: "failed",
@@ -89,7 +94,7 @@ async function startPlatform(root: string, adapter: "browser" | "fake") {
 async function post(origin: string, path: string, body: unknown) {
   return fetch(origin + path, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...fixtureHeaders(origin) },
     body: JSON.stringify(body),
   });
 }
@@ -158,7 +163,9 @@ test("production catalog and generation routes expose safe envelopes without a p
   }
 });
 async function get(origin: string, path: string) {
-  const response = await fetch(origin + path);
+  const response = await fetch(origin + path, {
+    headers: fixtureHeaders(origin),
+  });
   expect(response.status).toBe(200);
   return response.json();
 }
@@ -234,6 +241,7 @@ test("production browser routes persist observed fail/pass and serve registered 
         expect(artifact.runId).toBe(run.id);
         const png = await fetch(
           `${platform.origin}${runPath}/evidence/${artifact.id}`,
+          { headers: fixtureHeaders(platform.origin) },
         );
         expect(png.status).toBe(200);
         expect(png.headers.get("Content-Type")).toBe("image/png");
@@ -250,6 +258,7 @@ test("production browser routes persist observed fail/pass and serve registered 
           (
             await fetch(
               `${platform.origin}/api/projects/${other.id}/runs/${run.id}/evidence/${artifact.id}`,
+              { headers: fixtureHeaders(platform.origin) },
             )
           ).status,
         ).toBe(404);

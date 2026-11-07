@@ -16,6 +16,14 @@ The required gate covers frozen installation, lint, formatting, type checks, uni
 
 Local integration gate: frozen install, lint, formatting, types and production build passed; 186 unit tests passed with one opt-in live OpenAI test skipped; all 49 Chromium tests passed. `bun run test:dev` also passed with no reloads or runtime errors and form state retained for ten seconds. The browser regression test explicitly loads ESM fixtures before the web package to support Playwright’s mixed module loader. These are local results, not a claim of new remote CI or deployment.
 
+## Runtime configuration
+
+`createRuntimePlatform` resolves `OPENAI_API_KEY`, `OPENAI_MODEL` and optional `OPENAI_BASE_URL` from trusted server environment settings when each draft request starts. It uses the existing OpenAI adapter; no default model or fixture fallback is selected. Keep configuration in ignored `apps/web/.env.local` or `apps/web/.env`, and restart the server after editing these files so Next.js reloads them. The resolver avoids retaining old provider configuration inside the platform singleton, without replacing active run coordination.
+
+Missing or malformed settings return the canonical generation-only 503; project, workflow and run APIs remain usable. An upstream failure still returns the existing fixed public error without credentials or provider diagnostics. Context, deadlines, allowed origins, output validation and explicit review/save behavior are unchanged.
+
+The default unit/browser suites explicitly disable inherited model credentials; the runtime regression uses a labeled local OpenAI-compatible HTTP fixture through the real SDK and built Next.js routes. Live verification is separate and must be identified as such.
+
 ## Remaining work
 
-The branch supplies an injection seam, not runtime provider selection. Production still needs trusted OpenAI configuration. PR #20 alignment connects the UI to the generation routes and keeps the labeled fixture mode separate. No live model call or complete model-to-browser journey is claimed by this merge. PDF/DOCX extraction, image generation and the bounded AI-session bridge remain separate work.
+PDF/DOCX extraction, image generation and the bounded AI-session bridge remain separate work. Draft generation does not run browser tests or save a workflow; the user reviews and saves it before execution.

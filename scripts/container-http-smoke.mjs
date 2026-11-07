@@ -4,14 +4,31 @@ import { createServer } from "node:http";
 import { setTimeout as delay } from "node:timers/promises";
 
 const origin = process.env.CONTAINER_SMOKE_ORIGIN || "http://127.0.0.1:1111";
+const anonymous = await fetch(`${origin}/api/projects`);
+assert.equal(anonymous.status, 401);
+const signedIn = await fetch(`${origin}/api/auth/login`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json", Origin: origin },
+  body: JSON.stringify({
+    username: process.env.AUTH_USERNAME,
+    password: process.env.AUTH_PASSWORD,
+  }),
+});
+assert.equal(signedIn.status, 200);
+const cookie = signedIn.headers.get("set-cookie").split(";")[0];
 async function request(path, status = 200, body) {
   const response = await fetch(new URL(path, origin), {
+    headers: { Cookie: cookie },
     signal: AbortSignal.timeout(10000),
     ...(body === undefined
       ? {}
       : {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: {
+            "content-type": "application/json",
+            Cookie: cookie,
+            Origin: origin,
+          },
           body: JSON.stringify(body),
         }),
   });

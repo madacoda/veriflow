@@ -11,8 +11,11 @@ import { PlatformHttp, errorResponse } from "./http.ts";
 import { AttachmentStore } from "../attachments/store.ts";
 import { renderCsv } from "../reports/csv.ts";
 import { ReportDownloads } from "../runs/report-downloads.ts";
-import type { DraftProvider } from "../agent/index.ts";
-import { DraftGeneration } from "../workflows/generate-draft.ts";
+import { createOpenAIDraftProvider } from "../agent/index.ts";
+import {
+  DraftGeneration,
+  type DraftProviderSource,
+} from "../workflows/generate-draft.ts";
 
 export async function createPlatform(
   storageRoot: string,
@@ -21,7 +24,7 @@ export async function createPlatform(
   integrations: {
     reportRenderer?: ReportRenderer;
     runOptions?: RunCoordinatorOptions;
-    draftProvider?: DraftProvider;
+    draftProvider?: DraftProviderSource;
     generationTimeoutMs?: number;
   } = {},
 ) {
@@ -82,6 +85,12 @@ export function createRuntimePlatform(env: NodeJS.ProcessEnv = process.env) {
           resolveSecret: (name) => env[`VERIFLOW_SECRET_${name}`],
         });
   return createPlatform(storageRoot, factory, adapter, {
+    draftProvider: () =>
+      createOpenAIDraftProvider({
+        apiKey: env.OPENAI_API_KEY?.trim(),
+        model: env.OPENAI_MODEL?.trim(),
+        baseURL: env.OPENAI_BASE_URL?.trim() || undefined,
+      }),
     reportRenderer: {
       async render(snapshot, format) {
         if (format !== "csv")

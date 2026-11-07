@@ -123,7 +123,7 @@ test("previews generation inputs without changing or saving the current draft", 
   const origin = baseURL ?? new URL(demoProject.url).origin;
   let writeRequests = 0;
   page.on("request", (request) => {
-    if (request.method() === "POST" && request.url().includes("/workflows"))
+    if (request.method() === "POST" && request.url().endsWith("/workflows"))
       writeRequests++;
   });
   await page.route("**/api/projects", (route) =>
@@ -151,6 +151,28 @@ test("previews generation inputs without changing or saving the current draft", 
     }),
   );
 
+  // Explicit API fixture: no live model request in the smoke suite.
+  await page.route("**/api/templates", (route) =>
+    route.fulfill({
+      json: {
+        templates: [demoTemplate],
+        generationTemplateIds: [demoTemplate.id],
+      },
+    }),
+  );
+  await page.route(`${projectPath}/workflows/generate`, (route) =>
+    route.fulfill({
+      json: {
+        draft: {
+          contractVersion: "1",
+          provider: "model",
+          workflow: demoWorkflow,
+          sourceAttachmentIds: ["attachment-pending"],
+          warnings: ["Review before saving"],
+        },
+      },
+    }),
+  );
   await page.goto(origin);
   await page.getByLabel("Selected project").selectOption(demoProject.id);
   const editor = page.getByRole("region", { name: "Workflow draft" });
@@ -160,13 +182,13 @@ test("previews generation inputs without changing or saving the current draft", 
   await editor.getByText("Preview draft generation", { exact: true }).click();
 
   const fixture = editor.getByRole("region", { name: "Workflow generation" });
-  await fixture.getByLabel("Generation mode").selectOption("fixture");
+  await expect(fixture.getByLabel("Generation mode")).toHaveCount(0);
   await fixture
     .getByLabel("Objective")
     .fill("Verify the discount from the checkout requirements.");
   await fixture.getByLabel("Template").selectOption(demoTemplate.id);
   await fixture.getByRole("checkbox", { name: /pending\.md/ }).check();
-  await fixture.getByRole("button", { name: "Prepare fixture draft" }).click();
+  await fixture.getByRole("button", { name: "Generate draft" }).click();
   await expect(
     fixture.getByRole("heading", { name: demoWorkflow.name }),
   ).toBeVisible();
@@ -180,19 +202,19 @@ test("previews generation inputs without changing or saving the current draft", 
   ).toHaveCount(0);
   await expect(
     fixture.getByRole("list", { name: "Draft warnings" }),
-  ).toContainText("seeded workflow steps and attachment metadata");
+  ).toContainText("Review before saving");
   await expect(name).toHaveValue("My unsaved changes");
   await page.screenshot({
-    path: testInfo.outputPath("generation-fixture.png"),
+    path: testInfo.outputPath("generation-api-fixture.png"),
     fullPage: true,
   });
 
   await fixture
-    .getByRole("button", { name: "Replace editor with fixture draft" })
+    .getByRole("button", { name: "Replace editor with generated draft" })
     .click();
   await expect(name).toHaveValue(demoWorkflow.name);
   await expect(
-    editor.getByText("Generation fixture draft · Unsaved draft"),
+    editor.getByText("Generated workflow draft · Unsaved draft"),
   ).toBeVisible();
   await name.fill("Reviewed fixture workflow");
   await expect(name).toHaveValue("Reviewed fixture workflow");
@@ -439,7 +461,7 @@ test("downloads reports for terminal runs and handles an unavailable renderer", 
 
   await page.goto(origin);
   await page.getByLabel("Selected project").selectOption(demoProject.id);
-  const runs = page.getByRole("region", { name: "Saved revisions and runs" });
+  const runs = page.getByRole("region", { name: "Timeline", exact: true });
   const history = runs.getByLabel("Run history");
   await history.selectOption(active.id);
   await expect(runs.getByRole("status")).toContainText("running");

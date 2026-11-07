@@ -10,19 +10,19 @@ import type { AttachmentStore } from "../attachments/store.ts";
 import type { PlatformStore } from "../projects/platform-store.ts";
 
 type GenerationRequest = Parameters<DraftGenerator["generate"]>[0]["request"];
+/** A trusted server resolver refreshes configuration without replacing active runs. */
+export type DraftProviderSource = DraftProvider | (() => DraftProvider);
 
 /** Read-only composition: one deadline covers input, source reads and generation. */
 export class DraftGeneration {
-  private readonly generator: DraftGenerator;
   constructor(
     private readonly store: PlatformStore,
     private readonly attachments: AttachmentStore,
-    private readonly provider?: DraftProvider,
+    private readonly provider?: DraftProviderSource,
     private readonly timeoutMs = 30000,
   ) {
     if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 120000)
       throw new Error("Invalid generation deadline");
-    this.generator = createDraftGenerator({ provider, timeoutMs });
   }
 
   generate(
@@ -36,6 +36,13 @@ export class DraftGeneration {
       const request = await readInput(bounded);
       checkActive();
       if (!this.provider) throw new AgentError("adapter_unavailable");
+      // Resolve before dispatch so invalid configuration stays a generation-only 503.
+      const provider =
+        typeof this.provider === "function" ? this.provider() : this.provider;
+      const generator = createDraftGenerator({
+        provider,
+        timeoutMs: this.timeoutMs,
+      });
       const documents = await assembleContext(
         { projectId, attachmentIds: request.attachmentIds },
         this.attachments,
@@ -43,7 +50,7 @@ export class DraftGeneration {
         this.timeoutMs,
       );
       checkActive();
-      return this.generator.generate({ project, request, documents }, bounded);
+      return generator.generate({ project, request, documents }, bounded);
     });
   }
 }
