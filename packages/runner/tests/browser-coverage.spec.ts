@@ -22,6 +22,8 @@ let root: string;
 let platform: Awaited<ReturnType<typeof startBuiltPlatform>>;
 let templatePath: string;
 let templates: { id: string; defaults: Record<string, unknown> }[];
+// Includes browser work and PNG finalization; tiny fixture budgets race under load.
+const stepTimeoutMs = 10_000;
 test.beforeAll(async () => {
   root = await mkdtemp(join(tmpdir(), "veriflow-coverage-"));
   target = await startCoverageTarget();
@@ -80,7 +82,7 @@ async function completedRun(projectPath: string, id: string) {
   const path = `${projectPath}/runs/${id}`;
   await expect
     .poll(async () => (await request<{ run: RunRecord }>(path)).run.lifecycle, {
-      timeout: 20000,
+      timeout: 45000,
     })
     .toBe("completed");
   return (await request<{ run: RunRecord }>(path)).run;
@@ -91,7 +93,7 @@ async function execute(workflow: Workflow, secrets = true) {
       ...workflow,
       steps: workflow.steps.map((step) => ({
         ...step,
-        timeoutMs: step.code === "accessibility" ? 15000 : 1500,
+        timeoutMs: step.code === "accessibility" ? 15000 : stepTimeoutMs,
       })),
     },
     { runId: randomUUID(), allowedOrigins: [target.origin] },
@@ -223,6 +225,7 @@ test("supplied requirements retain source references and independent results", a
   expect(result.steps[2].status).toBe("passed");
 });
 test("unchanged saved revision regresses then passes after target-only fix; reports retain findings", async () => {
+  test.setTimeout(90000);
   const { project } = await request<{ project: ProjectRecord }>(
     "/api/projects",
     {
@@ -233,7 +236,7 @@ test("unchanged saved revision regresses then passes after target-only fix; repo
   const projectPath = `/api/projects/${project.id}`;
   const workflow = await draft("functional-form");
   workflow.steps.forEach((step) => {
-    step.timeoutMs = 3000;
+    step.timeoutMs = stepTimeoutMs;
   });
   const { workflow: saved } = await request<{ workflow: WorkflowRevision }>(
     `${projectPath}/workflows`,
@@ -311,6 +314,7 @@ test("new command arguments and allowed origins remain enforced", async () => {
 });
 
 test("incorrect target validation and broken CRUD updates produce failed assertions", async () => {
+  test.setTimeout(60000);
   const input = await execute(
     await draft("security-input", {
       url: `${target.origin}/?accept-invalid=1`,

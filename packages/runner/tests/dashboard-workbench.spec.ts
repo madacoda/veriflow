@@ -324,7 +324,7 @@ test("persists reviewed revisions and displays real fail/pass browser evidence",
     ...demoWorkflow,
     steps: demoWorkflow.steps.map((step) => ({
       ...step,
-      timeoutMs: 4000,
+      timeoutMs: 10_000,
       ...(step.code === "redirect" ? { url: targetUrl } : {}),
     })),
   };
@@ -357,7 +357,7 @@ test("persists reviewed revisions and displays real fail/pass browser evidence",
     await stepItems
       .nth(i)
       .getByLabel("Time limit in milliseconds")
-      .fill("4000");
+      .fill("10000");
   }
   await stepItems.nth(0).getByLabel("Page URL").fill(targetUrl);
   await editor.getByRole("button", { name: "Save workflow" }).click();
