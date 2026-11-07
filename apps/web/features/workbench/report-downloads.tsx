@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "../ui/button";
+
 import type { ReportFormat } from "@veriflow/core";
 import { useEffect, useRef, useState } from "react";
 import { api, RequestError } from "./api";
@@ -73,14 +75,14 @@ export function ReportDownloads({
       <p>Download formats depend on the configured report renderer.</p>
       <div className={styles.actions}>
         {formats.map((format) => (
-          <button
+          <Button
             key={format}
             type="button"
             disabled={pending !== null}
             onClick={() => download(format)}
           >
             Download {format.toUpperCase()}
-          </button>
+          </Button>
         ))}
       </div>
       {(pending || notice) && (
