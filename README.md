@@ -16,6 +16,8 @@ bun run dev
 
 Open [localhost:1111](http://localhost:1111). Chromium is required for real runs; starting the dashboard alone needs neither Chromium nor an AI key. Linux hosts may need `bun run browsers:install --with-deps`.
 
+Local development defaults to Next.js Webpack mode with Fast Refresh. This avoids the repeated Turbopack `HMR hash mismatch` reloads reproduced in this workspace. Explicit `bun run dev --turbopack` remains available for diagnosis; production builds keep their existing configuration.
+
 Optional server configuration belongs in `apps/web/.env.local`; copy [the example](apps/web/.env.example) before editing it. Keep credentials out of Git. Workspace packages export TypeScript source, which Next.js transpiles directly; no preliminary package build or background compiler is required.
 
 ## First workflow
@@ -79,7 +81,7 @@ bun run test:smoke
 
 Browser tests start the production app, so build first and leave the selected port free. CI enables the production HTTP dashboard checks with `VERIFLOW_U1_TEST_HTTP=1` and isolated `STORAGE_DIR`. The optional live-provider test is separate; credential-free tests do not prove live AI integration.
 
-For a shared Windows machine, set `$env:PORT = '1112'` in that checkout's PowerShell before starting the app or tests. For development reload checks, run `bun run test:dev` in another terminal against the running dev server, with the same `PORT`. To serve a production build locally, use `bun run start`.
+For a shared Windows machine, set `$env:PORT = '1112'` in that checkout's PowerShell before starting the app or tests. For development reload checks, run `bun run test:dev` in another terminal against the running dev server, with the same `PORT`. It checks two tabs for 30 seconds after catalog/API requests, including unsaved form state, navigation, reload messages and runtime errors. To serve a production build locally, use `bun run start`.
 
 ## Deployment and architecture
 
