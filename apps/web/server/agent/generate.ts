@@ -149,9 +149,14 @@ export function createDraftGenerator(
                 );
                 return matches.length === 1 ? matches[0] : undefined;
               };
-              let page = findPage(project.url);
+              let page: (typeof observed)[number] | undefined;
               for (const step of workflow.steps) {
-                if (step.code === "redirect") page = findPage(step.url);
+                if (step.code === "redirect" || step.code === "assertHttp") {
+                  page = findPage(step.url);
+                  if (!page) throw new AgentError("invalid_provider_output");
+                }
+                if (step.code !== "viewport" && !page)
+                  throw new AgentError("invalid_provider_output");
                 if (
                   "target" in step &&
                   step.target &&

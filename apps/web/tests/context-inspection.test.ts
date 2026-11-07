@@ -161,6 +161,26 @@ test("generation receives observed targets, rejects invented targets and preserv
   assert.deepEqual(input, before);
   output = {
     ...output,
+    steps: output.steps.filter((step) => step.code !== "redirect"),
+  };
+  await assert.rejects(
+    generator.generate(input, new AbortController().signal),
+    /invalid workflow draft/,
+  );
+  output = structuredClone(demoWorkflow);
+  output.steps.unshift({
+    id: "uninspected",
+    code: "redirect",
+    url: new URL("/not-inspected", demoProject.url).href,
+    timeoutMs: 1000,
+  });
+  await assert.rejects(
+    generator.generate(input, new AbortController().signal),
+    /invalid workflow draft/,
+  );
+  output = structuredClone(demoWorkflow);
+  output = {
+    ...output,
     steps: output.steps.filter((step) => step.code !== "assert"),
   };
   await assert.rejects(
