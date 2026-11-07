@@ -6,6 +6,7 @@ import {
   createProjectSchema,
   saveWorkflowSchema,
   startRunSchema,
+  generationRequestSchema,
   MAX_ATTACHMENT_BYTES,
   type ApiError,
   type ReportFormat,
@@ -16,6 +17,9 @@ import { evidencePath } from "../runs/evidence.ts";
 import { AttachmentStore } from "../attachments/store.ts";
 import { ReportDownloads } from "../runs/report-downloads.ts";
 import { readRequestBody } from "./request-body.ts";
+import { AgentError } from "../agent/index.ts";
+import { listTemplates } from "../templates/catalog.ts";
+import { DraftGeneration } from "../workflows/generate-draft.ts";
 
 const JSON_LIMIT = 1024 * 1024;
 class ValidationError extends PlatformError {
@@ -44,12 +48,18 @@ function validate<T>(schema: Schema<T>, input: unknown): T {
     );
   return result.data;
 }
-async function json(request: Request): Promise<unknown> {
+async function json(
+  request: Request,
+  signal = request.signal,
+): Promise<unknown> {
   try {
     return JSON.parse(
-      Buffer.from(await readRequestBody(request, JSON_LIMIT)).toString("utf8"),
+      Buffer.from(await readRequestBody(request, JSON_LIMIT, signal)).toString(
+        "utf8",
+      ),
     );
   } catch (error) {
+    if (signal.aborted) throw signal.reason;
     if (error instanceof PlatformError) throw error;
     throw new PlatformError("invalid_json", 400, "Invalid JSON");
   }
@@ -75,16 +85,38 @@ function downloadResponse(file: {
   });
 }
 export function errorResponse(error: unknown) {
-  const known = error instanceof PlatformError;
+  if (error instanceof AgentError) {
+    const safeMessage = new AgentError(error.code).message;
+    switch (error.code) {
+      case "adapter_unavailable":
+        error = new PlatformError("adapter_unavailable", 503, safeMessage);
+        break;
+      case "unsupported_format":
+        error = new PlatformError("unsupported_format", 415, safeMessage);
+        break;
+      case "attachment_unavailable":
+        error = new PlatformError("not_found", 404, safeMessage);
+        break;
+      case "validation_error":
+      case "context_mismatch":
+      case "template_unavailable":
+      case "extraction_failed":
+        error = new PlatformError("validation_error", 422, safeMessage);
+        break;
+      default:
+        error = new PlatformError("internal_error", 500, safeMessage);
+    }
+  }
+  const known = error instanceof PlatformError ? error : undefined;
   const body: ApiError = {
     error: {
-      code: known ? error.code : "internal_error",
-      message: known ? error.message : "The request could not be completed",
+      code: known?.code ?? "internal_error",
+      message: known?.message ?? "The request could not be completed",
     },
   };
   if (error instanceof ValidationError) body.error.issues = error.issues;
   return Response.json(body, {
-    status: known ? error.status : 500,
+    status: known?.status ?? 500,
     headers: { "Cache-Control": "no-store" },
   });
 }
@@ -94,6 +126,7 @@ export class PlatformHttp {
     private readonly coordinator: RunCoordinator,
     private readonly attachments = new AttachmentStore(store),
     private readonly reports = new ReportDownloads(store),
+    private readonly generation = new DraftGeneration(store, attachments),
   ) {}
   private async respond(action: () => Promise<unknown>, status = 200) {
     try {
@@ -110,6 +143,19 @@ export class PlatformHttp {
   projectsGET() {
     return this.respond(async () => ({
       projects: await this.store.listProjects(),
+    }));
+  }
+  templateCatalogGET() {
+    return this.respond(async () => ({ templates: listTemplates() }));
+  }
+  generatePOST(request: Request, projectId: string) {
+    return this.respond(async () => ({
+      draft: await this.generation.generate(
+        projectId,
+        async (signal) =>
+          validate(generationRequestSchema, await json(request, signal)),
+        request.signal,
+      ),
     }));
   }
   projectsPOST(request: Request) {

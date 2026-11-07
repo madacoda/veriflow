@@ -37,7 +37,18 @@ The table above is integrated. Additional implemented routes under `/api/project
 
 The report transport also recognizes `xlsx|pdf`, but the configured CSV-only renderer rejects those formats with 422 `unsupported_format`. A custom platform instance with no renderer returns 503. Attachment storage acceptance does not imply extraction support; see [P2](platform-p2.md).
 
-Generation `POST .../workflows/generate` and global `GET /api/templates` are **not implemented routes**. The existing project template endpoint constructs deterministic drafts without AI. Dev 1 owns HTTP/composition, Dev 2 extraction/generation/catalog functions, and Dev 4 pure report renderers.
+I1-C adds the existing planned generation/catalog routes without changing core DTOs:
+
+| Method and path                                    | Input                     | Success envelope                          |
+| -------------------------------------------------- | ------------------------- | ----------------------------------------- |
+| POST `/api/projects/:projectId/workflows/generate` | `generationRequestSchema` | 200 `{ draft: WorkflowDraft }`            |
+| GET `/api/templates`                               | none                      | 200 `{ templates: TemplateDefinition[] }` |
+
+Generation reads the project's registered attachments and returns an editable draft without saving revisions, creating runs or modifying extraction metadata. One server-owned 30-second deadline includes body reading, context assembly and generation; trusted composition may set 1–120000 milliseconds. The request abort signal cancels these phases. Missing provider configuration returns 503; explicit run fixture mode does not configure a generation provider, and clients cannot select providers in the request body. The existing OpenAI adapter can be injected through `createPlatform`, but production composition does not yet configure it. Current text extraction supports TXT/MD/CSV/JSON; PDF/DOCX/image generation rejects explicitly. The global catalog contains 15 definitions across six categories. Generation accepts `functional-exact-total` and `requirements-acceptance`; the latter requires supplied text. Other catalog definitions retain their own prerequisites and do not imply model generation support.
+
+The existing project-scoped GET/POST `/api/projects/:projectId/templates` remains separate: GET returns nine executable templates with project-specific defaults; POST binds validated parameters and returns `{ workflow }` without calling a model. Both APIs preserve project origin restrictions and return drafts without saving them.
+
+The generation action also preserves GET `/api/projects/:projectId/workflows/generate?revision=1` for an existing workflow with ID `generate`; that identifier is not newly reserved.
 
 Errors use `ApiError`: `{ error: { code, message, issues?: [{ path, message }] } }`. HTTP mapping: malformed JSON 400 `invalid_json`; input 422 `validation_error`; unknown project or cross-project resource 404 `not_found`; stale writes 409 `revision_conflict`; active report 409 `run_not_finished`; upload overflow 413 `payload_too_large`; unsupported upload media 415 `unsupported_format`; unconfigured export format 422 `unsupported_format`; missing configured adapter 503 `adapter_unavailable`; unexpected failure 500 `internal_error`. Do not return provider messages, stacks, credentials or local absolute paths. The existing standalone workflow validation endpoint retains its original response for compatibility.
 

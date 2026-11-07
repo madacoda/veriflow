@@ -27,7 +27,7 @@ The legacy functionality/security/accessibility modules are extension points, no
 
 ## Workflow and run lifecycle
 
-1. A user edits a workflow draft, either manually or from the deterministic template API. The AI generation preview is a labeled fixture; live generation has no HTTP adapter yet.
+1. A user edits a workflow draft, either manually or from the deterministic template API. The AI generation preview is a labeled fixture; the generation HTTP adapter exists, but production provider configuration and UI binding remain pending.
 2. Explicit save validates the workflow and creates an immutable revision using optimistic concurrency. Generation must never overwrite user edits.
 3. Run creation pins a saved revision, captures project metadata, reserves bounded process capacity and persists the run identity.
 4. The core translates the complete workflow before execution. The coordinator supplies project origins, viewport, timeout/abort signal and a storage-relative artifact directory to one isolated browser session.
@@ -44,11 +44,11 @@ Cancellation is terminal only after cleanup. The coordinator distinguishes `comp
 
 Metadata lives in `STORAGE_DIR/platform-v1.json`; attachments, evidence and exported reports live under managed storage paths. Atomic file writes and an in-process lock protect one writer. Use a persistent volume and one long-running service process. Multiple replicas and serverless request lifetimes are unsupported. Project scoping is not application authentication.
 
-CSV is rendered from the immutable snapshot and persisted before download. XLSX/PDF have shared transport contracts but no configured renderer. Uploads remain `extraction=pending` until the context pipeline is connected; accepting a PDF or screenshot for storage does not imply extraction or model support.
+CSV is rendered from the immutable snapshot and persisted before download. XLSX/PDF have shared transport contracts but no configured renderer. Generation reads and extracts supported text without modifying upload metadata, which remains `extraction=pending`; accepting a PDF or screenshot for storage does not imply extraction or model support.
 
 ## AI integration boundary
 
-Dev 2's provider, draft validation, context assembly and bounded loop are implemented modules. Production HTTP generation and model-to-browser composition remain pending. OpenAI environment settings alone do not connect these modules to the dashboard.
+Dev 2's provider, draft validation, context assembly and bounded loop are implemented modules. Generation HTTP and read-only context assembly are integrated. Runtime provider configuration and model-to-browser composition remain pending. OpenAI environment settings alone do not connect these modules to the dashboard.
 
 Generation currently accepts only `functional-exact-total` and `requirements-acceptance` template IDs. The newer dashboard coverage-template IDs use deterministic parameter binding and are not accepted by `DraftGenerator`. The integration contract must reconcile those inputs explicitly before the UI offers live generation for them.
 

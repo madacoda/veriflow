@@ -28,7 +28,7 @@ const { metadata, bytes } = await platform.attachments.read(
 );
 ```
 
-Dev 1 will pass that reader into Dev 2's context pipeline. After actual extraction, Dev 1 can persist ready/failed metadata via `store.setAttachmentExtraction`; no public endpoint lets a client claim successful extraction. Until the pipeline is integrated, uploads remain pending. Missing stored content, changed byte sizes and symlink aliases return a safe storage error rather than unrelated files or empty content.
+Generation HTTP now passes that reader into the read-only context pipeline. It validates and extracts supported text without changing attachment bytes or extraction metadata. Upload metadata remains pending; persisting extraction feedback through `store.setAttachmentExtraction` is separate work. No public endpoint lets a client claim successful extraction. Missing stored content, changed byte sizes and symlink aliases return a safe storage error rather than unrelated files or empty content.
 
 ## Report HTTP/storage adapter
 

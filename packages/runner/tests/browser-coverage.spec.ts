@@ -10,7 +10,6 @@ import {
   buildTemplate,
   templateOptions,
 } from "../../../apps/web/server/templates/coverage.ts";
-import { createPlatform } from "../../../apps/web/server/composition/platform.ts";
 
 let target: Awaited<ReturnType<typeof startCoverageTarget>>;
 let root: string;
@@ -165,6 +164,10 @@ test("supplied requirements retain source references and independent results", a
   expect(result.steps[2].status).toBe("passed");
 });
 test("unchanged saved revision regresses then passes after target-only fix; reports retain findings", async () => {
+  // The web package loads as CJS in Playwright; finish linking its ESM fixtures first.
+  await import("@veriflow/core/fixtures");
+  const { createPlatform } =
+    await import("../../../apps/web/server/composition/platform.ts");
   const platform = await createPlatform(
     join(root, "platform"),
     new PlaywrightSessionFactory({ storageRoot: join(root, "platform") }),

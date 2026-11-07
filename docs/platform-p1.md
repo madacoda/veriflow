@@ -18,7 +18,7 @@ VERIFLOW_RUN_ADAPTER=fake VERIFLOW_FAKE_OUTCOME=failed bun run dev
 
 Every such run and report says `adapter: fake`. Fake assertions have explicit fixture messages; no screenshot/video/trace files are fabricated. `passed` config produces a labeled fixture success. Changing this environment setting requires restarting the service.
 
-Report JSON and the integrated CSV renderer use the same immutable snapshot. The CSV-only runtime renderer rejects XLSX/PDF with 422; a custom instance with no renderer still returns 503. Attachments and deterministic project-template HTTP adapters are integrated. Live generation HTTP and bounded AI-loop composition remain pending; deterministic execution is not a model-driven browser journey.
+Report JSON and the integrated CSV renderer use the same immutable snapshot. The CSV-only runtime renderer rejects XLSX/PDF with 422; a custom instance with no renderer still returns 503. Attachments and deterministic project-template HTTP adapters are integrated. Generation HTTP is integrated; production provider configuration and bounded AI-loop composition remain pending; deterministic execution is not a model-driven browser journey.
 
 ## Evidence
 

@@ -143,3 +143,10 @@ I1 is not verified until a user reviews generated steps, saves a revision, execu
 - Out of scope: password verification, cookie signing/session storage, auth route guards, deployment credentials and Nginx configuration.
 - Issue/PR: [AUTH-UI #17](https://github.com/madacoda/veriflow/issues/17), assigned to `Hyuto`; implementation binding waits for the reviewed AUTH-1 contract commit.
 - Status: planned for Dev 4; not yet authorized to edit shared integration paths.
+
+## I1-C — local generation HTTP integration
+
+- Source: `codex/i1-generation-http` at `9737249`, reviewed against `0e2d732` and integrated on the documentation update `43c3f3e` at the user's request.
+- Acceptance: project-scoped context to unsaved drafts; bounded input, cancellation and safe errors; preserve both catalog APIs, main's validation rules and existing execution/report behavior.
+- Verification: 186 unit tests passed (one opt-in live OpenAI test skipped), 49 Chromium tests passed, frozen install/lint/format/types/build passed, and the dev-refresh regression passed. See [integration details](generation-http.md).
+- Status: locally integrated and verified; not pushed or deployed. Production provider configuration, UI binding and the AI-session bridge remain pending.

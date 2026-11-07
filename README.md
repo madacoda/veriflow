@@ -30,14 +30,14 @@ The bundled coupon target at `/demo?bug=1` returns the incorrect total `100000`;
 
 ## Current capabilities
 
-| Area                   | Available in the application                                                                                             | Remaining work or limits                                                                              |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
-| Projects and workflows | Multiple projects, immutable revisions, explicit draft review/save                                                       | Single trusted team; project scoping is not user authorization                                        |
-| Templates              | Functional, responsive, basic security, supplied-requirement compliance, axe accessibility and saved-revision regression | Exact target parameters and prerequisites must match the application under test                       |
-| Execution              | Real Chromium, ordered steps, cancellation, pass/fail/blocked results, expected/actual observations                      | One process; bounded concurrency; no distributed job queue                                            |
-| Evidence and reports   | Registered PNG screenshots, report snapshots, CSV downloads                                                              | Product video/trace recording and PDF/XLSX are unfinished; capture can be partial; PPTX is optional   |
-| Attachments            | Project-scoped upload/list/download for supported formats                                                                | Extraction remains pending in the app; PDF/DOCX extraction and model image context are unsupported    |
-| AI                     | Validated draft generation, OpenAI-compatible provider and bounded tool-loop modules                                     | No generation HTTP route or live agent composition; the UI generation preview is explicitly a fixture |
+| Area                   | Available in the application                                                                                             | Remaining work or limits                                                                                             |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| Projects and workflows | Multiple projects, immutable revisions, explicit draft review/save                                                       | Single trusted team; project scoping is not user authorization                                                       |
+| Templates              | Functional, responsive, basic security, supplied-requirement compliance, axe accessibility and saved-revision regression | Exact target parameters and prerequisites must match the application under test                                      |
+| Execution              | Real Chromium, ordered steps, cancellation, pass/fail/blocked results, expected/actual observations                      | One process; bounded concurrency; no distributed job queue                                                           |
+| Evidence and reports   | Registered PNG screenshots, report snapshots, CSV downloads                                                              | Product video/trace recording and PDF/XLSX are unfinished; capture can be partial; PPTX is optional                  |
+| Attachments            | Project-scoped upload/list/download for supported formats                                                                | Text extraction is wired to draft generation; stored metadata remains pending; PDF/DOCX/image generation unsupported |
+| AI                     | Validated draft generation, OpenAI-compatible provider and bounded tool-loop modules                                     | Generation HTTP is integrated; runtime provider, live agent composition and UI binding remain pending                |
 
 Read [testing coverage](docs/testing-coverage.md) for step semantics, secret references and the limits of automated checks. Template execution and fixture previews must not be presented as live AI generation.
 
