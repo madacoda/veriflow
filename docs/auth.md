@@ -1,8 +1,7 @@
 # Shared-account authentication
 
-AUTH-1 / AUTH-UI local implementation, base `2de5b95c84437a1e5dd28a3370f75d03e49469c6`.
-Dev 1 owns the backend and integration; this user request includes the login UI integration.
-No merge, deployment or Nginx cutover is included.
+AUTH-1 / AUTH-UI was merged in PR #23. Dev 1 owns the backend and integration.
+Production application login was verified and the Nginx Basic Auth gate removed on 7 November 2026, against running image revision `29f813148717b76479232f4882f1f002308efba5`.
 
 ## Frozen HTTP contract
 
@@ -19,7 +18,15 @@ Set server-only `AUTH_USERNAME`, `AUTH_PASSWORD`, and a random `AUTH_SESSION_SEC
 
 Sessions are HMAC-signed; logout revocations are stored under `STORAGE_DIR/auth-revocations` and survive restart. One service process and persistent storage remain required. Expired revocations are pruned during logout. Credentials are never included in tokens, logs, workflows, browser target sessions or evidence.
 
-Production cookies default to Secure. Set `AUTH_ORIGIN=https://your-host` behind a TLS proxy. `AUTH_COOKIE_SECURE=false` is an explicit local HTTP test override. Keep the existing Nginx access gate until a separately verified cutover. Provision production variables in `/opt/veriflow/app.env`; do not copy local credentials into version control.
+Production uses `AUTH_ORIGIN=https://veriflow.madacoda.dev` and `AUTH_COOKIE_SECURE=true`. `AUTH_COOKIE_SECURE=false` is an explicit local HTTP test override. Provision production variables in `/opt/veriflow/app.env` with mode 600; do not copy credentials into version control. The active Nginx vhost delegates authentication to the application and does not issue a Basic Auth challenge.
+
+## Production cutover — 2026-11-07
+
+The running image already included authentication, but the production environment lacked `AUTH_*` values. Protected application routes returned 503 while liveness stayed green. The user-supplied production dotenv file was parsed without exposing secrets and applied to `/opt/veriflow/app.env`; its quoted model value was decoded for Compose's raw env-file format. Compose retained `/data`, loopback port 1111, the named data volume and the current immutable image. Supplied concurrency is two runs.
+
+The operator held `.deploy.lock`, retained root-only rollback copies, recreated the current image without rebuilding, and verified direct application authentication before disabling Basic Auth. Final public HTTPS verification passed: login and its assets 200 without `WWW-Authenticate`, dashboard redirect to login, protected APIs/evidence 401 anonymously, valid login and authenticated dashboard/projects/session 200, invalid credentials 401, Secure/HttpOnly/SameSite=Lax cookie, cross-origin writes 403, and logout/replayed-session rejection. HTTP redirects to HTTPS. Cloudflare rejects Python's default user agent; the public probe used a browser-style user agent without changing Cloudflare policy.
+
+The isolated Nginx fixture separately verified cookie forwarding, stripped obsolete Authorization credentials, Origin checks, redirects and logs without secrets. It uses a fake upstream and does not establish application session behavior; the live checks above do. No repeated full local suite was needed for this environment/proxy cutover.
 
 ## Acceptance and verification
 

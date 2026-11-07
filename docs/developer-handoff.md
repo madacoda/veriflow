@@ -97,7 +97,7 @@ Template and workflow contract changes use explicit versions. Additive changes p
 
 The source plan uses WIB. By 10:00, land L0. By 11:00, fake agent, browser fixture and UI run independently. By 12:30, connect real model-driven actions. By 14:00, verify I1 and freeze new demonstration features. By 15:00, review critical fixes and record fallback. Rehearse by 16:00 and submit by 16:30.
 
-The complete MVP is not promised within seven hours. The lead reports demonstration readiness and full-MVP completion separately. Distributed queues, complex analytics, autonomous code fixing and multi-user account management remain outside this allocation. A subsequent request adds trusted-team username/password login: Dev 1 owns [AUTH-1](https://github.com/madacoda/veriflow/issues/16), and Dev 4 owns [AUTH-UI](https://github.com/madacoda/veriflow/issues/17). The backend contract precedes UI binding; keep the Nginx access gate until a separately verified cutover.
+The complete MVP is not promised within seven hours. The lead reports demonstration readiness and full-MVP completion separately. Distributed queues, complex analytics, autonomous code fixing and multi-user account management remain outside this allocation. A subsequent request added trusted-team username/password login: Dev 1 owns [AUTH-1](https://github.com/madacoda/veriflow/issues/16), and Dev 4 owns [AUTH-UI](https://github.com/madacoda/veriflow/issues/17). These landed in PR #23; [production verification](auth.md#production-cutover--2026-11-07) completed the application-login cutover on 7 November 2026. The Nginx Basic gate is no longer active.
 
 ## Verification
 
