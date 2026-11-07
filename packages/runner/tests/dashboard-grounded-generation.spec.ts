@@ -89,8 +89,9 @@ test("explicit page and guard intent regenerate a preview without replacing unsa
     .getByRole("button", { name: "Replace editor with fixture draft" })
     .click();
   await expect(editor.getByLabel("Workflow name")).toHaveValue("Guard fixture");
-  await expect(editor.getByLabel("Element role", { exact: true })).toHaveValue(
-    "heading",
-  );
+  await editor.getByText("Edit step 1", { exact: true }).click();
+  await expect(
+    editor.getByRole("combobox", { name: "Element role", exact: true }),
+  ).toHaveValue("heading");
   expect(writes).toBe(0);
 });

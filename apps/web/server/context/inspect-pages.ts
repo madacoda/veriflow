@@ -46,7 +46,7 @@ export class PageInspector {
     checkCancellation(signal);
     const unavailable = (
       url: string,
-      reason: "adapter_unavailable" | "navigation_failed",
+      reason: "adapter_unavailable" | "navigation_failed" | "policy_rejected",
     ): PageInspection => ({
       status: "unavailable",
       sourceUrl: publicUrl(url),
@@ -84,7 +84,14 @@ export class PageInspector {
           );
           checkCancellation(signal);
           if (navigation.status !== "passed") {
-            pages.push(unavailable(url, "navigation_failed"));
+            pages.push(
+              unavailable(
+                url,
+                navigation.failureKind === "prerequisite"
+                  ? "policy_rejected"
+                  : "navigation_failed",
+              ),
+            );
             continue;
           }
           const observation = browserObservationSchema.parse(
