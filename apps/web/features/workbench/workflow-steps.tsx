@@ -1,5 +1,9 @@
 "use client";
 
+import { Checkbox } from "../ui/checkbox";
+import { Button } from "../ui/button";
+import { NativeSelect } from "../ui/native-select";
+
 import type { Target, WorkflowStep } from "@veriflow/core";
 import { Input } from "../ui/primitives";
 import styles from "./workbench.module.css";
@@ -149,7 +153,7 @@ function StepFields({
     <div className={styles.form}>
       <label className={styles.field}>
         Action
-        <select
+        <NativeSelect
           value={step.code}
           onChange={(event) =>
             onChange(
@@ -166,7 +170,7 @@ function StepFields({
               {label}
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </label>
       {"url" in step &&
         text("Page URL", step.url, (url) => onChange({ ...step, url }))}
@@ -174,7 +178,7 @@ function StepFields({
         <div className={styles.fields}>
           <label className={styles.field}>
             Find element by
-            <select
+            <NativeSelect
               value={step.target.by}
               onChange={(event) =>
                 onChange({
@@ -188,7 +192,7 @@ function StepFields({
             >
               <option value="label">Visible label</option>
               <option value="testId">Test ID</option>
-            </select>
+            </NativeSelect>
           </label>
           {text("Element", step.target.value, (value) =>
             onChange({ ...step, target: { ...step.target!, value } }),
@@ -214,7 +218,7 @@ function StepFields({
         <>
           <label className={styles.field}>
             Check that
-            <select
+            <NativeSelect
               value={step.expectation.kind}
               onChange={(event) =>
                 onChange({
@@ -233,7 +237,7 @@ function StepFields({
               <option value="text">Text matches</option>
               <option value="visible">Element is visible</option>
               <option value="checked">Checkbox is selected</option>
-            </select>
+            </NativeSelect>
           </label>
           {step.expectation.kind === "text" ? (
             text("Expected text", step.expectation.value, (value) =>
@@ -242,7 +246,7 @@ function StepFields({
           ) : (
             <label className={styles.field}>
               Expected state
-              <select
+              <NativeSelect
                 value={String(step.expectation.value)}
                 onChange={(event) =>
                   onChange({
@@ -256,7 +260,7 @@ function StepFields({
               >
                 <option value="true">Yes</option>
                 <option value="false">No</option>
-              </select>
+              </NativeSelect>
             </label>
           )}
         </>
@@ -274,7 +278,7 @@ function StepFields({
       {step.code === "assertLayout" && (
         <label className={styles.field}>
           Layout scope
-          <select
+          <NativeSelect
             value={step.target ? "element" : "page"}
             onChange={(event) => {
               const { target: _target, ...rest } = step;
@@ -290,7 +294,7 @@ function StepFields({
           >
             <option value="page">Whole page</option>
             <option value="element">One element</option>
-          </select>
+          </NativeSelect>
         </label>
       )}
       {step.code === "assertHttp" && (
@@ -306,7 +310,8 @@ function StepFields({
                   ),
                 }),
               )}
-              <button
+              <Button
+                variant="outline"
                 type="button"
                 disabled={step.statuses.length === 1}
                 onClick={() =>
@@ -317,11 +322,12 @@ function StepFields({
                 }
               >
                 Remove status {index + 1}
-              </button>
+              </Button>
             </div>
           ))}
           <div className={styles.actions}>
-            <button
+            <Button
+              variant="outline"
               type="button"
               disabled={step.statuses.length >= 20}
               onClick={() =>
@@ -329,7 +335,7 @@ function StepFields({
               }
             >
               Add status
-            </button>
+            </Button>
           </div>
         </fieldset>
       )}
@@ -340,15 +346,15 @@ function StepFields({
             ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] as const
           ).map((tag) => (
             <label className={styles.row} key={tag}>
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={step.tags.includes(tag)}
-                onChange={(event) =>
+                onCheckedChange={(checked) =>
                   onChange({
                     ...step,
-                    tags: event.currentTarget.checked
-                      ? [...step.tags, tag]
-                      : step.tags.filter((current) => current !== tag),
+                    tags:
+                      checked === true
+                        ? [...step.tags, tag]
+                        : step.tags.filter((current) => current !== tag),
                   })
                 }
               />
@@ -418,21 +424,24 @@ export function WorkflowSteps({
                   }
                 />
                 <div className={styles.actions}>
-                  <button
+                  <Button
+                    variant="outline"
                     type="button"
                     disabled={index === 0}
                     onClick={() => move(index, -1)}
                   >
                     Move up
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="outline"
                     type="button"
                     disabled={index === steps.length - 1}
                     onClick={() => move(index, 1)}
                   >
                     Move down
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="outline"
                     type="button"
                     disabled={steps.length === 1}
                     onClick={() =>
@@ -440,7 +449,7 @@ export function WorkflowSteps({
                     }
                   >
                     Remove step
-                  </button>
+                  </Button>
                 </div>
               </details>
             )}
@@ -449,7 +458,8 @@ export function WorkflowSteps({
       </ol>
       {onChange && (
         <div className={styles.actions}>
-          <button
+          <Button
+            variant="outline"
             type="button"
             disabled={steps.length >= 1000}
             onClick={() =>
@@ -460,7 +470,7 @@ export function WorkflowSteps({
             }
           >
             Add step
-          </button>
+          </Button>
         </div>
       )}
     </div>

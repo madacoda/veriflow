@@ -3,7 +3,7 @@
   background: var(--background);
   color: var(--foreground);
   font:
-    1rem/1.5 "Segoe UI",
+    0.875rem/1.6 "Inter Variable",
     system-ui,
     sans-serif;
 }
@@ -34,9 +34,9 @@
 }
 
 .banner {
-  border-bottom: 4px solid #49c9bc;
-  background: #12283e;
-  color: #f5fbff;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+  color: var(--foreground);
 }
 
 .bannerContent,
@@ -63,42 +63,24 @@
 
 .banner p {
   margin-top: 0.5rem;
-  color: #c6d9e8;
-}
-
-.demoLink,
-.actions button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 2.75rem;
-  box-sizing: border-box;
-  padding-inline: 0.875rem;
-  border: 1px solid transparent;
-  border-radius: 0.375rem;
-  font: inherit;
-  font-weight: 600;
-  text-decoration: none;
+  color: var(--muted-foreground);
 }
 
 .demoLink {
-  --ring: #8af4e7;
-  border-color: #638198;
-  color: #f5fbff;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.5rem;
+  padding: 0.5rem 0.875rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-weight: 500;
+  text-decoration: none;
+  border-color: var(--border);
+  color: var(--foreground);
 }
 
 .demoLink:hover {
-  background: #25435b;
-}
-
-.actions button {
-  background: #006460;
-  color: white;
-  cursor: pointer;
-}
-
-.actions button:hover {
-  background: #004e4b;
+  background: var(--accent);
 }
 
 .workbench {
@@ -122,7 +104,7 @@
 }
 
 .surface :is(.demo, .compactList) a {
-  color: var(--primary);
+  color: var(--accent-foreground);
   text-decoration: underline;
 }
 
@@ -152,16 +134,6 @@
   width: 100%;
   box-sizing: border-box;
   font-weight: 400;
-}
-
-.field :is(select, textarea) {
-  min-height: 2.5rem;
-  padding-inline: 0.625rem;
-  border: 1px solid var(--input);
-  border-radius: 0.375rem;
-  background: var(--card);
-  color: inherit;
-  font: inherit;
 }
 
 .timeline {
@@ -221,7 +193,7 @@
 .observation {
   padding: 0.875rem 1rem;
   border-inline-start: 3px solid var(--ring);
-  background: #f1f7f8;
+  background: var(--accent);
 }
 
 .values {
@@ -268,11 +240,6 @@
 .field textarea:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 1px;
-}
-
-.actions button:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
 }
 
 .surface .error {
@@ -385,7 +352,7 @@
 }
 
 .banner h1 {
-  font-size: 2.5rem;
+  font-size: 1.75rem;
 }
 .setup {
   display: grid;
@@ -442,7 +409,7 @@
   width: 1.75rem;
   height: 1.75rem;
   border-radius: 50%;
-  color: var(--primary);
+  color: var(--accent-foreground);
   background: var(--secondary);
   font-size: 0.75rem;
   font-weight: 700;
@@ -453,7 +420,7 @@
 .stepEdit > summary {
   cursor: pointer;
   font-size: 0.8125rem;
-  color: var(--primary);
+  color: var(--accent-foreground);
 }
 .stepEdit > div {
   margin-top: 1rem;
@@ -512,7 +479,7 @@
 .runScreenshot a {
   display: block;
   text-decoration: none;
-  color: var(--primary);
+  color: var(--accent-foreground);
 }
 .runScreenshot img {
   display: block;
@@ -543,4 +510,36 @@
   .workbench {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+.field [data-slot="native-select-wrapper"] {
+  width: 100%;
+}
+.field [data-slot="native-select"] {
+  padding-right: 2rem;
+}
+.actions [data-slot="button"] {
+  min-height: 2.5rem;
+  white-space: normal;
+  height: auto;
+  padding-block: 0.5rem;
+}
+.surface input[type="checkbox"] {
+  accent-color: var(--accent-foreground);
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+.brandMark {
+  display: inline-grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin-right: 0.75rem;
+  border-radius: var(--radius);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 1rem;
+  vertical-align: middle;
+  letter-spacing: -0.08em;
 }

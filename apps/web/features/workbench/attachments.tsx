@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "../ui/button";
+
 import {
   attachmentMediaTypes,
   MAX_ATTACHMENT_BYTES,
@@ -167,10 +169,11 @@ export function ProjectAttachments({
                   file.
                 </p>
                 <div className={styles.actions}>
-                  <button type="submit" disabled={!file}>
+                  <Button type="submit" disabled={!file}>
                     Upload attachment
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="outline"
                     type="button"
                     onClick={() => {
                       setLoading(true);
@@ -180,7 +183,7 @@ export function ProjectAttachments({
                     }}
                   >
                     Refresh attachments
-                  </button>
+                  </Button>
                 </div>
               </fieldset>
             </form>

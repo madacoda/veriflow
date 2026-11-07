@@ -1,5 +1,8 @@
 "use client";
 
+import { NativeSelect } from "../ui/native-select";
+import { Badge } from "../ui/badge";
+
 import type { Evidence, RunRecord, Workflow } from "@veriflow/core";
 import Image from "next/image";
 import { useState } from "react";
@@ -123,13 +126,21 @@ export function RunTimeline({
     <div className={styles.result}>
       <div className={styles.observation} role="status">
         <p className={styles.runState}>
-          <span className={styles.badge} data-state={run.lifecycle}>
+          <Badge
+            variant="secondary"
+            className={styles.badge}
+            data-state={run.lifecycle}
+          >
             {run.lifecycle}
-          </span>
+          </Badge>
           {run.lifecycle === "completed" && run.outcome && (
-            <span className={styles.badge} data-state={run.outcome}>
+            <Badge
+              variant="secondary"
+              className={styles.badge}
+              data-state={run.outcome}
+            >
               {run.outcome}
-            </span>
+            </Badge>
           )}
           {fixture
             ? "Fixture preview"
@@ -179,9 +190,13 @@ export function RunTimeline({
                     </strong>
                   )}
                   {step && (
-                    <span className={styles.badge} data-state={state}>
+                    <Badge
+                      variant="secondary"
+                      className={styles.badge}
+                      data-state={state}
+                    >
                       {state === "error" ? "execution error" : state}
-                    </span>
+                    </Badge>
                   )}
                 </div>
                 {event && (
@@ -297,7 +312,7 @@ export function FixturePreview() {
         <CardContent>
           <label className={styles.field}>
             Fixture state
-            <select
+            <NativeSelect
               value={selection}
               onChange={(event) =>
                 setSelection(
@@ -308,7 +323,7 @@ export function FixturePreview() {
               {Object.keys(runFixtures).map((name) => (
                 <option key={name}>{name}</option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
           <RunTimeline run={runFixtures[selection]} fixture />
         </CardContent>

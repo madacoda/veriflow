@@ -1,5 +1,10 @@
 "use client";
 
+import { Checkbox } from "../ui/checkbox";
+import { Button } from "../ui/button";
+import { Textarea } from "../ui/textarea";
+import { NativeSelect } from "../ui/native-select";
+
 import {
   generationRequestSchema,
   type AttachmentMetadata,
@@ -149,7 +154,8 @@ export function GenerationPreview({
             <p className={styles.error} role="alert">
               {catalog.error}
             </p>
-            <button
+            <Button
+              variant="outline"
               type="button"
               onClick={() => {
                 setCatalog(null);
@@ -157,18 +163,18 @@ export function GenerationPreview({
               }}
             >
               Retry templates
-            </button>
+            </Button>
           </div>
         )}
         <form className={styles.form} onSubmit={prepare}>
           <fieldset className={styles.form} disabled={generating}>
             <label className={styles.field}>
               Objective
-              <textarea name="objective" rows={3} required maxLength={10000} />
+              <Textarea name="objective" rows={3} required maxLength={10000} />
             </label>
             <label className={styles.field}>
               Template
-              <select name="template" defaultValue="">
+              <NativeSelect name="template" defaultValue="">
                 <option value="">No template</option>
                 {templates.map((template) => (
                   <option
@@ -178,7 +184,7 @@ export function GenerationPreview({
                     {template.title} · v{template.version}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </label>
             <fieldset className={styles.sources}>
               <legend>Source attachments</legend>
@@ -187,16 +193,16 @@ export function GenerationPreview({
               ) : (
                 attachments.map((item) => (
                   <label className={styles.row} key={item.id}>
-                    <input type="checkbox" name="attachment" value={item.id} />
+                    <Checkbox name="attachment" value={item.id} />
                     {item.filename} · {extractionLabels[item.extraction.status]}
                   </label>
                 ))
               )}
             </fieldset>
             <div className={styles.actions}>
-              <button type="submit" disabled={!catalog || !!catalog.error}>
+              <Button type="submit" disabled={!catalog || !!catalog.error}>
                 Generate draft
-              </button>
+              </Button>
             </div>
           </fieldset>
         </form>
@@ -237,7 +243,8 @@ export function GenerationPreview({
               <WorkflowSteps steps={preview.draft.workflow.steps} />
             </details>
             <div className={styles.actions}>
-              <button
+              <Button
+                variant="outline"
                 type="button"
                 disabled={pending || generating}
                 onClick={() => onOpen(preview.draft)}
@@ -245,7 +252,7 @@ export function GenerationPreview({
                 {hasDraft
                   ? `Replace editor with ${draftLabel}`
                   : `Open ${draftLabel} in editor`}
-              </button>
+              </Button>
             </div>
           </div>
         )}

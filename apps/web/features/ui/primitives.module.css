@@ -8,7 +8,7 @@
   color: var(--card-foreground);
   font-size: inherit;
   line-height: inherit;
-  box-shadow: 0 1px 2px #142c4510;
+  box-shadow: var(--shadow-xs);
 }
 
 .header {
