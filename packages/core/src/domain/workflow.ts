@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { httpUrlSchema } from "./http-url.ts";
 
 const identifier = z.string().trim().min(1).max(128);
 const target = z.discriminatedUnion("by", [
@@ -14,12 +15,7 @@ export const stepSchema = z.discriminatedUnion("code", [
   z.strictObject({
     ...common,
     code: z.literal("redirect"),
-    url: z
-      .url()
-      .refine(
-        (value) => ["https:", "http:"].includes(new URL(value).protocol),
-        "Only HTTP(S) navigation is supported",
-      ),
+    url: httpUrlSchema,
   }),
   z.strictObject({
     ...common,
