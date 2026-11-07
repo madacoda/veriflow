@@ -1,37 +1,63 @@
 # Modular monolith
 
-For the seven-hour hackathon, developer ownership follows integration, AI agent, browser, and dashboard/demo. QA category modules remain future extension points. The current execution engine is deterministic; the model-driven observation/tool loop is still an implementation task. See docs/developer-handoff.md for the time-boxed scope.
-
-Next.js serves UI and HTTP endpoints in one application. The former Fastify app has been consolidated into apps/web.
+Veriflow uses one Next.js application for the UI and HTTP API, with TypeScript packages for workflow semantics and browser execution. Bun manages dependencies and scripts; Node.js runs the application. There is no separate API service to deploy. See [current status](project-status.md) for the boundary between integrated features, available modules and unfinished work.
 
 ```text
-apps/web/app             pages and thin HTTP route handlers
-apps/web/features        feature UI
-apps/web/server/modules  functionality, security, accessibility
-packages/core            workflow language, translation, execution ports
-packages/runner          future browser adapter and current testing fakes
+apps/web/app                 pages, demo target and thin HTTP route handlers
+apps/web/features            workbench, draft review, timelines and downloads
+apps/web/server/composition  dependency wiring and HTTP boundary
+apps/web/server/projects     atomic project/workflow/run metadata store
+apps/web/server/attachments  project-scoped blob storage and reader adapter
+apps/web/server/runs         run coordinator and report delivery
+apps/web/server/agent        draft generation, provider adapter and bounded loop
+apps/web/server/context      read-only context extraction and assembly
+apps/web/server/templates    versioned definitions and deterministic draft builders
+apps/web/server/reports      pure report renderers; CSV currently implemented
+packages/core               workflow schemas, translation, execution and ports
+packages/runner             real Playwright adapter, testing fakes and browser tests
 ```
 
-## Dependencies
+## Dependency boundaries
 
-HTTP adapters validate incoming data and call application functions. Module application code depends on local domain types and the core public contract. Infrastructure implements ports. Domain code owns business invariants. The core must remain independent of Next.js, Playwright and feature modules. Static imports are checked by ESLint; runtime imports and semantic coupling need review.
+The core owns workflow invariants and public contracts, and remains independent of Next.js and Playwright. HTTP handlers validate unknown input and call application services. Infrastructure implements core ports; the composition root selects concrete adapters. The UI consumes HTTP envelopes rather than importing storage, provider credentials or browser code.
 
-Each QA module exports createEvaluation through its index.ts. Supply a QaEvaluator implementation via dependency injection. The evaluator receives run identity, step results and evidence and returns shared Evaluation/Finding DTOs. Its initial tests use FakeEvaluator. No fake is wired into production HTTP routes.
+`SessionFactory`, `ExecutionSession`, `AgentToolPort`, `AttachmentReader`, `DraftGenerator` and `ReportRenderer` keep lifecycle, AI, storage and presentation responsibilities separate. Use small interfaces for concrete behavior rather than adding abstraction layers solely to label the design DDD or SOLID. Projects, workflow revisions, runs and evidence carry the useful identity and consistency boundaries.
 
-The core workflow schema is the single source of step definitions. Translation produces ordered commands. runWorkflow accepts a SessionFactory, opens one session per run, executes sequentially and closes in finally. Adapter failures fail the current step and block the rest. Cancellation blocks remaining work. Startup, evidence collection or cleanup failures reject the run so the future job owner can persist an infrastructure failure.
+The legacy functionality/security/accessibility modules are extension points, not separate services or active team boundaries. Their evaluator fixtures are not proof of executed category checks. Current executable coverage flows through the shared workflow language and the real runner. Platform login remains separate from testing a target application's authentication.
 
-Session adapters must honor cancellation and timeout signals and release partial allocations if opening fails. The engine cannot forcibly terminate an uncooperative adapter. Browser-process supervision is part of the engine developer's production adapter acceptance criteria.
+## Workflow and run lifecycle
 
-## Package development
+1. A user edits a workflow draft, either manually or from the deterministic template API. The AI generation preview is a labeled fixture; live generation has no HTTP adapter yet.
+2. Explicit save validates the workflow and creates an immutable revision using optimistic concurrency. Generation must never overwrite user edits.
+3. Run creation pins a saved revision, captures project metadata, reserves bounded process capacity and persists the run identity.
+4. The core translates the complete workflow before execution. The coordinator supplies project origins, viewport, timeout/abort signal and a storage-relative artifact directory to one isolated browser session.
+5. Commands execute sequentially. Browser assertions determine outcomes. Ordinary failed steps block subsequent dependent steps; independent `assertRequirement` and `assertLayout` assertion failures allow later checks to execute. Infrastructure errors stop execution and remain distinct from test failures.
+6. Evidence is flushed and resources close before terminal persistence. Reports use the immutable snapshot and registered evidence IDs, so subsequent workflow edits cannot change prior results.
 
-Core exports TypeScript source through its public package entry. Next.js transpiles it and tsx runs unit tests. Runner declares a workspace dependency on core. Web declares core and a development-only dependency on runner for fixtures. All consumers resolve fresh source, avoiding stale dist files and build-order races. Declaration/build checks still run for core.
+Workflow version `1` includes navigation, fill, check/uncheck, click, assertions, viewport/layout checks, HTTP status checks, axe accessibility, supplied requirements and secret references. See [the core contract](../packages/core/README.md) and [coverage semantics](testing-coverage.md). Targets are exact labels or test IDs; arbitrary scripts/selectors are not accepted.
 
-The monolith build is the deployable artifact. These private packages are not published JavaScript libraries. A future standalone Node worker will need a bundle or a compiled package export strategy.
+Cancellation is terminal only after cleanup. The coordinator distinguishes `completed` with `passed|failed|blocked` from `cancelled|error` with no assertion outcome. Restart recovery marks unfinished jobs as interrupted infrastructure errors. There is no durable distributed queue or automatic replay of target-mutating workflows.
 
-## SOLID and DDD
+## Runtime composition and persistence
 
-Keep entities and value objects around real invariants. Use small ports for session allocation, step execution and QA evaluation. Treat the three QA modules as bounded-context candidates that can evolve with domain knowledge. Keep shared workflow semantics in core, and category-specific checks in their module. Platform authentication is distinct from evaluating a target application's security.
+`apps/web/server/composition/platform.ts` creates one process-level platform instance. It wires the real Playwright factory by default, a server-only secret resolver and the CSV renderer. Fake execution requires an explicit environment setting and remains labeled in runs and reports. Unknown adapter configuration fails explicitly.
 
-A new step requires schema, exhaustive translation, adapter behavior and tests in the same contract change. Existing schemaVersion 1 documents remain valid. Added assert steps support exact text, visibility and checked-state expectations.
+Metadata lives in `STORAGE_DIR/platform-v1.json`; attachments, evidence and exported reports live under managed storage paths. Atomic file writes and an in-process lock protect one writer. Use a persistent volume and one long-running service process. Multiple replicas and serverless request lifetimes are unsupported. Project scoping is not application authentication.
 
-See [developer handoff](developer-handoff.md) for ownership and acceptance criteria.
+CSV is rendered from the immutable snapshot and persisted before download. XLSX/PDF have shared transport contracts but no configured renderer. Uploads remain `extraction=pending` until the context pipeline is connected; accepting a PDF or screenshot for storage does not imply extraction or model support.
+
+## AI integration boundary
+
+Dev 2's provider, draft validation, context assembly and bounded loop are implemented modules. Production HTTP generation and model-to-browser composition remain pending. OpenAI environment settings alone do not connect these modules to the dashboard.
+
+Generation currently accepts only `functional-exact-total` and `requirements-acceptance` template IDs. The newer dashboard coverage-template IDs use deterministic parameter binding and are not accepted by `DraftGenerator`. The integration contract must reconcile those inputs explicitly before the UI offers live generation for them.
+
+The intended integrated loop uses a coordinator-owned session-bound `AgentToolPort`. Validate every model call before dispatch, enforce limits, preserve observed assertion results and let the coordinator own events, evidence and cleanup. Model explanations cannot change observed pass/fail/blocked results. A fake provider is explicit test data, never a silent fallback.
+
+## Package development and ownership
+
+Core and runner expose TypeScript source; Next.js transpiles both workspace packages. Runner depends on core, and web depends on both at runtime. Unit tests use `tsx`; browser tests have their own Playwright loading boundary. The [current CI blocker](project-status.md) concerns that test import boundary and must be resolved before the newer coverage release.
+
+The standalone Next.js image is the deployable artifact; these private packages are not published libraries. A future standalone worker would need its own bundling/export and job-lifecycle design.
+
+Dev 1 owns shared contracts and composition, Dev 2 AI/templates/context, Dev 3 browser execution/evidence, and Dev 4 UI/renderers/demo. New step types need coordinated schema, translation, adapter and regression coverage while preserving existing version-1 workflows. [The handoff](developer-handoff.md) defines exact paths; [REVIEW.md](../REVIEW.md) defines independent work and serial integration.

@@ -4,13 +4,13 @@
 
 Dev 1 is the single lead orchestrator and integration owner. The team has four developers total, including Dev 1. The lead assigns tasks, controls shared contracts, orders PRs, resolves integration conflicts with authors, merges into main and owns release verification.
 
-This guide governs collaboration. docs/developer-handoff.md defines hackathon scope and time gates. Existing code and passing CI establish scaffold readiness. The autonomous demo still requires the implementation tasks below.
+This guide governs collaboration. [developer-handoff.md](docs/developer-handoff.md) defines ownership, full-MVP scope and the original event time gates. [project-status.md](docs/project-status.md) distinguishes integrated features, remaining work and verified release evidence. Passing fixture tests alone does not establish the live autonomous journey.
 
 ## Parallel ownership and task queue
 
 The authoritative ownership matrix, contract gate and task dependency graph are in [developer-handoff.md](docs/developer-handoff.md). Dev 1 owns platform/integration, Dev 2 owns AI and template definitions, Dev 3 owns execution and evidence capture, and Dev 4 owns UI and report rendering. Use that exact path allocation when assigning tasks.
 
-L0 contracts land first. P1 platform, A1 AI, B1 browser and U1 UI proceed independently against those fixtures. I1 integrates the complete journey. Full-MVP follow-through includes every required template, attachments, evidence and exports. The seven-hour demonstration is a milestone within that scope.
+L0, P1, A1, B1 and U1 have landed; the task board retains their original acceptance records. New work starts from current main and reuses those contracts and fixtures. Further shared-contract changes land before their consumers. I1 still requires live AI composition to complete the generated-workflow journey. Full-MVP follow-through includes every required template, attachments, evidence and exports. The seven-hour demonstration is a milestone within that scope.
 
 Use one checkout per developer. On one computer, use separate worktrees and ports. Never run concurrent editing sessions in the same working directory. Task owners must request permission from the lead before editing another owner's paths. Dev 1 owns manifests and bun.lock updates.
 
@@ -83,7 +83,7 @@ bun run browsers:install
 bun run test:smoke
 ```
 
-Browser integration checks require port 1111 free. CI uses Chromium with Linux dependencies. Tests must exercise changed behavior and failure cases. Model-dependent checks also need deterministic fixtures so CI works without API credentials.
+Browser integration checks require the selected port free (1111 by default; use a separate `PORT` for each local checkout). CI uses Chromium with Linux dependencies. Tests must exercise changed behavior and failure cases. Model-dependent checks also need deterministic fixtures so CI works without API credentials.
 
 Verify run status, assertion outcome and artifact ownership across layers. A tool error or missing prerequisite must never become a successful test report. Review cancellation, time limits, cleanup and target-origin policy whenever browser execution changes.
 
@@ -95,7 +95,7 @@ Before the event, the repository administrator should configure main to require 
 
 ## Release gates
 
-Use the source plan's WIB times.
+The following are the source plan's WIB targets, not a record of achieved milestones. Use the current task/PR evidence to report readiness.
 
 - 10:00 — L0 merged and P1/A1/B1/U1 assigned.
 - 11:00 — independent UI, agent fixtures and deterministic browser harness work.

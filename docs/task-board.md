@@ -1,10 +1,12 @@
-# First journey: lead task board
+# Lead task board and delivery history
 
 Dev 1 owns this board and the serial merge queue. The user explicitly reassigned this session to Dev 1 on 2026-11-07; the active GitHub/commit identity is `madacoda` / `me@madacoda.dev`. Earlier records retain their historical authors. Dev 2 is `monsieurafa`, Dev 4 is `Hyuto`, and Dev 3 owns browser/evidence implementation. Implementation sessions use separate checkouts; independent review agents may inspect the lead checkout without editing it. GitHub REST review/merge access works with the authenticated lead account.
 
-Verified lead queue: #5 → #10 → #9 → #11 → #12 → #8 were reviewed, updated and squash-merged serially, with successful main CI between merges. Main `8df3fef016382717feaac85b1d983b6bdf072c25` passed [Linux/Windows/container CI and GHCR publication](https://github.com/madacoda/veriflow/actions/runs/42343422152). Duplicate deployment PR #7 is closed without merging or deleting its branch. Follow-ups #14 (draft/report UI) and #13 (HTTPS/runtime limits) retain their own latest-head gates; their GitHub PRs are the live status records.
+The reviewed serial queue #5 → #10 → #9 → #11 → #12 → #8 was followed by #14 (draft/report UI), #13 (HTTPS/runtime limits) and #15 (versioned catalog). Those PRs are merged. Duplicate #7 was closed without merging. Release `1266309` passed [Linux/Windows/container CI, GHCR publication and VPS deployment](https://github.com/madacoda/veriflow/actions/runs/42344768665).
 
-The 10:00 WIB gate elapsed before L0 landed. Do not report it as achieved on time. L0 is now merged and consumers can bind to main `3c432f1`; keep the 14:00 known-fail/known-pass cutoff. The full MVP remains the scope in developer-handoff.md. These tasks cover the first journey only.
+Documentation baseline `0e2d732` includes newer template execution and CSV composition, but its [Linux browser gate failed](https://github.com/madacoda/veriflow/actions/runs/42345424420); publication and deployment were skipped. See [project status](project-status.md) for the exact limitation and remaining work. The records below preserve original task scope and verification counts; they are not new assignments. GitHub issues and PRs hold live status.
+
+The 10:00 WIB gate elapsed before L0 landed. Do not report it as achieved on time. L0 merged at `3c432f1`; consumers now start from current main. The 14:00 cutoff was the original demonstration target. The full MVP remains the scope in developer-handoff.md. These tasks cover the first journey only.
 
 ## L0 — Dev 1; reviewer Dev 4, affected reviews Dev 2/3
 
@@ -43,7 +45,7 @@ The 10:00 WIB gate elapsed before L0 landed. Do not report it as achieved on tim
 - Budget/checkpoint: one independent platform slice while other owners review/start; reserve lead capacity for integration.
 - Out of scope: AI extraction/generation, browser adapter, UI and report content rendering.
 - PR/current commit: [PR #3](https://github.com/madacoda/veriflow/pull/3), merged by the user as `84327a7`; [main CI passed](https://github.com/madacoda/veriflow/actions/runs/42337370708).
-- Status: merged; original full local gate passed (49 unit tests and 2 browser tests), plus production upload/download/restart checks. P3 addresses portability discovered on Windows. Real extraction and rendering remain owner integrations.
+- Status: merged; original full local gate passed (49 unit tests and 2 browser tests), plus production upload/download/restart checks. P3 addresses portability discovered on Windows. Extraction integration and XLSX/PDF remain pending; CSV rendering and composition have since landed.
 
 ## P3 — Dev 1; reviewers Dev 3 and Dev 2
 
@@ -81,7 +83,7 @@ The 10:00 WIB gate elapsed before L0 landed. Do not report it as achieved on tim
 - Budget/checkpoint: independent browser fixture within 45 minutes of L0; report precise unsupported capabilities rather than claim full template execution.
 - Out of scope: HTTP routes, AI generation, template definition ownership, report rendering, shared contract edits without agreement.
 - PR/current commit: [PR #4](https://github.com/madacoda/veriflow/pull/4), reviewed head `afee170f6d452903bcba99f3cf88704efc26dc27`; squash-merged by Dev 1 as `39bd03ddc2ed5104738bf787b85588e1270033f7`.
-- Status: verified; Dev 1 and Dev 2 approved the same updated head after full gates (62 units, 18 browser tests). Exact test-ID round-trips and P3 credential-validation semantics are fixed. [Linux/Windows main CI passed](https://github.com/madacoda/veriflow/actions/runs/42340226085). Runtime wiring follows in I1-B.
+- Status: verified; Dev 1 and Dev 2 approved the same updated head after full gates (62 units, 18 browser tests). Exact test-ID round-trips and P3 credential-validation semantics are fixed. [Linux/Windows main CI passed](https://github.com/madacoda/veriflow/actions/runs/42340226085). Runtime wiring subsequently landed in I1-B (#10).
 
 ## U1 — Dev 4; reviewer Dev 1
 
@@ -94,7 +96,7 @@ The 10:00 WIB gate elapsed before L0 landed. Do not report it as achieved on tim
 - Budget/checkpoint: confirm target IDs immediately; independent UI fixture by next checkpoint; target 45 minutes after L0.
 - Out of scope: platform persistence, HTTP/storage report adapters, AI prompts, browser execution, contract/manifests changes without Dev 1.
 - PR/current commit: [PR #9](https://github.com/madacoda/veriflow/pull/9), owner `Hyuto`, merged as `a5047f6197a8a16c22a7608323382eda3354a004`.
-- Status: verified; the actual UI saves revisions, executes the known-fail/known-pass target, retrieves owned PNGs and preserves the earlier failed report. Main CI passed. Attachment UI and the pure CSV renderer followed in #11 (`d8701bc76f6ac6a44e87117f3211d81a176fb889`); extraction and renderer composition remain separate tasks.
+- Status: verified; the actual UI saves revisions, executes the known-fail/known-pass target, retrieves owned PNGs and preserves the earlier failed report. Main CI passed. Attachment UI and the pure CSV renderer followed in #11 (`d8701bc76f6ac6a44e87117f3211d81a176fb889`); CSV is now composed in the runtime; extraction and XLSX/PDF remain pending.
 
 ## I1-B — Dev 1; reviewer Dev 3
 
@@ -126,7 +128,7 @@ I1 is not verified until a user reviews generated steps, saves a revision, execu
 - Verification: credential-free deterministic auth tests plus authenticated real browser fail/pass and evidence retrieval. Adapt CI and container smoke with explicit fixture authentication, preserving production guards. Review secret handling, session expiry/invalidation, origin checks and every protected route on the exact PR head.
 - Budget/checkpoint: contract review first, then a reviewable backend slice; reserve lead merge/release capacity. Report exact blockers at the contract and end-to-end checkpoints.
 - Out of scope: self-registration, OAuth, multi-tenant roles and removal of the Nginx gate.
-- PR/current commit: not yet opened; no application-auth implementation is claimed by this review task.
+- Issue/PR: [AUTH-1 #16](https://github.com/madacoda/veriflow/issues/16), assigned to `madacoda`; no application-auth implementation is claimed by this documentation update. Planned initial username: `madacoda`. Proposed server-only configuration names are `AUTH_USERNAME`, `AUTH_PASSWORD_HASH` and `AUTH_SESSION_SECRET`; they are not active runtime settings yet. Provision password material privately in ignored local environment files or the VPS `app.env`.
 - Status: planned and assigned to Dev 1; contract freeze is the next action.
 
 ## AUTH-UI — Dev 4; reviewer Dev 1
@@ -139,5 +141,5 @@ I1 is not verified until a user reviews generated steps, saves a revision, execu
 - Verification: fixture UI tests against the frozen envelopes, followed by actual session-cookie login/logout and protected API/evidence checks after AUTH-1 integration. Include screenshots and exact commands in the PR.
 - Budget/checkpoint: UI work begins immediately after contract review; deliver a small independently reviewable PR before cutover testing.
 - Out of scope: password verification, cookie signing/session storage, auth route guards, deployment credentials and Nginx configuration.
-- PR/current commit: not yet opened; dispatch waits for the reviewed contract commit.
+- Issue/PR: [AUTH-UI #17](https://github.com/madacoda/veriflow/issues/17), assigned to `Hyuto`; implementation binding waits for the reviewed AUTH-1 contract commit.
 - Status: planned for Dev 4; not yet authorized to edit shared integration paths.

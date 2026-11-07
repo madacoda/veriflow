@@ -10,7 +10,7 @@ Docker builds enable Next standalone output. The packaging script copies the loc
 
 Only a successful push to `main` publishes `ghcr.io/madacoda/veriflow:sha-<commit>`. Publication pushes the exact image exercised by the container smoke test. VPS deployment uses its immutable `@sha256:...` digest. PRs never publish or connect to the VPS. Feature-branch pushes run the normal check; the PR runs the container check.
 
-Dev 1 reviews and merges this deployment PR. Set the repository Actions variable `VPS_DEPLOY_ENABLED` to `true` after provisioning the server and secrets. Leave it unset to publish images without deploying. This variable must be repository-scoped because job conditions are evaluated before loading the production environment.
+The deployment pipeline is merged. Dev 1 owns release review and verification; consult [current release evidence](project-status.md) before claiming a newer commit is deployed. Set the repository Actions variable `VPS_DEPLOY_ENABLED` to `true` after provisioning the server and secrets. Leave it unset to publish images without deploying. This variable must be repository-scoped because job conditions are evaluated before loading the production environment.
 
 ## GitHub configuration
 
@@ -99,11 +99,15 @@ Validate unauthenticated requests to `/`, `/api/projects`, `/health` and `/_next
 
 The included demo can be exercised by the server browser at `http://127.0.0.1:1111/demo?bug=1` (known fail) and `?bug=0` (known pass). These are server-side target URLs; do not put the public site's Basic Auth password in a workflow. Browser-origin allowlisting is not a network sandbox, so only trusted operators should receive access.
 
+## Planned application login
+
+Application username/password sessions are assigned through [AUTH-1 #16](https://github.com/madacoda/veriflow/issues/16) and [AUTH-UI #17](https://github.com/madacoda/veriflow/issues/17), but are not implemented. The intended initial username is `madacoda`; provision password material privately. Proposed `AUTH_USERNAME`, `AUTH_PASSWORD_HASH` and `AUTH_SESSION_SECRET` settings are planning names, not active runtime configuration. Local secrets belong in ignored `apps/web/.env.local`; production secrets belong in `/opt/veriflow/app.env` with mode 600. Commit only placeholders. Keep the current Nginx gate until a separately reviewed and verified cutover.
+
 ## First installation from a verified source commit
 
 A one-time bootstrap may build the exact verified source commit on the VPS while a release is being reviewed or published. Run `scripts/container-smoke.sh` against that image before starting production. Tag it under `ghcr.io/madacoda/veriflow`, inspect its locally available `RepoDigests`, and store the immutable `ghcr.io/madacoda/veriflow@sha256:...` reference in the release's `image.ref`, alongside `compose.yaml`. Verify that `docker image inspect` resolves this exact digest locally before recording the healthy release in `/opt/veriflow/current-release`. Tagging locally does not publish an image to GHCR. The first automated deployment can roll back to the retained local digest with `--pull never`. Do not prune the bootstrap image until a later healthy release is retained.
 
-Automatic publishing/deployment starts only after Dev 1 merges the PR into main. Runtime secrets and password hashes are server configuration and are never committed. Back up `veriflow-data` and `/opt/veriflow/app.env` before destructive maintenance; image rollback does not restore data. Off-host backups and product-level identity remain production follow-up work.
+Automatic publishing runs on main only after its checks pass; VPS deployment additionally requires `VPS_DEPLOY_ENABLED=true`. Runtime secrets and password hashes are server configuration and are never committed. Back up `veriflow-data` and `/opt/veriflow/app.env` before destructive maintenance; image rollback does not restore data. Off-host backups and product-level identity remain production follow-up work.
 
 ## Validation
 
@@ -117,6 +121,6 @@ docker build -t veriflow:test .
 bash scripts/container-smoke.sh veriflow:test
 ```
 
-The release orchestration tests explicitly use fake Docker/lock adapters to verify success, failed pulls, failed first deployment, rollback and credential cleanup. The container CI job verifies the real application, browser and storage on Linux. No live server release occurs merely by opening this PR.
+The release orchestration tests explicitly use fake Docker/lock adapters to verify success, failed pulls, failed first deployment, rollback and credential cleanup. The container CI job verifies the real application, browser and storage on Linux. Opening a PR does not publish an image or release to the live server.
 
 References: [GitHub container registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry), [Next standalone output](https://nextjs.org/docs/app/api-reference/config/next-config-js/output), [Playwright Docker guidance](https://playwright.dev/docs/docker), [Compose up and health waiting](https://docs.docker.com/reference/cli/docker/compose/up/).
