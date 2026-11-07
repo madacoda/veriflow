@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/next.mjs dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node scripts/next.mjs start",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "node --import tsx --test tests/*.test.ts"
   },

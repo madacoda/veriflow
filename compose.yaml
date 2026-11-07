@@ -1,0 +1,32 @@
+name: veriflow
+services:
+  web:
+    image: ${VERIFLOW_IMAGE:?Set VERIFLOW_IMAGE to a GHCR image digest}
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 30s
+    env_file:
+      - path: ${VERIFLOW_ENV_FILE:-.env}
+        format: raw
+    environment:
+      NODE_ENV: production
+      PORT: "1111"
+      HOSTNAME: 0.0.0.0
+      STORAGE_DIR: /data
+    ports:
+      - "${VPS_BIND_ADDRESS:-127.0.0.1}:${VPS_APP_PORT:-1111}:1111"
+    volumes:
+      - data:/data
+    shm_size: 1gb
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+volumes:
+  data:
+    name: veriflow-data

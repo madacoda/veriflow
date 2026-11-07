@@ -101,6 +101,6 @@ The complete MVP is not promised within seven hours. The lead reports demonstrat
 
 ## Verification
 
-Run bun install --frozen-lockfile, bun run lint, bun run format:check, bun run typecheck, bun run test:unit, bun run build and bun run test:smoke. Install Chromium first with bun run browsers:install. Browser tests need port 3000 free.
+Run bun install --frozen-lockfile, bun run lint, bun run format:check, bun run typecheck, bun run test:unit, bun run build and bun run test:smoke. Install Chromium first with bun run browsers:install. Browser tests need port 1111 free.
 
 For every milestone, verify the integrated result with real adapters as well as deterministic fixtures. Record current commit, commands, screenshots and limitations. Green scaffold CI alone does not prove any unimplemented capability.

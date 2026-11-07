@@ -11,7 +11,9 @@ bun install --frozen-lockfile
 bun run dev
 ```
 
-Open http://localhost:3000. Health is at /health and workflow validation at /api/workflows/validate. Copy apps/web/.env.example to apps/web/.env.local when configuring server integrations. Startup requires no AI key or browser download.
+Open http://localhost:1111. Health is at /health and workflow validation at /api/workflows/validate. Copy apps/web/.env.example to apps/web/.env.local when configuring server integrations. Startup requires no AI key or browser download.
+
+Set `PORT` in your shell to override the default for both the app and browser tests. For example, PowerShell: `$env:PORT = '2222'; bun run dev`; Bash: `PORT=2222 bun run dev`.
 
 Workspace packages export TypeScript source. Next.js transpiles core directly and tests use tsx, so a fresh checkout needs no preliminary package build or background compiler.
 
@@ -27,7 +29,7 @@ bun run browsers:install
 bun run test:smoke
 ```
 
-Browser tests start the production app on port 3000, which must be free. Run the build first. CI installs Chromium and its Linux dependencies. Run `bun run start` after building to serve the production monolith.
+Browser tests start the production app on port 1111, which must be free. Run the build first. CI installs Chromium and its Linux dependencies. Run `bun run start` after building to serve the production monolith.
 
 ## Developer handoff
 
@@ -45,7 +47,9 @@ The P1 platform adds persistent projects/workflow revisions, run create/status/c
 
 ## Deployment
 
-Build and start one long-running Next.js service with Node.js 24 and one writer process. Configure STORAGE_DIR to a persistent volume for projects, revisions, runs and evidence. Unfinished runs recover as interrupted infrastructure errors after a process restart. A future supervised worker will need durable job coordination before separating execution from the service. The validation endpoint performs no execution or storage writes. Deployment hosting and CD remain unconfigured.
+Build and start one long-running Next.js service with Node.js 24 and one writer process. Configure STORAGE_DIR to a persistent volume for projects, revisions, runs and evidence. Unfinished runs recover as interrupted infrastructure errors after a process restart. A future supervised worker will need durable job coordination before separating execution from the service. The validation endpoint performs no execution or storage writes.
+
+CI builds and tests a non-root Docker image on port 1111, including Chromium and persistent storage. Successful `main` pushes publish the tested image to `ghcr.io/madacoda/veriflow:sha-<commit>`. VPS deployment uses image digests, persistent storage and health-checked rollback. It remains disabled until the documented `VPS_*` secrets and `VPS_DEPLOY_ENABLED` variable are configured. See [GHCR and VPS setup](docs/deployment.md).
 
 ## Dependency review
 
