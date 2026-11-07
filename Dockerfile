@@ -15,7 +15,7 @@ COPY . .
 RUN BUILD_STANDALONE=1 bun run build
 # Keep the exact lockfile-resolved Playwright browser installer, without copying
 # build tooling into the final image. The runner is a Bun isolated workspace.
-RUN node scripts/copy-playwright.mjs /opt/playwright \
+RUN node scripts/copy-playwright.mjs /opt/playwright apps/web/.next/standalone \
     && mkdir -p apps/web/public
 
 FROM base AS runtime

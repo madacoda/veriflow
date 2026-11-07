@@ -9,6 +9,8 @@ cleanup() {
 }
 trap cleanup EXIT
 docker run -d --name "$name" --init --shm-size=1g \
+  --cap-drop ALL --security-opt no-new-privileges:true \
+  --memory 2g --cpus 2 --pids-limit 512 \
   -p 127.0.0.1:1111:1111 -v "$volume:/data" "$image"
 wait_healthy() {
   for ((attempt=0; attempt<60; attempt++)); do
@@ -21,10 +23,6 @@ wait_healthy() {
 wait_healthy
 body=$(curl --fail --silent http://127.0.0.1:1111/)
 grep -q Veriflow <<< "$body"
-project_id=$(curl --fail --silent http://127.0.0.1:1111/api/projects \
-  -H 'Content-Type: application/json' \
-  -d '{"title":"Container persistence smoke","url":"https://example.com"}' \
-  | docker exec -i "$name" node -pe 'JSON.parse(require("node:fs").readFileSync(0,"utf8")).project.id')
 docker exec "$name" node -e '
   const assert = require("node:assert/strict");
   const { chromium } = require("/opt/playwright");
@@ -40,9 +38,8 @@ docker exec "$name" node -e '
     } finally { await browser.close(); }
   })().catch(error => { console.error(error); process.exit(1); });
 '
-docker exec -i "$name" node --input-type=module < scripts/container-workflow-smoke.mjs
+state=$(docker exec -i "$name" node --input-type=module - run < scripts/container-http-smoke.mjs)
 docker restart "$name"
 wait_healthy
-curl --fail --silent "http://127.0.0.1:1111/api/projects/$project_id" \
-  | docker exec -i "$name" node -e 'const p=JSON.parse(require("node:fs").readFileSync(0,"utf8")).project; require("node:assert/strict").equal(p.title,"Container persistence smoke")'
-echo 'Container smoke passed: UI, health, non-root Chromium, real fail/pass PNGs, persistent storage.'
+docker exec -i "$name" node --input-type=module - verify "$state" < scripts/container-http-smoke.mjs
+echo 'Container smoke passed: UI, health, non-root Chromium, real HTTP fail/pass, owned PNGs and restart persistence.'

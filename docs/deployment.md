@@ -4,7 +4,9 @@ One Next.js monolith runs on Node 24. Bun 1.4.4 installs the locked workspace du
 
 ## Release flow
 
-The existing CI check runs first. PRs additionally build the Linux amd64 image and verify UI/health, real non-root Chromium, a real PNG and project persistence across a container restart. Docker builds enable Next standalone output and include the exact lockfile-resolved Playwright browser distribution. A Linux build is authoritative; Windows builds leave standalone off to avoid symlink privilege requirements.
+The existing CI check runs first. PRs additionally build the Linux amd64 image and verify UI/health, real non-root Chromium and saved workflow execution through the production HTTP routes. The buggy coupon workflow must fail with expected 90000 and actual 100000; its corrected revision must pass with actual 90000. Both runs must expose owned PNGs, and their reports and evidence must survive a container restart. The smoke uses the same dropped capabilities and no-new-privileges setting as Compose.
+
+Docker builds enable Next standalone output. The packaging script copies the lockfile-resolved Playwright installer and completes the packages at the standalone server's resolved dependency locations, including dynamically loaded browser metadata omitted by static tracing. A Linux build is authoritative; Windows builds leave standalone off to avoid symlink privilege requirements.
 
 Only a successful push to `main` publishes `ghcr.io/madacoda/veriflow:sha-<commit>`. Publication pushes the exact image exercised by the container smoke test. VPS deployment uses its immutable `@sha256:...` digest. PRs never publish or connect to the VPS. Feature-branch pushes run the normal check; the PR runs the container check.
 

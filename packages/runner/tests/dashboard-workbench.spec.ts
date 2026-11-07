@@ -8,6 +8,75 @@ import {
 } from "@veriflow/core/fixtures";
 import type { ProjectRecord, RunRecord } from "@veriflow/core";
 
+test("recovers from a poll error and displays a partial capture warning", async ({
+  page,
+  baseURL,
+}) => {
+  const origin = baseURL ?? new URL(demoProject.url).origin;
+  const { id, projectId } = demoFailedRun;
+  const path = `**/api/projects/${projectId}`;
+  const active: RunRecord = {
+    ...demoFailedRun,
+    lifecycle: "running",
+    outcome: null,
+    finishedAt: undefined,
+    events: demoFailedRun.events.slice(0, 2),
+    steps: [],
+    evidence: {
+      ...demoFailedRun.evidence,
+      capture: "unavailable",
+      artifacts: [],
+    },
+  };
+  const completed: RunRecord = {
+    ...demoFailedRun,
+    evidence: {
+      ...demoFailedRun.evidence,
+      capture: "partial",
+      warnings: ["Fixture screenshot was captured, but video was unavailable."],
+    },
+  };
+  let recovered = false;
+  await page.route("**/api/projects", (route) =>
+    route.fulfill({ json: { projects: [demoProject] } }),
+  );
+  await page.route(`${path}/workflows`, (route) =>
+    route.fulfill({ json: { workflows: [demoRevision] } }),
+  );
+  await page.route(`${path}/runs`, (route) =>
+    route.fulfill({ json: { runs: [active] } }),
+  );
+  await page.route(`${path}/runs/${id}`, (route) =>
+    recovered
+      ? route.fulfill({ json: { run: completed } })
+      : route.fulfill({
+          status: 500,
+          json: {
+            error: { code: "internal_error", message: "Fixture poll failed" },
+          },
+        }),
+  );
+
+  await page.goto(origin);
+  await page.getByLabel("Selected project").selectOption(projectId);
+  const runs = page.getByRole("region", { name: "Saved revisions and runs" });
+  await runs.getByLabel("Run history").selectOption(id);
+  await expect(runs.getByRole("status")).toContainText("running");
+  await expect(runs.getByRole("alert")).toContainText(
+    "Could not refresh run status. Fixture poll failed",
+  );
+  recovered = true;
+  await expect(runs.getByRole("status")).toContainText("completed");
+  await expect(runs.getByRole("alert")).toHaveCount(0);
+  await expect(runs.getByText("Capture partial")).toBeVisible();
+  await expect(
+    runs.getByText(
+      "Fixture screenshot was captured, but video was unavailable.",
+    ),
+  ).toBeVisible();
+  await expect(runs.getByRole("link", { name: /screenshot/i })).toHaveCount(0);
+});
+
 test("polls a labeled fake run until cancellation completes", async ({
   page,
   baseURL,

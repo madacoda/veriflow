@@ -304,6 +304,11 @@
   padding-block: 0.5rem;
 }
 
+.attachment {
+  padding-block: 0.35rem;
+  overflow-wrap: anywhere;
+}
+
 .code {
   max-height: 14rem;
   overflow: auto;
