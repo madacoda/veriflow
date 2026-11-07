@@ -9,6 +9,7 @@ import {
 } from "@veriflow/core";
 import { DEFAULT_TIMEOUT_MS, withBudget } from "./budget.ts";
 import { AgentError } from "./errors.ts";
+import { canContinueAfter, observedResult } from "./results.ts";
 
 export const DEFAULT_MAX_CALLS = 12;
 export const MAX_CALLS = 100;
@@ -71,42 +72,6 @@ function boundedObservation(
         value: target.value,
       })),
   };
-}
-
-function observedResult(value: unknown, stepId: string): StepResult {
-  if (
-    !object(value) ||
-    value.stepId !== stepId ||
-    typeof value.status !== "string" ||
-    !["passed", "failed", "blocked"].includes(value.status) ||
-    (value.status !== "passed" &&
-      (typeof value.reason !== "string" || !value.reason.trim())) ||
-    ["expected", "actual", "reason", "startedAt", "finishedAt"].some(
-      (key) =>
-        value[key] !== undefined &&
-        (typeof value[key] !== "string" || value[key].length > 20_000),
-    ) ||
-    (value.failureKind !== undefined &&
-      (typeof value.failureKind !== "string" ||
-        !["assertion", "prerequisite", "infrastructure", "cancelled"].includes(
-          value.failureKind,
-        ))) ||
-    (value.status === "passed" && value.failureKind !== undefined)
-  )
-    throw new AgentError("tool_failed");
-  // Only shared fields cross back; preserve observed status/expected/actual exactly.
-  const result = { stepId, status: value.status } as StepResult;
-  for (const key of [
-    "expected",
-    "actual",
-    "reason",
-    "startedAt",
-    "finishedAt",
-    "failureKind",
-  ] as const) {
-    if (value[key] !== undefined) Object.assign(result, { [key]: value[key] });
-  }
-  return result;
 }
 
 /** The coordinator supplies its session port and retains all finalization duties. */
@@ -193,8 +158,9 @@ export async function runAgentLoop(
             stepIds.add(call.step.id);
             steps.push(result);
             history.push({ call, result });
-            // A failed assertion or blocked prerequisite cannot be retried into success by AI.
-            if (result.status !== "passed") return { history, steps };
+            // Independent checks retain failures while allowing later coverage.
+            // Duplicate IDs and the reviewed provider still prohibit retries.
+            if (!canContinueAfter(call.step, result)) return { history, steps };
           }
         } catch (error) {
           checkActive();
