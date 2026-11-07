@@ -6,6 +6,9 @@
     "noEmit": true,
     "module": "esnext",
     "moduleResolution": "bundler",
+    "paths": {
+      "@/*": ["./*"]
+    },
     "jsx": "preserve",
     "incremental": true,
     "plugins": [

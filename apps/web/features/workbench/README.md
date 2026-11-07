@@ -6,9 +6,15 @@ The run panel sends the chosen workflow ID and exact revision to P1. It polls ac
 
 The attachment panel lists files for the selected project and uploads one file at a time through P2. A successful upload starts at **Extraction pending**. Refresh the list to see updated extraction status or a failure reason. The browser checks the file size and supported formats before upload and keeps the selected file available for retry after a failed request.
 
-Open **Preview draft generation** to select an objective, the shared fixture template, and attachment references. The preview shows its fixture provider, source references, warnings, and workflow steps. The editor changes when the user explicitly opens the preview. Saving remains a separate action.
+Open **Preview draft generation** to enter an objective and select templates and attachment references. **API generation** reads the template catalog and requests a project-scoped draft. The preview displays the returned provider, source references, warnings, and workflow steps. **Fixture preview** is a separate mode for reviewing seeded steps. The editor changes when the user explicitly opens a draft. Saving remains a separate action.
+
+API generation requires `GET /api/templates` and `POST /api/projects/:projectId/workflows/generate`. These platform routes are pending. **Testing template** uses the existing project template API to build a deterministic draft from parameters. Catalog and provider errors stay visible with the entered inputs available for retry. Dashboard tests exercise the generation response contract with mock HTTP routes.
 
 Terminal runs expose CSV, XLSX, and PDF download controls through P2. Each format requires a configured renderer. The UI displays an unavailable renderer response and allows retry. Dashboard tests use labeled transport fixtures to verify response handling and downloaded bytes.
+
+## UI components
+
+The web workspace uses shadcn/ui Radix Nova with Tailwind CSS v4. Theme tokens are in `apps/web/app/globals.css`. From the repository root, use `bun run --cwd apps/web shadcn add <component>` to add a registry component to `apps/web/features/ui/`. [shadcn/ui installation](https://ui.shadcn.com/docs/installation/manual) · [Tailwind CSS with Next.js](https://tailwindcss.com/docs/installation/framework-guides/nextjs)
 
 ## Dashboard verification
 

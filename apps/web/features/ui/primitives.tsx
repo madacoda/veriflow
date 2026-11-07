@@ -1,19 +1,41 @@
 import type { ComponentProps } from "react";
+import {
+  Card as RegistryCard,
+  CardContent as RegistryCardContent,
+  CardHeader as RegistryCardHeader,
+} from "./card";
+import { Input as RegistryInput } from "./input";
 import styles from "./primitives.module.css";
+import { cn } from "./utils";
 
-// shadcn/ui New York Card and Input, adapted to CSS modules.
-export function Card(props: ComponentProps<"div">) {
-  return <div data-slot="card" className={styles.card} {...props} />;
+export function Card({
+  className,
+  ...props
+}: ComponentProps<typeof RegistryCard>) {
+  return <RegistryCard className={cn(styles.card, className)} {...props} />;
 }
 
-export function CardHeader(props: ComponentProps<"div">) {
-  return <div data-slot="card-header" className={styles.header} {...props} />;
+export function CardHeader({
+  className,
+  ...props
+}: ComponentProps<typeof RegistryCardHeader>) {
+  return (
+    <RegistryCardHeader className={cn(styles.header, className)} {...props} />
+  );
 }
 
-export function CardContent(props: ComponentProps<"div">) {
-  return <div data-slot="card-content" className={styles.content} {...props} />;
+export function CardContent({
+  className,
+  ...props
+}: ComponentProps<typeof RegistryCardContent>) {
+  return (
+    <RegistryCardContent className={cn(styles.content, className)} {...props} />
+  );
 }
 
-export function Input(props: ComponentProps<"input">) {
-  return <input data-slot="input" className={styles.input} {...props} />;
+export function Input({
+  className,
+  ...props
+}: ComponentProps<typeof RegistryInput>) {
+  return <RegistryInput className={cn(styles.input, className)} {...props} />;
 }
