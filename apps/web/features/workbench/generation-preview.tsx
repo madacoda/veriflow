@@ -6,17 +6,20 @@ import {
   type AttachmentMetadata,
   type WorkflowDraft,
 } from "@veriflow/core";
-import { demoTemplate, demoWorkflow } from "@veriflow/core/fixtures";
+import { demoTemplate } from "@veriflow/core/fixtures";
 import { type FormEvent, useState } from "react";
 import { extractionLabels } from "./attachments";
+import { createCouponFixtureWorkflow } from "./coupon-fixture";
 import styles from "./workbench.module.css";
 
 export function GenerationPreview({
+  projectUrl,
   attachments,
   hasDraft,
   pending,
   onOpen,
 }: {
+  projectUrl: string;
   attachments: readonly AttachmentMetadata[];
   hasDraft: boolean;
   pending: boolean;
@@ -52,7 +55,7 @@ export function GenerationPreview({
       draft: {
         contractVersion: CONTRACT_VERSION,
         provider: "fixture",
-        workflow: demoWorkflow,
+        workflow: createCouponFixtureWorkflow(projectUrl),
         sourceAttachmentIds: sources.map((item) => item.id),
         warnings: [
           "This fixture uses seeded workflow steps and attachment metadata.",

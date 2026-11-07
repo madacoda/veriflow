@@ -6,27 +6,18 @@ import {
   type ProjectRecord,
   type RunRecord,
   type Workflow,
-  type WorkflowDraft,
   type WorkflowRevision,
 } from "@veriflow/core";
-import { demoProject, demoWorkflow } from "@veriflow/core/fixtures";
 import Link from "next/link";
 import { type FormEvent, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, Input } from "../ui/primitives";
 import { api, RequestError } from "./api";
 import { ProjectAttachments } from "./attachments";
+import { createCouponFixtureWorkflow } from "./coupon-fixture";
 import { GenerationPreview } from "./generation-preview";
 import { ReportDownloads } from "./report-downloads";
 import { FixturePreview, isActive, RunTimeline } from "./timeline";
 import styles from "./workbench.module.css";
-
-const couponDraft: WorkflowDraft = {
-  contractVersion: "1",
-  workflow: demoWorkflow,
-  sourceAttachmentIds: [],
-  warnings: [],
-  provider: "fixture",
-};
 
 function message(error: unknown) {
   return error instanceof Error
@@ -43,11 +34,13 @@ function upsertRun(runs: RunRecord[], updated: RunRecord) {
 
 function WorkflowEditor({
   projectId,
+  projectUrl,
   attachments,
   selected,
   onSaved,
 }: {
   projectId: string;
+  projectUrl: string;
   attachments: readonly AttachmentMetadata[];
   selected: { workflowId: string; revision: number } | null;
   onSaved: (workflow: WorkflowRevision) => void;
@@ -65,14 +58,27 @@ function WorkflowEditor({
   >([]);
   const [templateId, setTemplateId] = useState("");
   const [parameters, setParameters] = useState("{}");
+  const [templatesLoading, setTemplatesLoading] = useState(true);
+  const [templatesError, setTemplatesError] = useState("");
+  const [catalogVersion, setCatalogVersion] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
     api
       .templates(projectId, controller.signal)
-      .then((response) => setTemplates(response.templates))
-      .catch(() => {});
+      .then((response) => {
+        if (!controller.signal.aborted) setTemplates(response.templates);
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted)
+          setTemplatesError(
+            `Could not load testing templates. ${message(error)}`,
+          );
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setTemplatesLoading(false);
+      });
     return () => controller.abort();
-  }, [projectId]);
+  }, [projectId, catalogVersion]);
   async function loadTemplate() {
     setPending(true);
     setError("");
@@ -200,6 +206,7 @@ function WorkflowEditor({
         </CardHeader>
         <CardContent>
           <GenerationPreview
+            projectUrl={projectUrl}
             attachments={attachments}
             hasDraft={draft !== null}
             pending={pending}
@@ -212,6 +219,7 @@ function WorkflowEditor({
               <label className={styles.field}>
                 Testing template
                 <select
+                  disabled={templatesLoading || !!templatesError}
                   value={templateId}
                   onChange={(event) => {
                     const id = event.currentTarget.value;
@@ -233,6 +241,28 @@ function WorkflowEditor({
                   ))}
                 </select>
               </label>
+              {templatesLoading && (
+                <p role="status">Loading testing templates.</p>
+              )}
+              {templatesError && (
+                <div className={styles.form}>
+                  <p className={styles.error} role="alert">
+                    {templatesError}
+                  </p>
+                  <div className={styles.actions}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTemplatesError("");
+                        setTemplatesLoading(true);
+                        setCatalogVersion((version) => version + 1);
+                      }}
+                    >
+                      Retry testing templates
+                    </button>
+                  </div>
+                </div>
+              )}
               {templateId && (
                 <>
                   <p>
@@ -262,7 +292,11 @@ function WorkflowEditor({
                 <button
                   type="button"
                   onClick={() =>
-                    openDraft(couponDraft.workflow, null, "Coupon fixture")
+                    openDraft(
+                      createCouponFixtureWorkflow(projectUrl),
+                      null,
+                      "Coupon fixture",
+                    )
                   }
                 >
                   Load coupon fixture
@@ -518,6 +552,7 @@ function ProjectWorkbench({ project }: { project: ProjectRecord }) {
     <>
       <WorkflowEditor
         projectId={project.id}
+        projectUrl={project.url}
         attachments={attachments}
         selected={selected}
         onSaved={recordSave}
@@ -673,7 +708,7 @@ export function Workbench() {
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [projectId, setProjectId] = useState("");
   const [title, setTitle] = useState("");
-  const [url, setUrl] = useState(demoProject.url);
+  const [url, setUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadVersion, setLoadVersion] = useState(0);
   const [pending, setPending] = useState(false);
@@ -691,13 +726,20 @@ export function Workbench() {
         if (!controller.signal.aborted) setError(message(error));
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted) {
+          setUrl(
+            (current) =>
+              current ?? new URL("/demo?bug=1", window.location.origin).href,
+          );
+          setLoading(false);
+        }
       });
     return () => controller.abort();
   }, [loadVersion]);
 
   async function createProject(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (url === null) return;
     setError("");
     setPending(true);
     try {
@@ -760,7 +802,7 @@ export function Workbench() {
                       <Input
                         type="url"
                         required
-                        value={url}
+                        value={url ?? ""}
                         onChange={(event) => setUrl(event.currentTarget.value)}
                       />
                     </label>
