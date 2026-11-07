@@ -70,7 +70,7 @@ export function ReportDownloads({
       aria-labelledby="run-report-heading"
     >
       <h3 id="run-report-heading">Run report</h3>
-      <p>Download formats depend on the configured report renderer.</p>
+      <p>Export this saved run&apos;s results and evidence references.</p>
       <div className={styles.actions}>
         {formats.map((format) => (
           <button
