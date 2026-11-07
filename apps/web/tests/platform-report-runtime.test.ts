@@ -12,6 +12,7 @@ test("runtime PDF export downloads the pinned report and preserves CSV and JSON"
   const root = await mkdtemp(join(tmpdir(), "veriflow-runtime-pdf-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const { http, store, coordinator } = await createRuntimePlatform({
+    NODE_ENV: "test",
     STORAGE_DIR: root,
     VERIFLOW_RUN_ADAPTER: "fake",
     VERIFLOW_FAKE_OUTCOME: "failed",
