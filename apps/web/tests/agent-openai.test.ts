@@ -590,7 +590,7 @@ test("reviewed execution rejects invalid project, revision, workflow and origin 
   assert.equal(http.requests.length, 0);
 });
 
-test("tool history must be a passed prefix of the reviewed workflow and fit the call/input bounds", async () => {
+test("tool history must be a valid continuable prefix of the reviewed workflow and fit the call/input bounds", async () => {
   const http = transport([response(call("finish", {}))]);
   const reordered = passedHistory().reverse();
   const failed = passedHistory();

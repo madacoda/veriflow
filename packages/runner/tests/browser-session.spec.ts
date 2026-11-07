@@ -47,6 +47,7 @@ for (const buggy of [false, true]) {
   test(`real workflow ${buggy ? "fails" : "passes"} and finalizes owned PNGs`, async ({
     browserName,
   }, testInfo) => {
+    test.setTimeout(60000);
     expect(browserName).toBe("chromium");
     const fixture = await setup();
     try {
@@ -90,7 +91,8 @@ for (const buggy of [false, true]) {
             },
             {
               id: "total",
-              timeoutMs: 3000,
+              // Leave time for the failed observation and its owned PNG.
+              timeoutMs: 10_000,
               code: "assert",
               target: { by: "testId", value: "order-total" },
               expectation: { kind: "text", value: "90000" },

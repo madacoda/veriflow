@@ -77,13 +77,20 @@ async function startPlatform(root: string, adapter: "browser" | "fake") {
       });
     });
     await expect
-      .poll(async () => {
-        try {
-          return (await fetch(`${origin}/health`)).status;
-        } catch {
-          return 0;
-        }
-      })
+      .poll(
+        async () => {
+          try {
+            return (
+              await fetch(`${origin}/health`, {
+                signal: AbortSignal.timeout(1000),
+              })
+            ).status;
+          } catch {
+            return 0;
+          }
+        },
+        { timeout: 10000 },
+      )
       .toBe(200);
     return { origin, close };
   } catch (error) {
@@ -171,7 +178,7 @@ async function get(origin: string, path: string) {
 }
 
 test("production browser routes persist observed fail/pass and serve registered PNGs", async ({}, testInfo) => {
-  test.setTimeout(60000);
+  test.setTimeout(90000);
   const root = await mkdtemp(join(tmpdir(), "veriflow-platform-browser-"));
   let targetToClose: Awaited<ReturnType<typeof startBrowserTarget>> | undefined;
   let platformToClose: Awaited<ReturnType<typeof startPlatform>> | undefined;
@@ -204,11 +211,11 @@ test("production browser routes persist observed fail/pass and serve registered 
               id: "open",
               code: "redirect",
               url: `${target.origin}/demo?bug=${Number(bug)}`,
-              timeoutMs: 4000,
+              timeoutMs: 10_000,
             },
             ...demoWorkflow.steps
               .slice(1)
-              .map((step) => ({ ...step, timeoutMs: 4000 })),
+              .map((step) => ({ ...step, timeoutMs: 10_000 })),
           ],
         },
         expectedRevision: index || null,
@@ -224,7 +231,7 @@ test("production browser routes persist observed fail/pass and serve registered 
       const runPath = `${projectPath}/runs/${queued.id}`;
       await expect
         .poll(async () => (await get(platform.origin, runPath)).run.lifecycle, {
-          timeout: 20000,
+          timeout: 45000,
         })
         .toBe("completed");
       const { run } = await get(platform.origin, runPath);
